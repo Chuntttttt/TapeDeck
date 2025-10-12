@@ -72,7 +72,7 @@ func TestRequestPIN(t *testing.T) {
 			defer server.Close()
 
 			// Create client and make request
-			client := NewAuthClient(server.URL, tt.clientID, tt.productName)
+			client := NewAuthClient(server.URL, tt.clientID, tt.productName, false)
 			pin, err := client.RequestPIN()
 
 			// Check results
@@ -158,7 +158,7 @@ func TestCheckPIN(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := NewAuthClient(server.URL, "test-client", "TapeDeck")
+			client := NewAuthClient(server.URL, "test-client", "TapeDeck", false)
 			response, err := client.CheckPIN(tt.pinID)
 
 			if (err != nil) != tt.wantErr {
@@ -179,7 +179,7 @@ func TestCheckPIN(t *testing.T) {
 }
 
 func TestGetAuthURL(t *testing.T) {
-	client := NewAuthClient("https://plex.tv", "test-client-123", "TapeDeck")
+	client := NewAuthClient("https://plex.tv", "test-client-123", "TapeDeck", false)
 	pinCode := "ABC123"
 	forwardURL := "http://localhost:3001/auth/callback"
 

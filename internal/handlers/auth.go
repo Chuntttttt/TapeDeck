@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -57,6 +58,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get Plex auth URL
+	// Note: Plex requires a forwardUrl but won't actually redirect to localhost
+	// We use polling instead to detect authorization
 	callbackURL := fmt.Sprintf("%s://%s/auth/callback", scheme(r), r.Host)
 	authURL := h.plexAuth.GetAuthURL(pin.Code, callbackURL)
 
@@ -66,6 +69,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Login - TapeDeck</title>
     <style>
         body { font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }
@@ -73,16 +77,139 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
                   text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
         .button:hover { background: #cc8f0a; }
         .pin-code { font-size: 24px; font-weight: bold; margin: 20px 0; letter-spacing: 4px; }
+        .status { color: #666; margin: 20px 0; }
+        .success { color: #2d5016; }
     </style>
 </head>
 <body>
     <h1>🎬 TapeDeck</h1>
     <p>Connect your Plex account to get started</p>
     <div class="pin-code">%s</div>
-    <a href="%s" class="button">Login with Plex</a>
+    <a href="%s" class="button" target="_blank">Login with Plex</a>
     <p><small>Or visit <a href="https://plex.tv/link">plex.tv/link</a> and enter the code above</small></p>
+    <div class="status" id="status">Waiting for authorization...</div>
+    <script>
+        let pollCount = 0;
+        const maxPolls = 60; // 3 minutes with 3s intervals
+
+        function pollStatus() {
+            if (pollCount >= maxPolls) {
+                document.getElementById('status').textContent = 'Authorization timed out. Please refresh to try again.';
+                return;
+            }
+
+            fetch('/auth/poll-status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.authorized) {
+                        document.getElementById('status').textContent = '✓ Authorized! Redirecting...';
+                        document.getElementById('status').className = 'status success';
+                        setTimeout(() => { window.location.href = '/'; }, 1000);
+                    } else {
+                        pollCount++;
+                        setTimeout(pollStatus, 3000); // Poll every 3 seconds to avoid rate limits
+                    }
+                })
+                .catch(err => {
+                    console.error('Poll error:', err);
+                    pollCount++;
+                    setTimeout(pollStatus, 3000);
+                });
+        }
+
+        // Start polling after a brief delay
+        setTimeout(pollStatus, 3000);
+    </script>
 </body>
 </html>`, pin.Code, authURL)
+}
+
+// PollStatus handles the GET /auth/poll-status endpoint for JavaScript polling
+func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
+	session := getOrCreateSession(h.sessionStore, r)
+
+	// Get PIN ID from session
+	pinIDVal, ok := session.Values["plex_pin_id"]
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
+		return
+	}
+
+	pinID, ok := pinIDVal.(int)
+	if !ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
+		return
+	}
+
+	// Check PIN status
+	check, err := h.plexAuth.CheckPIN(pinID)
+	if err != nil {
+		// Don't log 429 rate limit errors - they're expected with polling
+		if err.Error() != "unexpected status code: 429" {
+			log.Printf("Failed to check PIN: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
+		return
+	}
+
+	// If not authorized yet, return false
+	if check.AuthToken == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
+		return
+	}
+
+	// Authorized! Create/update user and set session
+	authToken := check.AuthToken
+	plexUserID := "plex-user-" + authToken[:10]
+	plexUsername := "PlexUser"
+
+	user, err := h.db.GetUserByPlexUserID(plexUserID)
+	if err != nil {
+		// User doesn't exist, create new one
+		user = models.NewUser(plexUsername, plexUserID, authToken)
+		userID, err := h.db.CreateUser(user)
+		if err != nil {
+			log.Printf("Failed to create user: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
+			return
+		}
+		user.ID = userID
+	} else {
+		// Update existing user's token
+		user.PlexAuthToken = authToken
+		user.UpdatedAt = time.Now()
+		if err := h.db.UpdateUser(user); err != nil {
+			log.Printf("Failed to update user: %v", err)
+		}
+	}
+
+	// Store user ID in session
+	middleware.SetUserID(session, user.ID)
+	delete(session.Values, "plex_pin_id")
+	delete(session.Values, "plex_pin_code")
+
+	if err := session.Save(r, w); err != nil {
+		log.Printf("Failed to save session: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
+		return
+	}
+
+	// Return success
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": true})
 }
 
 // Callback handles the GET /auth/callback endpoint after Plex authorization

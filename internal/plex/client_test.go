@@ -11,7 +11,7 @@ func TestNewClient(t *testing.T) {
 	serverURL := "http://localhost:32400"
 	authToken := "test-token"
 
-	client := NewClient(serverURL, authToken)
+	client := NewClient(serverURL, authToken, false)
 
 	if client == nil {
 		t.Fatal("NewClient() returned nil")
@@ -104,7 +104,7 @@ func TestGetLibraries(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := NewClient(server.URL, "test-token")
+			client := NewClient(server.URL, "test-token", false)
 			libraries, err := client.GetLibraries()
 
 			if (err != nil) != tt.wantErr {
@@ -196,7 +196,7 @@ func TestGetLibraryContents(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := NewClient(server.URL, "test-token")
+			client := NewClient(server.URL, "test-token", false)
 			items, err := client.GetLibraryContents(tt.libraryKey)
 
 			if (err != nil) != tt.wantErr {
@@ -288,7 +288,7 @@ func TestSearch(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := NewClient(server.URL, "test-token")
+			client := NewClient(server.URL, "test-token", false)
 			results, err := client.Search(tt.query)
 
 			if (err != nil) != tt.wantErr {

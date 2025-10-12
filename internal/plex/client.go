@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -59,11 +60,20 @@ type SearchResponse struct {
 }
 
 // NewClient creates a new Plex API client
-func NewClient(serverURL, authToken string) *Client {
+func NewClient(serverURL, authToken string, devMode bool) *Client {
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	// In dev mode, skip TLS verification (useful for macOS certificate issues)
+	if devMode {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		}
+	}
+
 	return &Client{
 		serverURL:  serverURL,
 		authToken:  authToken,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: client,
 	}
 }
 

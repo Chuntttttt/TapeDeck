@@ -13,7 +13,7 @@ import (
 func TestAuthHandler_Login_GET(t *testing.T) {
 	// Create test dependencies
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
-	authClient := plex.NewAuthClient("https://plex.tv", "test-client", "TapeDeck")
+	authClient := plex.NewAuthClient("https://plex.tv", "test-client", "TapeDeck", false)
 
 	handler := NewAuthHandler(store, authClient, nil)
 
@@ -38,7 +38,7 @@ func TestAuthHandler_Callback_Success(t *testing.T) {
 	// mocking the Plex PIN check and database operations
 	// For now, we'll test the basic structure
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
-	authClient := plex.NewAuthClient("https://plex.tv", "test-client", "TapeDeck")
+	authClient := plex.NewAuthClient("https://plex.tv", "test-client", "TapeDeck", false)
 
 	// Create temporary test database
 	testDB, err := db.New(":memory:")
@@ -129,4 +129,3 @@ func TestGetOrCreateSession_ExistingSession(t *testing.T) {
 		t.Error("Session did not preserve values")
 	}
 }
-

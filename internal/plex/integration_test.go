@@ -22,7 +22,7 @@ func TestIntegration_PlexAuth(t *testing.T) {
 	productName := "TapeDeck"
 
 	t.Log("Creating auth client...")
-	authClient := NewAuthClient("https://plex.tv", clientID, productName)
+	authClient := NewAuthClient("https://plex.tv", clientID, productName, false)
 
 	// Step 1: Request a PIN
 	t.Log("Requesting PIN from Plex...")
@@ -84,7 +84,7 @@ func TestIntegration_PlexLibraries(t *testing.T) {
 
 	t.Logf("Testing against server: %s", serverURL)
 
-	client := NewClient(serverURL, authToken)
+	client := NewClient(serverURL, authToken, false)
 
 	// Test 1: Get Libraries
 	t.Log("\n--- Testing GetLibraries ---")

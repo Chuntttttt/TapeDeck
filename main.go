@@ -46,7 +46,10 @@ func main() {
 	sessionStore := middleware.NewSessionStore([]byte(cfg.SessionSecret))
 
 	// Initialize Plex auth client
-	plexAuth := plex.NewAuthClient("https://plex.tv", "tapedeck-client-id", "TapeDeck")
+	plexAuth := plex.NewAuthClient("https://plex.tv", "tapedeck-client-id", "TapeDeck", cfg.DevMode)
+	if cfg.DevMode {
+		log.Println("⚠️  DEV_MODE enabled: TLS verification disabled")
+	}
 
 	// Initialize auth handler
 	authHandler := handlers.NewAuthHandler(sessionStore, plexAuth, database)
@@ -55,6 +58,7 @@ func main() {
 
 	// Auth routes
 	mux.HandleFunc("/auth/login", authHandler.Login)
+	mux.HandleFunc("/auth/poll-status", authHandler.PollStatus)
 	mux.HandleFunc("/auth/callback", authHandler.Callback)
 	mux.HandleFunc("/auth/logout", authHandler.Logout)
 
@@ -109,6 +113,7 @@ func homeHandler() http.Handler {
 		_, _ = fmt.Fprint(w, `<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>TapeDeck</title>
 </head>
 <body>

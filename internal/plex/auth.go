@@ -2,6 +2,7 @@
 package plex
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,6 +15,9 @@ type AuthClient struct {
 	baseURL     string
 	clientID    string
 	productName string
+	version     string
+	platform    string
+	device      string
 	httpClient  *http.Client
 }
 
@@ -33,12 +37,24 @@ type PINCheckResponse struct {
 }
 
 // NewAuthClient creates a new Plex authentication client
-func NewAuthClient(baseURL, clientID, productName string) *AuthClient {
+func NewAuthClient(baseURL, clientID, productName string, devMode bool) *AuthClient {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	// In dev mode, skip TLS verification (useful for macOS certificate issues)
+	if devMode {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		}
+	}
+
 	return &AuthClient{
 		baseURL:     baseURL,
 		clientID:    clientID,
 		productName: productName,
-		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		version:     "1.0.0",
+		platform:    "Web",
+		device:      "TapeDeck",
+		httpClient:  client,
 	}
 }
 
@@ -48,7 +64,7 @@ func (c *AuthClient) RequestPIN() (*PINResponse, error) {
 		return nil, fmt.Errorf("client ID is required")
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/v2/pins", nil)
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/v2/pins?strong=true", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -56,6 +72,10 @@ func (c *AuthClient) RequestPIN() (*PINResponse, error) {
 	// Set required headers
 	req.Header.Set("X-Plex-Client-Identifier", c.clientID)
 	req.Header.Set("X-Plex-Product", c.productName)
+	req.Header.Set("X-Plex-Version", c.version)
+	req.Header.Set("X-Plex-Platform", c.platform)
+	req.Header.Set("X-Plex-Device", c.device)
+	req.Header.Set("X-Plex-Device-Name", c.device)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -86,6 +106,11 @@ func (c *AuthClient) CheckPIN(pinID int) (*PINCheckResponse, error) {
 	}
 
 	req.Header.Set("X-Plex-Client-Identifier", c.clientID)
+	req.Header.Set("X-Plex-Product", c.productName)
+	req.Header.Set("X-Plex-Version", c.version)
+	req.Header.Set("X-Plex-Platform", c.platform)
+	req.Header.Set("X-Plex-Device", c.device)
+	req.Header.Set("X-Plex-Device-Name", c.device)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)

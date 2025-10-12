@@ -19,6 +19,7 @@ type Config struct {
 	DatabasePath  string
 	LogLevel      string
 	SessionSecret string
+	DevMode       bool
 }
 
 // Load reads configuration from environment variables and validates required fields.
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 		DatabasePath:  getEnvOrDefault("DATABASE_PATH", "./data/tapedeck.db"),
 		LogLevel:      getEnvOrDefault("LOG_LEVEL", "info"),
 		SessionSecret: os.Getenv("SESSION_SECRET"),
+		DevMode:       os.Getenv("DEV_MODE") == "true",
 	}
 
 	// Validate required fields

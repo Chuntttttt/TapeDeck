@@ -9,9 +9,9 @@ A Go-based web application that bridges physical and digital media using NFC car
 
 ## Project Status
 
-🚧 **In Development** - Stage 0 Complete (Project Scaffolding)
+🚧 **In Development** - Stages 0, 1, and 2 Complete
 
-Currently implementing Stage 1 (Database & Configuration).
+Currently ready for Stage 3 (Basic Web UI & Authentication).
 
 ## Overview
 
@@ -242,15 +242,17 @@ Following Test-Driven Development (TDD):
   - Docker build setup
   - CI/CD with linting, testing, and security scanning
 
-- [ ] **Stage 1**: Database & Configuration
+- [x] **Stage 1**: Database & Configuration ✅
   - SQLite with migrations
   - Config loading from environment
-  - User and mapping models
+  - User model with Plex authentication
+  - Full test coverage with TDD
 
-- [ ] **Stage 2**: Plex API Client
+- [x] **Stage 2**: Plex API Client ✅
   - PIN-based OAuth flow
   - Library browsing
   - Media search
+  - Integration tests for real server testing
 
 - [ ] **Stage 3**: Basic Web UI & Authentication
   - Setup wizard

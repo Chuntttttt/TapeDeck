@@ -13,6 +13,9 @@ import (
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/handlers"
+	"github.com/Chuntttttt/tapedeck/internal/middleware"
+	"github.com/Chuntttttt/tapedeck/internal/plex"
 )
 
 func main() {
@@ -39,7 +42,26 @@ func main() {
 
 	log.Println("Database initialized successfully")
 
+	// Initialize session store
+	sessionStore := middleware.NewSessionStore([]byte(cfg.SessionSecret))
+
+	// Initialize Plex auth client
+	plexAuth := plex.NewAuthClient("https://plex.tv", "tapedeck-client-id", "TapeDeck")
+
+	// Initialize auth handler
+	authHandler := handlers.NewAuthHandler(sessionStore, plexAuth, database)
+
 	mux := http.NewServeMux()
+
+	// Auth routes
+	mux.HandleFunc("/auth/login", authHandler.Login)
+	mux.HandleFunc("/auth/callback", authHandler.Callback)
+	mux.HandleFunc("/auth/logout", authHandler.Logout)
+
+	// Protected routes
+	mux.Handle("/", middleware.RequireAuth(sessionStore)(homeHandler()))
+
+	// Health check (unprotected)
 	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
 
 	server := &http.Server{
@@ -63,12 +85,11 @@ func main() {
 	log.Println("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		cancel()
-		log.Fatalf("Server forced to shutdown: %v", err)
+		log.Printf("Server forced to shutdown: %v", err)
 	}
-	cancel()
 
 	log.Println("Server stopped")
 }
@@ -78,5 +99,25 @@ func healthCheckHandler() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprint(w, `{"status":"ok"}`)
+	})
+}
+
+func homeHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, `<!DOCTYPE html>
+<html>
+<head>
+    <title>TapeDeck</title>
+</head>
+<body>
+    <h1>🎬 TapeDeck</h1>
+    <p>Welcome to TapeDeck!</p>
+    <form method="post" action="/auth/logout">
+        <button type="submit">Logout</button>
+    </form>
+</body>
+</html>`)
 	})
 }

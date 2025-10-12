@@ -3,9 +3,12 @@ module github.com/Chuntttttt/tapedeck
 go 1.25
 
 require (
+	github.com/a-h/templ v0.3.943 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/golang-migrate/migrate/v4 v4.19.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/securecookie v1.1.2 // indirect
+	github.com/gorilla/sessions v1.4.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect

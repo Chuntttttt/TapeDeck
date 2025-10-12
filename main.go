@@ -31,6 +31,7 @@ func main() {
 
 	// Run migrations
 	if err := database.RunMigrations("./migrations"); err != nil {
+		_ = database.Close() // Close before exiting
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 

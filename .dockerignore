@@ -1,0 +1,37 @@
+# Environment
+.env
+
+# Development files
+tmp/
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+
+# Build artifacts
+tapedeck
+dist/
+
+# Air config
+.air.toml
+build-errors.log
+
+# Tests
+*_test.go
+testdata/

@@ -1,0 +1,41 @@
+# Environment variables
+.env
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Build artifacts
+/tmp/
+/dist/
+tapedeck
+
+# Templ generated files
+*_templ.go
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Development data
+/data/
+
+# Air
+.air.toml.tmp

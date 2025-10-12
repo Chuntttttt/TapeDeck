@@ -162,7 +162,7 @@ func TestRequireAuth_Authenticated(t *testing.T) {
 
 	// Test middleware
 	nextCalled := false
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		nextCalled = true
 		w.WriteHeader(http.StatusOK)
 	})
@@ -188,7 +188,7 @@ func TestRequireAuth_NotAuthenticated(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	nextCalled := false
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	next := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		nextCalled = true
 	})
 

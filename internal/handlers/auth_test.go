@@ -8,7 +8,6 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
-	"github.com/gorilla/sessions"
 )
 
 func TestAuthHandler_Login_GET(t *testing.T) {
@@ -131,10 +130,3 @@ func TestGetOrCreateSession_ExistingSession(t *testing.T) {
 	}
 }
 
-func setupTestSession(store *sessions.CookieStore, req *http.Request, userID int64) *httptest.ResponseRecorder {
-	w := httptest.NewRecorder()
-	session, _ := store.Get(req, middleware.SessionName)
-	middleware.SetUserID(session, userID)
-	_ = session.Save(req, w)
-	return w
-}

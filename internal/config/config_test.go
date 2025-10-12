@@ -176,18 +176,18 @@ func setTestEnv(t *testing.T, envVars map[string]string) {
 		"APPLE_TV_ENTITY", "PORT", "DATABASE_PATH", "LOG_LEVEL", "SESSION_SECRET",
 	}
 	for _, key := range allKeys {
-		os.Unsetenv(key)
+		_ = os.Unsetenv(key)
 	}
 
 	// Set provided env vars
 	for key, value := range envVars {
-		os.Setenv(key, value)
+		_ = os.Setenv(key, value)
 	}
 
 	// Cleanup after test
 	t.Cleanup(func() {
 		for _, key := range allKeys {
-			os.Unsetenv(key)
+			_ = os.Unsetenv(key)
 		}
 	})
 }

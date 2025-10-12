@@ -8,8 +8,8 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "modernc.org/sqlite"
+	_ "github.com/golang-migrate/migrate/v4/source/file" // Register file source driver
+	_ "modernc.org/sqlite"                               // Register SQLite driver
 )
 
 // DB wraps the database connection and provides data access methods
@@ -26,7 +26,7 @@ func New(dbPath string) (*DB, error) {
 
 	// Enable foreign keys
 	if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		conn.Close()
+		_ = conn.Close() // Ignore close error since we're already returning an error
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 

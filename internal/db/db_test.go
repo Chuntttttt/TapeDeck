@@ -15,7 +15,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if db == nil {
 		t.Fatal("New() returned nil database")
@@ -29,7 +29,7 @@ func TestRunMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	err = db.RunMigrations("../../migrations")
 	if err != nil {
@@ -49,7 +49,7 @@ func TestRunMigrations(t *testing.T) {
 
 func TestCreateUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	user := models.NewUser("testuser", "12345", "test-token")
 
@@ -64,7 +64,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestGetUserByPlexUserID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create a user first
 	user := models.NewUser("testuser", "12345", "test-token")
@@ -92,7 +92,7 @@ func TestGetUserByPlexUserID(t *testing.T) {
 
 func TestGetUserByPlexUserID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	_, err := db.GetUserByPlexUserID("nonexistent")
 	if err == nil {
@@ -102,7 +102,7 @@ func TestGetUserByPlexUserID_NotFound(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create a user
 	user := models.NewUser("testuser", "12345", "test-token")

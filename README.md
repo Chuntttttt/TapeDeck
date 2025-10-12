@@ -9,9 +9,9 @@ A Go-based web application that bridges physical and digital media using NFC car
 
 ## Project Status
 
-🚧 **In Development** - Stages 0, 1, and 2 Complete
+🚧 **In Development** - Stages 0, 1, 2, and 3 in progress
 
-Currently ready for Stage 3 (Basic Web UI & Authentication).
+Stage 3 (Basic Web UI & Authentication) includes Plex PIN OAuth with client-side polling.
 
 ## Overview
 
@@ -103,6 +103,10 @@ air
 
 # Make changes to .go or .templ files
 # Air will detect changes, rebuild, and restart automatically
+
+# With proxy mode enabled (.air.toml), access via:
+# http://localhost:3002 - Proxy with auto-refresh
+# http://localhost:3001 - Direct app server
 ```
 
 ### Running Tests
@@ -183,6 +187,7 @@ See `.env.example` for all required variables:
 | `DATABASE_PATH` | SQLite database location | `./data/tapedeck.db` |
 | `LOG_LEVEL` | Logging level | `info` |
 | `SESSION_SECRET` | Session encryption key | (auto-generated) |
+| `DEV_MODE` | Skip TLS verification (macOS dev) | `true` (optional) |
 
 ## Docker Deployment
 
@@ -254,10 +259,11 @@ Following Test-Driven Development (TDD):
   - Media search
   - Integration tests for real server testing
 
-- [ ] **Stage 3**: Basic Web UI & Authentication
-  - Setup wizard
-  - Plex login
-  - Session management
+- [ ] **Stage 3**: Basic Web UI & Authentication (In Progress)
+  - Plex PIN OAuth with client-side polling
+  - Session management (cookie-based)
+  - Air proxy mode with auto-refresh
+  - DEV_MODE for TLS bypass
 
 - [ ] **Stage 4**: Media Browser UI
   - Browse libraries

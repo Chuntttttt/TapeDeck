@@ -85,43 +85,93 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
     <h1>🎬 TapeDeck</h1>
     <p>Connect your Plex account to get started</p>
     <div class="pin-code">%s</div>
-    <a href="%s" class="button" target="_blank">Login with Plex</a>
+    <a href="#" class="button" id="loginBtn" onclick="openPlexAuth(); return false;">Login with Plex</a>
     <p><small>Or visit <a href="https://plex.tv/link">plex.tv/link</a> and enter the code above</small></p>
-    <div class="status" id="status">Waiting for authorization...</div>
+    <div class="status" id="status">Click the button above to authorize with Plex</div>
     <script>
-        let pollCount = 0;
-        const maxPolls = 60; // 3 minutes with 3s intervals
+        const authUrl = '%s';
+        const pinId = %d;
 
-        function pollStatus() {
-            if (pollCount >= maxPolls) {
-                document.getElementById('status').textContent = 'Authorization timed out. Please refresh to try again.';
+        function openPlexAuth() {
+            const width = 600;
+            const height = 700;
+            const left = (screen.width / 2) - (width / 2);
+            const top = (screen.height / 2) - (height / 2);
+
+            const popup = window.open(
+                authUrl,
+                'PlexAuth',
+                'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left
+            );
+
+            document.getElementById('status').textContent = 'Waiting for authorization in popup...';
+
+            // Check if popup was blocked
+            if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+                document.getElementById('status').textContent = 'Popup blocked! Please allow popups and try again.';
+                return;
+            }
+        }
+
+        // Listen for messages from Plex popup
+        let plexAuthToken = null;
+
+        window.addEventListener('message', function(event) {
+            // Verify message is from Plex
+            if (event.origin !== 'https://app.plex.tv') {
                 return;
             }
 
-            fetch('/auth/poll-status')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.authorized) {
-                        document.getElementById('status').textContent = '✓ Authorized! Redirecting...';
-                        document.getElementById('status').className = 'status success';
-                        setTimeout(() => { window.location.href = '/'; }, 1000);
-                    } else {
-                        pollCount++;
-                        setTimeout(pollStatus, 3000); // Poll every 3 seconds to avoid rate limits
-                    }
-                })
-                .catch(err => {
-                    console.error('Poll error:', err);
-                    pollCount++;
-                    setTimeout(pollStatus, 3000);
-                });
-        }
+            console.log('Received message from Plex:', event.data);
 
-        // Start polling after a brief delay
-        setTimeout(pollStatus, 3000);
+            // Capture auth token from Plex messages
+            if (event.data && event.data.type === 'SET_VALUE_ON_WINDOW') {
+                if (event.data.name === 'PLEX_USER_UUID') {
+                    plexAuthToken = event.data.value;
+                    console.log('Captured Plex auth token:', plexAuthToken);
+                }
+            }
+
+            // Check for successful auth
+            if (event.data && event.data.type === 'PUSH_GOOGLE_TAG_MANAGER_DATA') {
+                const data = event.data.data || {};
+                if (data.event === 'SignInSuccess') {
+                    document.getElementById('status').textContent = '✓ Authorized! Completing sign in...';
+                    document.getElementById('status').className = 'status success';
+
+                    if (!plexAuthToken) {
+                        document.getElementById('status').textContent = 'Error: No auth token received from Plex';
+                        return;
+                    }
+
+                    // Submit auth token to callback endpoint
+                    fetch('/auth/callback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            authToken: plexAuthToken
+                        })
+                    }).then(function(response) {
+                        if (response.ok) {
+                            window.location.href = '/';
+                        } else {
+                            response.text().then(function(text) {
+                                document.getElementById('status').textContent = 'Error: ' + text;
+                            });
+                        }
+                    }).catch(function(err) {
+                        document.getElementById('status').textContent = 'Error completing sign in';
+                        console.error(err);
+                    });
+                }
+            }
+        }, false);
     </script>
 </body>
-</html>`, pin.Code, authURL)
+</html>`, pin.Code, authURL, pin.ID)
 }
 
 // PollStatus handles the GET /auth/poll-status endpoint for JavaScript polling
@@ -157,6 +207,9 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
 		return
 	}
+
+	// Debug logging to see what Plex returns
+	log.Printf("DEBUG: CheckPIN response - ID: %d, Code: %s, AuthToken: %s", check.ID, check.Code, check.AuthToken)
 
 	// If not authorized yet, return false
 	if check.AuthToken == "" {
@@ -212,45 +265,59 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": true})
 }
 
-// Callback handles the GET /auth/callback endpoint after Plex authorization
+// Callback handles both GET and POST /auth/callback endpoint after Plex authorization
 func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
+	// GET request is from Plex redirect in popup - show success page
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Authentication Successful</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }
+        .success { color: #2d5016; font-size: 24px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎬 TapeDeck</h1>
+    <div class="success">✓ Authentication Successful!</div>
+    <p>You can close this window and return to TapeDeck.</p>
+    <script>
+        // Try to close the popup
+        setTimeout(function() {
+            window.close();
+        }, 1000);
+    </script>
+</body>
+</html>`)
+		return
+	}
+
+	// POST request is from our JavaScript with auth token
 	session := getOrCreateSession(h.sessionStore, r)
 
-	// Get PIN ID from session
-	pinIDVal, ok := session.Values["plex_pin_id"]
-	if !ok {
-		http.Error(w, "No authentication in progress", http.StatusBadRequest)
+	// Parse auth token from request body
+	var req struct {
+		AuthToken string `json:"authToken"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("JSON decode error: %v", err)
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	pinID, ok := pinIDVal.(int)
-	if !ok {
-		http.Error(w, "Invalid session data", http.StatusBadRequest)
-		return
-	}
-
-	// Check PIN status (poll for auth token)
-	var authToken string
-	for i := 0; i < 10; i++ {
-		check, err := h.plexAuth.CheckPIN(pinID)
-		if err != nil {
-			log.Printf("Failed to check PIN: %v", err)
-			time.Sleep(time.Second)
-			continue
-		}
-
-		if check.AuthToken != "" {
-			authToken = check.AuthToken
-			break
-		}
-
-		time.Sleep(time.Second)
-	}
-
+	authToken := req.AuthToken
 	if authToken == "" {
-		http.Error(w, "Authentication not completed. Please try again.", http.StatusUnauthorized)
+		log.Printf("Auth token is empty after decode")
+		http.Error(w, "No auth token provided", http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("Received auth token from Plex: %s", authToken)
 
 	// Get user info from Plex using the auth token
 	// For now, we'll use a placeholder - in a full implementation,
@@ -290,8 +357,10 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Redirect to home
-	http.Redirect(w, r, "/", http.StatusFound)
+	// Return JSON success (JavaScript will handle navigation)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
 // Logout handles the POST /auth/logout endpoint

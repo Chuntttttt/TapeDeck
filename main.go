@@ -58,7 +58,6 @@ func main() {
 
 	// Auth routes
 	mux.HandleFunc("/auth/login", authHandler.Login)
-	mux.HandleFunc("/auth/poll-status", authHandler.PollStatus)
 	mux.HandleFunc("/auth/callback", authHandler.Callback)
 	mux.HandleFunc("/auth/logout", authHandler.Logout)
 

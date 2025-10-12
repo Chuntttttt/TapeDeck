@@ -123,9 +123,20 @@ func (c *AuthClient) CheckPIN(pinID int) (*PINCheckResponse, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var checkResp PINCheckResponse
-	if err := json.NewDecoder(resp.Body).Decode(&checkResp); err != nil {
+	// Read and log the raw response for debugging
+	var rawResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&rawResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Log the full raw response
+	rawJSON, _ := json.Marshal(rawResponse)
+	fmt.Printf("DEBUG RAW JSON: %s\n", string(rawJSON))
+
+	// Convert back to structured response
+	var checkResp PINCheckResponse
+	if err := json.Unmarshal(rawJSON, &checkResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	return &checkResp, nil

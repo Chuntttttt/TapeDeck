@@ -27,13 +27,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer func() { _ = database.Close() }()
 
-	// Run migrations
+	// Run migrations (before setting up defer, so Fatalf can exit cleanly)
 	if err := database.RunMigrations("./migrations"); err != nil {
-		_ = database.Close() // Close before exiting
+		_ = database.Close()
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
+
+	// Now set up defer for normal shutdown path
+	defer func() { _ = database.Close() }()
 
 	log.Println("Database initialized successfully")
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/ha"
 	"github.com/Chuntttttt/tapedeck/internal/handlers"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
@@ -63,6 +64,17 @@ func main() {
 	// Initialize playback handler (for Home Assistant integration)
 	playbackHandler := handlers.NewPlaybackHandler(database, cfg.PlexServerID)
 
+	// Initialize Home Assistant WebSocket client
+	haClient := ha.NewHAClient(cfg.HAURL, cfg.HAToken)
+	if err := haClient.Connect(); err != nil {
+		log.Printf("Warning: Failed to connect to Home Assistant: %v", err)
+		log.Println("Pairing mode will not work until connection is established")
+	}
+	defer haClient.Close()
+
+	// Initialize pairing handler
+	pairingHandler := handlers.NewPairingHandler(sessionStore, database, haClient)
+
 	mux := http.NewServeMux()
 
 	// Auth routes
@@ -84,8 +96,12 @@ func main() {
 		}
 	})))
 	mux.Handle("/mappings/new", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.NewMappingForm)))
+	mux.Handle("/mappings/pair", middleware.RequireAuth(sessionStore)(http.HandlerFunc(pairingHandler.PairForm)))
 	mux.Handle("/mappings/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsRouteHandler(mappingsHandler))))
 	mux.Handle("/api/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.SearchJSON)))
+
+	// Protected pairing WebSocket route
+	mux.Handle("/ws/pairing", middleware.RequireAuth(sessionStore)(http.HandlerFunc(pairingHandler.WebSocketPairing)))
 
 	// Home route - redirect to libraries
 	mux.Handle("/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

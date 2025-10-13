@@ -87,6 +87,7 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
     <div class="header">
         <h1>Card Mappings</h1>
         <div class="header-actions">
+            <a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair NFC Card</a>
             <a href="/mappings/new" class="btn">+ New Mapping</a>
             <form method="post" action="/auth/logout" style="margin: 0;">
                 <button type="submit" class="btn">Logout</button>

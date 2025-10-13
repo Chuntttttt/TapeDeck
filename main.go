@@ -60,6 +60,9 @@ func main() {
 	// Initialize mappings handler
 	mappingsHandler := handlers.NewMappingsHandler(sessionStore, database, cfg.PlexURL, cfg.DevMode)
 
+	// Initialize playback handler (for Home Assistant integration)
+	playbackHandler := handlers.NewPlaybackHandler(database, cfg.PlexServerID)
+
 	mux := http.NewServeMux()
 
 	// Auth routes
@@ -95,6 +98,9 @@ func main() {
 
 	// Health check (unprotected)
 	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
+
+	// Playback API for Home Assistant (unprotected - HA server is trusted)
+	mux.HandleFunc("/api/play", playbackHandler.Play)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

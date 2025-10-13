@@ -294,3 +294,58 @@ func (db *DB) DeleteCardMapping(id int64) error {
 
 	return nil
 }
+
+// GetCardMappingByTagID retrieves a card mapping by its tag ID
+// If multiple users have the same tag_id, returns the most recently created mapping
+func (db *DB) GetCardMappingByTagID(tagID string) (*models.CardMapping, error) {
+	mapping := &models.CardMapping{}
+	err := db.conn.QueryRow(
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, created_at, updated_at
+		FROM card_mappings WHERE tag_id = ? ORDER BY created_at DESC LIMIT 1`,
+		tagID,
+	).Scan(
+		&mapping.ID,
+		&mapping.UserID,
+		&mapping.TagID,
+		&mapping.MediaType,
+		&mapping.MediaID,
+		&mapping.MediaTitle,
+		&mapping.CreatedAt,
+		&mapping.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("card mapping not found")
+		}
+		return nil, fmt.Errorf("failed to query card mapping: %w", err)
+	}
+
+	return mapping, nil
+}
+
+// CreatePlaybackLog inserts a new playback log into the database and returns the log ID
+func (db *DB) CreatePlaybackLog(log *models.PlaybackLog) (int64, error) {
+	if err := log.Validate(); err != nil {
+		return 0, fmt.Errorf("invalid playback log: %w", err)
+	}
+
+	result, err := db.conn.Exec(
+		`INSERT INTO playback_logs (user_id, tag_id, media_id, media_title, played_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		log.UserID,
+		log.TagID,
+		log.MediaID,
+		log.MediaTitle,
+		log.PlayedAt,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert playback log: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last insert ID: %w", err)
+	}
+
+	return id, nil
+}

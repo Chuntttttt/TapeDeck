@@ -278,16 +278,21 @@ Following Test-Driven Development (TDD):
   - Media search
   - Integration tests for real server testing
 
-- [ ] **Stage 3**: Basic Web UI & Authentication (In Progress)
+- [x] **Stage 3**: Basic Web UI & Authentication ✅
   - Plex PIN OAuth with client-side polling
   - Session management (cookie-based)
   - Air proxy mode with auto-refresh
   - DEV_MODE for TLS bypass
 
-- [ ] **Stage 4**: Media Browser UI
+- [x] **Stage 4**: Media Browser UI ✅
   - Browse libraries
-  - Search media
-  - View details
+  - Search media with dedicated page
+  - View library contents
+  - **Future enhancements:**
+    - Display poster art/thumbnails for media items
+    - Prettier card layouts with hover effects
+    - Responsive grid layouts
+    - Media detail modal/page with full metadata
 
 - [ ] **Stage 5**: Manual Card Mapping
   - Create mappings (type tag ID manually)

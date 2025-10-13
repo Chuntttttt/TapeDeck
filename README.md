@@ -312,11 +312,11 @@ Following Test-Driven Development (TDD):
   - Duplicate tag detection
 
 - [ ] **Stage 8**: Enhanced UI & Polish
-  - Responsive design
-  - Search and filters
-  - Accessibility
   - HA connection status banner (red alert if disconnected)
   - Real-time connection health monitoring
+  - Search and filter improvements on mappings dashboard
+  - **Deferred to future**: Responsive design (see `docs/responsive-design.md`)
+  - **Deferred to future**: Accessibility enhancements (see `docs/accessibility.md`)
 
 - [ ] **Stage 9**: Admin Interface
   - Settings page for managing configuration
@@ -337,6 +337,13 @@ Following Test-Driven Development (TDD):
   - User documentation
 
 **Estimated Timeline**: 60-82 hours total (~6-8 weeks at 10-15 hours/week)
+
+## Future Enhancements
+
+The following improvements are documented for future work and may be good candidates for community contributions:
+
+- **Responsive Design**: Mobile and tablet optimization - see [`docs/responsive-design.md`](docs/responsive-design.md)
+- **Accessibility**: WCAG compliance, keyboard navigation, screen reader support - see [`docs/accessibility.md`](docs/accessibility.md)
 
 ## Contributing
 

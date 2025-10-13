@@ -57,6 +57,9 @@ func main() {
 	// Initialize media handler
 	mediaHandler := handlers.NewMediaHandler(sessionStore, database, cfg.PlexURL, cfg.DevMode)
 
+	// Initialize mappings handler
+	mappingsHandler := handlers.NewMappingsHandler(sessionStore, database, cfg.PlexURL, cfg.DevMode)
+
 	mux := http.NewServeMux()
 
 	// Auth routes
@@ -68,6 +71,12 @@ func main() {
 	mux.Handle("/libraries", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mediaHandler.Libraries)))
 	mux.Handle("/libraries/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(libraryContentsHandler(mediaHandler))))
 	mux.Handle("/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mediaHandler.Search)))
+
+	// Protected mappings routes
+	mux.Handle("/mappings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.Dashboard)))
+	mux.Handle("/mappings/new", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.NewMappingForm)))
+	mux.Handle("/mappings/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsRouteHandler(mappingsHandler))))
+	mux.Handle("/api/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.SearchJSON)))
 
 	// Home route - redirect to libraries
 	mux.Handle("/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -126,6 +135,55 @@ func libraryContentsHandler(h *handlers.MediaHandler) http.HandlerFunc {
 			return
 		}
 		h.LibraryContents(w, r, libraryKey)
+	}
+}
+
+// mappingsRouteHandler extracts the mapping ID from the URL path and routes to appropriate handler
+func mappingsRouteHandler(h *handlers.MappingsHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Extract path after /mappings/
+		path := r.URL.Path
+		if len(path) <= len("/mappings/") {
+			http.Error(w, "Mapping ID required", http.StatusBadRequest)
+			return
+		}
+
+		remainder := path[len("/mappings/"):]
+
+		// Parse the ID and action
+		var mappingID int64
+		var action string
+
+		// Check for /{id}/edit or /{id}/delete patterns
+		if n, err := fmt.Sscanf(remainder, "%d/edit", &mappingID); n == 1 && err == nil {
+			if r.Method != http.MethodGet {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			h.EditMappingForm(w, r, mappingID)
+			return
+		}
+
+		if n, err := fmt.Sscanf(remainder, "%d/delete", &mappingID); n == 1 && err == nil {
+			if r.Method != http.MethodPost {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			h.DeleteMapping(w, r, mappingID)
+			return
+		}
+
+		// Check for /{id} pattern (update)
+		if n, err := fmt.Sscanf(remainder, "%d%s", &mappingID, &action); n == 1 && err == nil {
+			if r.Method != http.MethodPost {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			h.UpdateMapping(w, r, mappingID)
+			return
+		}
+
+		http.Error(w, "Invalid mapping route", http.StatusBadRequest)
 	}
 }
 

@@ -137,6 +137,202 @@ func TestUpdateUser(t *testing.T) {
 	}
 }
 
+func TestCreateCardMapping(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	// Create a user first
+	user := models.NewUser("testuser", "12345", "test-token")
+	userID, err := db.CreateUser(user)
+	if err != nil {
+		t.Fatalf("CreateUser() failed: %v", err)
+	}
+
+	// Create a card mapping
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	id, err := db.CreateCardMapping(mapping)
+	if err != nil {
+		t.Fatalf("CreateCardMapping() failed: %v", err)
+	}
+	if id <= 0 {
+		t.Errorf("CreateCardMapping() returned invalid ID: %d", id)
+	}
+}
+
+func TestGetCardMappingsByUserID(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	// Create a user
+	user := models.NewUser("testuser", "12345", "test-token")
+	userID, err := db.CreateUser(user)
+	if err != nil {
+		t.Fatalf("CreateUser() failed: %v", err)
+	}
+
+	// Create multiple mappings
+	mapping1 := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	_, err = db.CreateCardMapping(mapping1)
+	if err != nil {
+		t.Fatalf("CreateCardMapping() failed: %v", err)
+	}
+
+	mapping2 := models.NewCardMapping(userID, "nfc-456", "show", "rating-789", "Breaking Bad")
+	_, err = db.CreateCardMapping(mapping2)
+	if err != nil {
+		t.Fatalf("CreateCardMapping() failed: %v", err)
+	}
+
+	// Retrieve mappings
+	mappings, err := db.GetCardMappingsByUserID(userID)
+	if err != nil {
+		t.Fatalf("GetCardMappingsByUserID() failed: %v", err)
+	}
+
+	if len(mappings) != 2 {
+		t.Errorf("GetCardMappingsByUserID() returned %d mappings, want 2", len(mappings))
+	}
+
+	// Check that mappings are ordered by created_at DESC
+	if len(mappings) > 0 && mappings[0].TagID != "nfc-456" {
+		t.Errorf("First mapping TagID = %q, want %q", mappings[0].TagID, "nfc-456")
+	}
+}
+
+func TestGetCardMappingByID(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	// Create a user
+	user := models.NewUser("testuser", "12345", "test-token")
+	userID, err := db.CreateUser(user)
+	if err != nil {
+		t.Fatalf("CreateUser() failed: %v", err)
+	}
+
+	// Create a mapping
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	id, err := db.CreateCardMapping(mapping)
+	if err != nil {
+		t.Fatalf("CreateCardMapping() failed: %v", err)
+	}
+
+	// Retrieve the mapping
+	retrieved, err := db.GetCardMappingByID(id)
+	if err != nil {
+		t.Fatalf("GetCardMappingByID() failed: %v", err)
+	}
+
+	if retrieved.TagID != "nfc-123" {
+		t.Errorf("TagID = %q, want %q", retrieved.TagID, "nfc-123")
+	}
+	if retrieved.MediaType != "movie" {
+		t.Errorf("MediaType = %q, want %q", retrieved.MediaType, "movie")
+	}
+	if retrieved.MediaID != "rating-456" {
+		t.Errorf("MediaID = %q, want %q", retrieved.MediaID, "rating-456")
+	}
+	if retrieved.MediaTitle != "The Matrix" {
+		t.Errorf("MediaTitle = %q, want %q", retrieved.MediaTitle, "The Matrix")
+	}
+}
+
+func TestGetCardMappingByID_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	_, err := db.GetCardMappingByID(9999)
+	if err == nil {
+		t.Fatal("GetCardMappingByID() succeeded for nonexistent mapping, want error")
+	}
+}
+
+func TestUpdateCardMapping(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	// Create a user
+	user := models.NewUser("testuser", "12345", "test-token")
+	userID, err := db.CreateUser(user)
+	if err != nil {
+		t.Fatalf("CreateUser() failed: %v", err)
+	}
+
+	// Create a mapping
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	id, err := db.CreateCardMapping(mapping)
+	if err != nil {
+		t.Fatalf("CreateCardMapping() failed: %v", err)
+	}
+
+	// Retrieve and update the mapping
+	retrieved, err := db.GetCardMappingByID(id)
+	if err != nil {
+		t.Fatalf("GetCardMappingByID() failed: %v", err)
+	}
+
+	retrieved.MediaTitle = "The Matrix Reloaded"
+	retrieved.MediaID = "rating-789"
+	err = db.UpdateCardMapping(retrieved)
+	if err != nil {
+		t.Fatalf("UpdateCardMapping() failed: %v", err)
+	}
+
+	// Verify update
+	updated, err := db.GetCardMappingByID(id)
+	if err != nil {
+		t.Fatalf("GetCardMappingByID() after update failed: %v", err)
+	}
+
+	if updated.MediaTitle != "The Matrix Reloaded" {
+		t.Errorf("MediaTitle = %q, want %q", updated.MediaTitle, "The Matrix Reloaded")
+	}
+	if updated.MediaID != "rating-789" {
+		t.Errorf("MediaID = %q, want %q", updated.MediaID, "rating-789")
+	}
+}
+
+func TestDeleteCardMapping(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	// Create a user
+	user := models.NewUser("testuser", "12345", "test-token")
+	userID, err := db.CreateUser(user)
+	if err != nil {
+		t.Fatalf("CreateUser() failed: %v", err)
+	}
+
+	// Create a mapping
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	id, err := db.CreateCardMapping(mapping)
+	if err != nil {
+		t.Fatalf("CreateCardMapping() failed: %v", err)
+	}
+
+	// Delete the mapping
+	err = db.DeleteCardMapping(id)
+	if err != nil {
+		t.Fatalf("DeleteCardMapping() failed: %v", err)
+	}
+
+	// Verify deletion
+	_, err = db.GetCardMappingByID(id)
+	if err == nil {
+		t.Fatal("GetCardMappingByID() succeeded after deletion, want error")
+	}
+}
+
+func TestDeleteCardMapping_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	err := db.DeleteCardMapping(9999)
+	if err == nil {
+		t.Fatal("DeleteCardMapping() succeeded for nonexistent mapping, want error")
+	}
+}
+
 // setupTestDB creates a temporary database for testing
 func setupTestDB(t *testing.T) *DB {
 	t.Helper()

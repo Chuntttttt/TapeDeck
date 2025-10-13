@@ -99,9 +99,14 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 <body>
     <div class="header">
         <h1>🎬 TapeDeck - Libraries</h1>
-        <form method="post" action="/auth/logout">
-            <button type="submit">Logout</button>
-        </form>
+        <div style="display: flex; gap: 10px;">
+            <form method="get" action="/mappings" style="margin: 0;">
+                <button type="submit" style="padding: 10px 20px; font-size: 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Card Mappings</button>
+            </form>
+            <form method="post" action="/auth/logout" style="margin: 0;">
+                <button type="submit" style="padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
+            </form>
+        </div>
     </div>
     <form class="search-form" method="get" action="/search">
         <input type="text" name="q" placeholder="Search all media..." required>

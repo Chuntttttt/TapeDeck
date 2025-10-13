@@ -158,3 +158,139 @@ func (db *DB) UpdateUser(user *models.User) error {
 
 	return nil
 }
+
+// CreateCardMapping inserts a new card mapping into the database and returns the mapping ID
+func (db *DB) CreateCardMapping(mapping *models.CardMapping) (int64, error) {
+	if err := mapping.Validate(); err != nil {
+		return 0, fmt.Errorf("invalid card mapping: %w", err)
+	}
+
+	result, err := db.conn.Exec(
+		`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		mapping.UserID,
+		mapping.TagID,
+		mapping.MediaType,
+		mapping.MediaID,
+		mapping.MediaTitle,
+		mapping.CreatedAt,
+		mapping.UpdatedAt,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert card mapping: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last insert ID: %w", err)
+	}
+
+	return id, nil
+}
+
+// GetCardMappingsByUserID retrieves all card mappings for a user
+func (db *DB) GetCardMappingsByUserID(userID int64) ([]*models.CardMapping, error) {
+	rows, err := db.conn.Query(
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, created_at, updated_at
+		FROM card_mappings WHERE user_id = ? ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query card mappings: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var mappings []*models.CardMapping
+	for rows.Next() {
+		mapping := &models.CardMapping{}
+		err := rows.Scan(
+			&mapping.ID,
+			&mapping.UserID,
+			&mapping.TagID,
+			&mapping.MediaType,
+			&mapping.MediaID,
+			&mapping.MediaTitle,
+			&mapping.CreatedAt,
+			&mapping.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan card mapping: %w", err)
+		}
+		mappings = append(mappings, mapping)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
+	}
+
+	return mappings, nil
+}
+
+// GetCardMappingByID retrieves a card mapping by its ID
+func (db *DB) GetCardMappingByID(id int64) (*models.CardMapping, error) {
+	mapping := &models.CardMapping{}
+	err := db.conn.QueryRow(
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, created_at, updated_at
+		FROM card_mappings WHERE id = ?`,
+		id,
+	).Scan(
+		&mapping.ID,
+		&mapping.UserID,
+		&mapping.TagID,
+		&mapping.MediaType,
+		&mapping.MediaID,
+		&mapping.MediaTitle,
+		&mapping.CreatedAt,
+		&mapping.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("card mapping not found")
+		}
+		return nil, fmt.Errorf("failed to query card mapping: %w", err)
+	}
+
+	return mapping, nil
+}
+
+// UpdateCardMapping updates an existing card mapping in the database
+func (db *DB) UpdateCardMapping(mapping *models.CardMapping) error {
+	if err := mapping.Validate(); err != nil {
+		return fmt.Errorf("invalid card mapping: %w", err)
+	}
+
+	_, err := db.conn.Exec(
+		`UPDATE card_mappings SET tag_id = ?, media_type = ?, media_id = ?, media_title = ?, updated_at = ?
+		WHERE id = ?`,
+		mapping.TagID,
+		mapping.MediaType,
+		mapping.MediaID,
+		mapping.MediaTitle,
+		mapping.UpdatedAt,
+		mapping.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update card mapping: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteCardMapping deletes a card mapping by its ID
+func (db *DB) DeleteCardMapping(id int64) error {
+	result, err := db.conn.Exec(`DELETE FROM card_mappings WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete card mapping: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("card mapping not found")
+	}
+
+	return nil
+}

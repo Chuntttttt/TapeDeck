@@ -73,7 +73,13 @@ func main() {
 	mux.Handle("/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mediaHandler.Search)))
 
 	// Protected mappings routes
-	mux.Handle("/mappings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.Dashboard)))
+	mux.Handle("/mappings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			mappingsHandler.CreateMapping(w, r)
+		} else {
+			mappingsHandler.Dashboard(w, r)
+		}
+	})))
 	mux.Handle("/mappings/new", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.NewMappingForm)))
 	mux.Handle("/mappings/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsRouteHandler(mappingsHandler))))
 	mux.Handle("/api/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.SearchJSON)))

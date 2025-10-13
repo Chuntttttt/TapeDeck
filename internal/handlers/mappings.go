@@ -337,12 +337,14 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	userID, ok := middleware.GetUserID(session)
 	if !ok {
+		log.Printf("CreateMapping: User not authenticated")
 		http.Error(w, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Parse form
 	if err := r.ParseForm(); err != nil {
+		log.Printf("CreateMapping: Failed to parse form: %v", err)
 		http.Error(w, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
@@ -352,14 +354,27 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	mediaID := r.FormValue("media_id")
 	mediaTitle := r.FormValue("media_title")
 
-	// Create mapping
-	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle)
-	_, err := h.db.CreateCardMapping(mapping)
-	if err != nil {
-		log.Printf("Failed to create card mapping: %v", err)
-		http.Error(w, "Failed to create card mapping", http.StatusInternalServerError)
+	log.Printf("CreateMapping: Received form data - tagID=%s, mediaType=%s, mediaID=%s, mediaTitle=%s, userID=%d",
+		tagID, mediaType, mediaID, mediaTitle, userID)
+
+	// Validate required fields
+	if tagID == "" || mediaType == "" || mediaID == "" || mediaTitle == "" {
+		log.Printf("CreateMapping: Missing required fields - tagID=%s, mediaType=%s, mediaID=%s, mediaTitle=%s",
+			tagID, mediaType, mediaID, mediaTitle)
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
+
+	// Create mapping
+	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle)
+	mappingID, err := h.db.CreateCardMapping(mapping)
+	if err != nil {
+		log.Printf("CreateMapping: Failed to create card mapping: %v", err)
+		http.Error(w, "Failed to create card mapping: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("CreateMapping: Successfully created mapping with ID=%d", mappingID)
 
 	// Redirect to dashboard
 	http.Redirect(w, r, "/mappings", http.StatusFound)

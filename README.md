@@ -319,12 +319,29 @@ Following Test-Driven Development (TDD):
   - **Deferred to future**: Accessibility enhancements (see `docs/accessibility.md`)
 
 - [ ] **Stage 9**: Admin Interface
-  - Settings page for managing configuration
-  - Update HA URL and token from UI
-  - Update Plex URL and server ID
-  - Test connections and validate settings
-  - Secure storage (database vs flat config file decision)
-  - Token rotation and credential management
+  - **Settings page** (`/settings`) for managing all configuration
+  - **Home Assistant Settings**:
+    - Update HA URL and token from UI
+    - Auto-discover and select Apple TV entity (dropdown from available media_player entities)
+    - Test HA connection and WebSocket
+    - Token rotation and validation
+  - **Plex Settings**:
+    - Update Plex URL and server ID
+    - Test Plex connection and authentication
+    - Validate server is reachable
+  - **Connection Health Dashboard**:
+    - Real-time status of HA WebSocket connection
+    - Real-time status of Plex server
+    - Last successful connection timestamps
+    - Error logs for failed connections
+  - **Secure Storage**:
+    - Evaluate database vs encrypted config file
+    - Encrypt sensitive tokens at rest
+    - Audit log for configuration changes
+  - **User Roles** (optional):
+    - Admin users can access settings
+    - Regular users can only manage their own mappings
+  - See `docs/home-assistant-setup.md` for current manual setup process
 
 - [ ] **Stage 10**: Production Deployment
   - Docker optimization

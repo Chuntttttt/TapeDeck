@@ -9,9 +9,9 @@ A Go-based web application that bridges physical and digital media using NFC car
 
 ## Project Status
 
-🚧 **In Development** - Stages 0, 1, 2, and 3 in progress
+🚧 **In Development** - Stages 0-7 complete, Stage 8 next
 
-Stage 3 (Basic Web UI & Authentication) includes Plex PIN OAuth with client-side polling.
+Core functionality complete: authentication, media browsing, card mapping, Home Assistant integration, and real-time NFC pairing via WebSocket.
 
 ## Known Issues
 
@@ -294,19 +294,22 @@ Following Test-Driven Development (TDD):
     - Responsive grid layouts
     - Media detail modal/page with full metadata
 
-- [ ] **Stage 5**: Manual Card Mapping
-  - Create mappings (type tag ID manually)
+- [x] **Stage 5**: Manual Card Mapping ✅
+  - Create mappings with inline search autocomplete
   - Edit/delete mappings
-  - Dashboard view
+  - Dashboard view with card list
 
-- [ ] **Stage 6**: Home Assistant REST Integration
-  - Playback URL endpoint
-  - Usage tracking
+- [x] **Stage 6**: Home Assistant REST Integration ✅
+  - POST /api/play endpoint for playback triggers
+  - Usage tracking with playback_logs table
+  - Cross-user tag lookup
 
-- [ ] **Stage 7**: Real-time NFC Pairing
-  - WebSocket to Home Assistant
-  - Live tag scanning
-  - Pairing mode
+- [x] **Stage 7**: Real-time NFC Pairing ✅
+  - WebSocket client connects to Home Assistant
+  - WebSocket server for browser clients
+  - Live NFC tag detection during pairing
+  - Real-time UI feedback with connection status
+  - Duplicate tag detection
 
 - [ ] **Stage 8**: Enhanced UI & Polish
   - Responsive design

@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +21,16 @@ import (
 )
 
 func main() {
+	// Set up logging to both stdout and file
+	logFile, err := os.OpenFile("tapedeck.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Printf("Warning: Failed to open log file: %v", err)
+	} else {
+		defer logFile.Close()
+		multiWriter := io.MultiWriter(os.Stdout, logFile)
+		log.SetOutput(multiWriter)
+	}
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {

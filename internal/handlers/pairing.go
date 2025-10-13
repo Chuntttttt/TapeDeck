@@ -177,7 +177,15 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         // Connect WebSocket
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsURL = protocol + '//' + window.location.host + '/ws/pairing';
+
+            // If we're on the Air proxy (port 3002), connect directly to app server (port 3001)
+            // Air proxy doesn't handle WebSocket upgrades properly
+            let host = window.location.host;
+            if (host.includes(':3002')) {
+                host = host.replace(':3002', ':3001');
+            }
+
+            const wsURL = protocol + '//' + host + '/ws/pairing';
 
             ws = new WebSocket(wsURL);
 

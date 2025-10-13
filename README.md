@@ -315,13 +315,23 @@ Following Test-Driven Development (TDD):
   - Responsive design
   - Search and filters
   - Accessibility
+  - HA connection status banner (red alert if disconnected)
+  - Real-time connection health monitoring
 
-- [ ] **Stage 9**: Production Deployment
+- [ ] **Stage 9**: Admin Interface
+  - Settings page for managing configuration
+  - Update HA URL and token from UI
+  - Update Plex URL and server ID
+  - Test connections and validate settings
+  - Secure storage (database vs flat config file decision)
+  - Token rotation and credential management
+
+- [ ] **Stage 10**: Production Deployment
   - Docker optimization
   - Logging and metrics
   - Backup scripts
 
-- [ ] **Stage 10**: Integration Testing & Documentation
+- [ ] **Stage 11**: Integration Testing & Documentation
   - End-to-end tests
   - Hardware setup guide
   - User documentation

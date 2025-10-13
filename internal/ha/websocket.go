@@ -171,6 +171,9 @@ func (c *HAClient) handleMessages() {
 				return
 			}
 
+			// DEBUG: Log all incoming messages
+			log.Printf("DEBUG: Received HA WebSocket message: %+v", msg)
+
 			// Handle event messages
 			if msgType, ok := msg["type"].(string); ok && msgType == "event" {
 				c.handleEvent(msg)

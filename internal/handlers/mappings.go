@@ -255,20 +255,15 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
         async function performSearch(query) {
             try {
                 searchError.style.display = 'none';
-                const response = await fetch('/search?q=' + encodeURIComponent(query));
+                const response = await fetch('/api/search?q=' + encodeURIComponent(query));
 
                 if (!response.ok) {
                     throw new Error('Search failed');
                 }
 
-                const html = await response.text();
+                const data = await response.json();
 
-                // Parse HTML to extract media items
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const mediaCards = doc.querySelectorAll('.media-card');
-
-                if (mediaCards.length === 0) {
+                if (data.results.length === 0) {
                     searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
                     searchResults.style.display = 'block';
                     return;
@@ -276,22 +271,18 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
 
                 searchResults.innerHTML = '';
 
-                mediaCards.forEach(card => {
-                    const title = card.querySelector('.media-title')?.textContent || '';
-                    const year = card.querySelector('.media-year')?.textContent || '';
-                    const type = card.querySelector('.media-type')?.textContent || '';
-
-                    // Extract rating key from data attributes or generate a unique ID
-                    // For now, we'll use a simple approach - the search endpoint should return JSON
+                data.results.forEach(result => {
                     const item = document.createElement('div');
                     item.className = 'search-result-item';
-                    item.innerHTML = '<div class="result-title">' + title + '</div><div class="result-meta">' + type + ' ' + year + '</div>';
-                    item.dataset.title = title;
-                    item.dataset.year = year;
-                    item.dataset.type = type;
+                    const yearStr = result.year ? ' (' + result.year + ')' : '';
+                    item.innerHTML = '<div class="result-title">' + result.title + '</div><div class="result-meta">' + result.type + yearStr + '</div>';
+                    item.dataset.title = result.title;
+                    item.dataset.year = result.year || '';
+                    item.dataset.type = result.type;
+                    item.dataset.ratingKey = result.ratingKey;
 
                     item.addEventListener('click', function() {
-                        selectMedia(this.dataset.title, this.dataset.type, this.dataset.year);
+                        selectMedia(this.dataset.title, this.dataset.type, this.dataset.ratingKey, this.dataset.year);
                     });
 
                     searchResults.appendChild(item);
@@ -304,18 +295,15 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
             }
         }
 
-        function selectMedia(title, type, year) {
-            selectedItem = { title, type, year };
-
-            // Generate a media ID from title (in production, this should come from API)
-            const mediaId = 'rating-' + Math.random().toString(36).substr(2, 9);
+        function selectMedia(title, type, ratingKey, year) {
+            selectedItem = { title, type, ratingKey, year };
 
             selectedTitle.textContent = title;
             selectedMeta.textContent = type + (year ? ' (' + year + ')' : '');
             selectedMedia.style.display = 'block';
 
-            mediaTypeInput.value = type.toLowerCase();
-            mediaIdInput.value = mediaId;
+            mediaTypeInput.value = type;
+            mediaIdInput.value = ratingKey;
             mediaTitleInput.value = title;
 
             searchResults.style.display = 'none';

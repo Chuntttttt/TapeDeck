@@ -88,6 +88,31 @@ func (db *DB) CreateUser(user *models.User) (int64, error) {
 	return id, nil
 }
 
+// GetUserByID retrieves a user by their ID
+func (db *DB) GetUserByID(id int64) (*models.User, error) {
+	user := &models.User{}
+	err := db.conn.QueryRow(
+		`SELECT id, plex_username, plex_user_id, plex_auth_token, created_at, updated_at
+		FROM users WHERE id = ?`,
+		id,
+	).Scan(
+		&user.ID,
+		&user.PlexUsername,
+		&user.PlexUserID,
+		&user.PlexAuthToken,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to query user: %w", err)
+	}
+
+	return user, nil
+}
+
 // GetUserByPlexUserID retrieves a user by their Plex user ID
 func (db *DB) GetUserByPlexUserID(plexUserID string) (*models.User, error) {
 	user := &models.User{}

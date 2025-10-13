@@ -54,6 +54,9 @@ func main() {
 	// Initialize auth handler
 	authHandler := handlers.NewAuthHandler(sessionStore, plexAuth, database)
 
+	// Initialize media handler
+	mediaHandler := handlers.NewMediaHandler(sessionStore, database, cfg.PlexURL, cfg.DevMode)
+
 	mux := http.NewServeMux()
 
 	// Auth routes
@@ -61,8 +64,19 @@ func main() {
 	mux.HandleFunc("/auth/poll-status", authHandler.PollStatus)
 	mux.HandleFunc("/auth/logout", authHandler.Logout)
 
-	// Protected routes
-	mux.Handle("/", middleware.RequireAuth(sessionStore)(homeHandler()))
+	// Protected media routes
+	mux.Handle("/libraries", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mediaHandler.Libraries)))
+	mux.Handle("/libraries/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(libraryContentsHandler(mediaHandler))))
+	mux.Handle("/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mediaHandler.Search)))
+
+	// Home route - redirect to libraries
+	mux.Handle("/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/libraries", http.StatusFound)
+			return
+		}
+		http.NotFound(w, r)
+	})))
 
 	// Health check (unprotected)
 	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
@@ -97,31 +111,28 @@ func main() {
 	log.Println("Server stopped")
 }
 
+// libraryContentsHandler extracts the library key from the URL path and calls LibraryContents
+func libraryContentsHandler(h *handlers.MediaHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Extract library key from /libraries/{key}
+		path := r.URL.Path
+		if len(path) <= len("/libraries/") {
+			http.Error(w, "Library ID required", http.StatusBadRequest)
+			return
+		}
+		libraryKey := path[len("/libraries/"):]
+		if libraryKey == "" {
+			http.Error(w, "Library ID required", http.StatusBadRequest)
+			return
+		}
+		h.LibraryContents(w, r, libraryKey)
+	}
+}
+
 func healthCheckHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprint(w, `{"status":"ok"}`)
-	})
-}
-
-func homeHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprint(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>TapeDeck</title>
-</head>
-<body>
-    <h1>🎬 TapeDeck</h1>
-    <p>Welcome to TapeDeck!</p>
-    <form method="post" action="/auth/logout">
-        <button type="submit">Logout</button>
-    </form>
-</body>
-</html>`)
 	})
 }

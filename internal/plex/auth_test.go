@@ -133,6 +133,12 @@ func TestCheckPIN(t *testing.T) {
 			serverStatus: http.StatusNotFound,
 			wantErr:      true,
 		},
+		{
+			name:         "rate limited (429)",
+			pinID:        12345,
+			serverStatus: http.StatusTooManyRequests,
+			wantErr:      true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -143,8 +149,10 @@ func TestCheckPIN(t *testing.T) {
 				}
 
 				expectedPath := "/api/v2/pins/12345"
-				if tt.serverStatus == http.StatusNotFound {
-					expectedPath = "/api/v2/pins/99999"
+				if tt.serverStatus == http.StatusNotFound || tt.serverStatus == http.StatusTooManyRequests {
+					if tt.pinID == 99999 {
+						expectedPath = "/api/v2/pins/99999"
+					}
 				}
 
 				if r.URL.Path != expectedPath {
@@ -179,19 +187,75 @@ func TestCheckPIN(t *testing.T) {
 }
 
 func TestGetAuthURL(t *testing.T) {
-	client := NewAuthClient("https://plex.tv", "test-client-123", "TapeDeck", false)
-	pinCode := "ABC123"
-	forwardURL := "http://localhost:3001/auth/callback"
-
-	url := client.GetAuthURL(pinCode, forwardURL)
-
-	// URL should contain required parameters
-	if url == "" {
-		t.Error("GetAuthURL() returned empty string")
+	tests := []struct {
+		name           string
+		clientID       string
+		pinCode        string
+		forwardURL     string
+		wantContains   []string
+		wantNotContain []string
+	}{
+		{
+			name:       "with forward URL",
+			clientID:   "test-client-123",
+			pinCode:    "ABC123",
+			forwardURL: "http://localhost:3001/auth/callback",
+			wantContains: []string{
+				"https://app.plex.tv/auth#!?",
+				"clientID=test-client-123",
+				"code=ABC123",
+				"forwardUrl=",
+			},
+		},
+		{
+			name:       "without forward URL (polling mode)",
+			clientID:   "test-client-456",
+			pinCode:    "XYZ789",
+			forwardURL: "",
+			wantContains: []string{
+				"https://app.plex.tv/auth#!?",
+				"clientID=test-client-456",
+				"code=XYZ789",
+			},
+			wantNotContain: []string{
+				"forwardUrl=",
+			},
+		},
 	}
 
-	// Basic validation - should contain plex.tv domain
-	if len(url) < 20 {
-		t.Error("GetAuthURL() returned suspiciously short URL")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := NewAuthClient("https://plex.tv", tt.clientID, "TapeDeck", false)
+			url := client.GetAuthURL(tt.pinCode, tt.forwardURL)
+
+			if url == "" {
+				t.Error("GetAuthURL() returned empty string")
+			}
+
+			for _, want := range tt.wantContains {
+				if !contains(url, want) {
+					t.Errorf("URL should contain %q but doesn't. Got: %s", want, url)
+				}
+			}
+
+			for _, notWant := range tt.wantNotContain {
+				if contains(url, notWant) {
+					t.Errorf("URL should not contain %q but does. Got: %s", notWant, url)
+				}
+			}
+		})
 	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && stringContains(s, substr))
+}
+
+func stringContains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

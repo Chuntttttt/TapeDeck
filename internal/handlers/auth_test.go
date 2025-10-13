@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Chuntttttt/tapedeck/internal/db"
@@ -128,4 +129,261 @@ func TestGetOrCreateSession_ExistingSession(t *testing.T) {
 	if val, ok := session2.Values["test"]; !ok || val != "value" {
 		t.Error("Session did not preserve values")
 	}
+}
+
+func TestAuthHandler_PollStatus_NoPINInSession(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	handler := NewAuthHandler(store, nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/poll-status", nil)
+	w := httptest.NewRecorder()
+
+	handler.PollStatus(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if w.Header().Get("Content-Type") != "application/json" {
+		t.Errorf("Content-Type = %s, want application/json", w.Header().Get("Content-Type"))
+	}
+
+	// Should return {"authorized": false}
+	body := strings.TrimSpace(w.Body.String())
+	if body != `{"authorized":false}` {
+		t.Errorf("Body = %s, want {\"authorized\":false}", body)
+	}
+}
+
+func TestAuthHandler_PollStatus_InvalidPINIDType(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	handler := NewAuthHandler(store, nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/poll-status", nil)
+	w := httptest.NewRecorder()
+
+	// Create session with invalid PIN ID type (string instead of int)
+	session, _ := store.Get(req, middleware.SessionName)
+	session.Values["plex_pin_id"] = "not-an-int"
+	_ = session.Save(req, w)
+
+	// Add cookie to request
+	cookies := w.Result().Cookies()
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+	handler.PollStatus(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	body := strings.TrimSpace(w.Body.String())
+	if body != `{"authorized":false}` {
+		t.Errorf("Body = %s, want {\"authorized\":false}", body)
+	}
+}
+
+func TestAuthHandler_PollStatus_RateLimited(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create mock Plex client that returns rate limit error
+	mockPlex := &mockPlexAuthClient{
+		checkPINFunc: func(pinID int) (*plex.PINCheckResponse, error) {
+			return nil, &httpError{code: 429, message: "unexpected status code: 429"}
+		},
+	}
+
+	handler := &AuthHandler{
+		sessionStore: store,
+		plexAuth:     mockPlex,
+		db:           nil,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/poll-status", nil)
+	w := httptest.NewRecorder()
+
+	// Create session with PIN ID
+	session, _ := store.Get(req, middleware.SessionName)
+	session.Values["plex_pin_id"] = 12345
+	_ = session.Save(req, w)
+
+	// Add cookie to request
+	cookies := w.Result().Cookies()
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+	handler.PollStatus(w, req)
+
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("Status = %d, want %d", w.Code, http.StatusTooManyRequests)
+	}
+
+	body := strings.TrimSpace(w.Body.String())
+	if body != `{"authorized":false}` {
+		t.Errorf("Body = %s, want {\"authorized\":false}", body)
+	}
+}
+
+func TestAuthHandler_PollStatus_NotYetAuthorized(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create mock Plex client that returns empty auth token
+	mockPlex := &mockPlexAuthClient{
+		checkPINFunc: func(pinID int) (*plex.PINCheckResponse, error) {
+			return &plex.PINCheckResponse{
+				ID:        pinID,
+				Code:      "ABC123",
+				AuthToken: "", // Not yet authorized
+			}, nil
+		},
+	}
+
+	handler := &AuthHandler{
+		sessionStore: store,
+		plexAuth:     mockPlex,
+		db:           nil,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/poll-status", nil)
+	w := httptest.NewRecorder()
+
+	// Create session with PIN ID
+	session, _ := store.Get(req, middleware.SessionName)
+	session.Values["plex_pin_id"] = 12345
+	_ = session.Save(req, w)
+
+	// Add cookie to request
+	cookies := w.Result().Cookies()
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+	handler.PollStatus(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	body := strings.TrimSpace(w.Body.String())
+	if body != `{"authorized":false}` {
+		t.Errorf("Body = %s, want {\"authorized\":false}", body)
+	}
+}
+
+func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create mock Plex client that returns auth token
+	mockPlex := &mockPlexAuthClient{
+		checkPINFunc: func(pinID int) (*plex.PINCheckResponse, error) {
+			return &plex.PINCheckResponse{
+				ID:        pinID,
+				Code:      "ABC123",
+				AuthToken: "test-auth-token-xyz",
+			}, nil
+		},
+	}
+
+	// Create test database
+	testDB, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer func() { _ = testDB.Close() }()
+
+	// Run migrations
+	if err := testDB.RunMigrations("../../migrations"); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	handler := &AuthHandler{
+		sessionStore: store,
+		plexAuth:     mockPlex,
+		db:           testDB,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/poll-status", nil)
+	w := httptest.NewRecorder()
+
+	// Create session with PIN ID
+	session, _ := store.Get(req, middleware.SessionName)
+	session.Values["plex_pin_id"] = 12345
+	_ = session.Save(req, w)
+
+	// Add cookie to request
+	cookies := w.Result().Cookies()
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+	handler.PollStatus(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	body := strings.TrimSpace(w.Body.String())
+	if body != `{"authorized":true}` {
+		t.Errorf("Body = %s, want {\"authorized\":true}", body)
+	}
+
+	// Verify session was updated
+	cookies = w.Result().Cookies()
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, cookie := range cookies {
+		req2.AddCookie(cookie)
+	}
+	session2, _ := store.Get(req2, middleware.SessionName)
+	userID, ok := middleware.GetUserID(session2)
+	if !ok {
+		t.Error("User ID not set in session")
+	}
+	if userID == 0 {
+		t.Error("User ID is zero")
+	}
+
+	// Verify PIN values were cleared from session
+	if _, ok := session2.Values["plex_pin_id"]; ok {
+		t.Error("plex_pin_id should be removed from session")
+	}
+	if _, ok := session2.Values["plex_pin_code"]; ok {
+		t.Error("plex_pin_code should be removed from session")
+	}
+}
+
+// Mock Plex auth client for testing
+type mockPlexAuthClient struct {
+	requestPINFunc func() (*plex.PINResponse, error)
+	checkPINFunc   func(pinID int) (*plex.PINCheckResponse, error)
+}
+
+func (m *mockPlexAuthClient) RequestPIN() (*plex.PINResponse, error) {
+	if m.requestPINFunc != nil {
+		return m.requestPINFunc()
+	}
+	return nil, nil
+}
+
+func (m *mockPlexAuthClient) CheckPIN(pinID int) (*plex.PINCheckResponse, error) {
+	if m.checkPINFunc != nil {
+		return m.checkPINFunc(pinID)
+	}
+	return nil, nil
+}
+
+// Mock HTTP error for testing
+type httpError struct {
+	code    int
+	message string
+}
+
+func (e *httpError) Error() string {
+	return e.message
 }

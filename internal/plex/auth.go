@@ -5,10 +5,17 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
 )
+
+// AuthClientInterface defines the methods required for Plex authentication
+type AuthClientInterface interface {
+	RequestPIN() (*PINResponse, error)
+	CheckPIN(pinID int) (*PINCheckResponse, error)
+}
 
 // AuthClient handles Plex authentication operations
 type AuthClient struct {
@@ -64,7 +71,7 @@ func (c *AuthClient) RequestPIN() (*PINResponse, error) {
 		return nil, fmt.Errorf("client ID is required")
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/v2/pins?strong=true", nil)
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/v2/pins", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -92,6 +99,8 @@ func (c *AuthClient) RequestPIN() (*PINResponse, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&pinResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
+
+	log.Printf("DEBUG RequestPIN: ID=%d, Code='%s' (len=%d)", pinResp.ID, pinResp.Code, len(pinResp.Code))
 
 	return &pinResp, nil
 }
@@ -123,35 +132,33 @@ func (c *AuthClient) CheckPIN(pinID int) (*PINCheckResponse, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	// Read and log the raw response for debugging
-	var rawResponse map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&rawResponse); err != nil {
+	var checkResp PINCheckResponse
+	if err := json.NewDecoder(resp.Body).Decode(&checkResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Log the full raw response
-	rawJSON, _ := json.Marshal(rawResponse)
-	fmt.Printf("DEBUG RAW JSON: %s\n", string(rawJSON))
-
-	// Convert back to structured response
-	var checkResp PINCheckResponse
-	if err := json.Unmarshal(rawJSON, &checkResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
+	log.Printf("DEBUG CheckPIN: ID=%d, Code='%s', AuthToken='%s' (len=%d)",
+		checkResp.ID, checkResp.Code, checkResp.AuthToken, len(checkResp.AuthToken))
 
 	return &checkResp, nil
 }
 
 // GetAuthURL constructs the Plex authentication URL for user authorization
+//
+// NOTE: This method is currently unused due to Plex OAuth being broken for 3rd party apps
+// in v4.152.0 (Sept 2025). We use PIN polling instead until Plex fixes their OAuth.
+// See: https://forums.plex.tv/t/plex-oauth-authenticate-with-plex-broken-after-plex-web-update-v4-152-0/931098
+//
+// TODO: Re-enable forwardUrl redirect flow when Plex fixes OAuth
 func (c *AuthClient) GetAuthURL(pinCode, forwardURL string) string {
 	params := url.Values{}
 	params.Add("clientID", c.clientID)
 	params.Add("code", pinCode)
-	params.Add("context[device][product]", c.productName)
 
+	// Only add forwardUrl for redirect flow
 	if forwardURL != "" {
 		params.Add("forwardUrl", forwardURL)
 	}
 
-	return fmt.Sprintf("https://app.plex.tv/auth#?%s", params.Encode())
+	return fmt.Sprintf("https://app.plex.tv/auth#!?%s", params.Encode())
 }

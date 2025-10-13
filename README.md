@@ -13,6 +13,25 @@ A Go-based web application that bridges physical and digital media using NFC car
 
 Stage 3 (Basic Web UI & Authentication) includes Plex PIN OAuth with client-side polling.
 
+## Known Issues
+
+### ⚠️ Plex OAuth Workaround (HIGH PRIORITY)
+
+**Current Implementation**: Using PIN polling with 5-second intervals
+
+**Why**: Plex broke OAuth for 3rd party applications in Web update v4.152.0 (September 2025). The recommended `forwardUrl` redirect flow no longer works due to `Cross-Origin-Opener-Policy` changes.
+
+**Forum Thread**: https://forums.plex.tv/t/plex-oauth-authenticate-with-plex-broken-after-plex-web-update-v4-152-0/931098
+
+**TODO**: Switch back to `forwardUrl` redirect flow once Plex fixes their OAuth implementation. This is the proper authentication method for web applications and should be prioritized when available.
+
+**Current Limitations**:
+- Slower authentication (5-second polling vs instant redirect)
+- Risk of rate limiting with aggressive testing
+- Manual retry required if rate limited
+
+**Code Location**: `internal/handlers/auth.go` (Login handler with JavaScript polling)
+
 ## Overview
 
 TapeDeck recreates the nostalgic experience of physical media libraries for the streaming age. Kids (and adults!) can tap a physical card to play their favorite content without navigating complex streaming interfaces.

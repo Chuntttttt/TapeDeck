@@ -16,26 +16,35 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/ha"
 	"github.com/Chuntttttt/tapedeck/internal/handlers"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 )
 
 func main() {
-	// Set up logging to both stdout and file
-	logFile, err := os.OpenFile("tapedeck.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		log.Printf("Warning: Failed to open log file: %v", err)
-	} else {
-		defer logFile.Close()
-		multiWriter := io.MultiWriter(os.Stdout, logFile)
-		log.SetOutput(multiWriter)
-	}
-
-	// Load configuration
+	// Load configuration first (need LOG_LEVEL for logger init)
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
+
+	// Set up structured logging to both stdout and file
+	logFile, err := os.OpenFile("tapedeck.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Printf("Warning: Failed to open log file: %v", err)
+		logger.Init(cfg.LogLevel, os.Stdout)
+	} else {
+		defer logFile.Close()
+		logger.Init(cfg.LogLevel, os.Stdout, logFile)
+	}
+
+	// Also set standard log output for backward compatibility
+	if logFile != nil {
+		multiWriter := io.MultiWriter(os.Stdout, logFile)
+		log.SetOutput(multiWriter)
+	}
+
+	logger.Info("Starting TapeDeck", "log_level", cfg.LogLevel, "dev_mode", cfg.DevMode)
 
 	// Initialize database
 	database, err := db.New(cfg.DatabasePath)

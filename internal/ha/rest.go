@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 )
 
 // RestClient handles REST API calls to Home Assistant
@@ -50,7 +51,7 @@ func (c *RestClient) GetEntityState(entityID string) (string, error) {
 	url := fmt.Sprintf("%s/api/states/%s", c.baseURL, entityID)
 
 	if c.devMode {
-		log.Printf("[DEBUG] Getting entity state - URL: %s, Entity: %s", url, entityID)
+		logger.Debug("Getting entity state", "url", url, "entity_id", entityID)
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -77,7 +78,7 @@ func (c *RestClient) GetEntityState(entityID string) (string, error) {
 	}
 
 	if c.devMode {
-		log.Printf("[DEBUG] Entity state: %s", state.State)
+		logger.Debug("Entity state retrieved", "state", state.State)
 	}
 
 	return state.State, nil
@@ -97,7 +98,7 @@ func (c *RestClient) TurnOn(entityID string) error {
 	}
 
 	if c.devMode {
-		log.Printf("[DEBUG] Calling turn_on service - URL: %s, Entity: %s", url, entityID)
+		logger.Debug("Calling turn_on service", "url", url, "entity_id", entityID)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
@@ -115,7 +116,7 @@ func (c *RestClient) TurnOn(entityID string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if c.devMode {
-		log.Printf("[DEBUG] Turn_on response status: %d", resp.StatusCode)
+		logger.Debug("Turn_on response received", "status_code", resp.StatusCode)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -152,8 +153,7 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	if c.devMode {
-		log.Printf("[DEBUG] Calling play_media service - URL: %s", url)
-		log.Printf("[DEBUG] Request body: %s", string(jsonData))
+		logger.Debug("Calling play_media service", "url", url, "request_body", string(jsonData))
 	}
 
 	// Execute request
@@ -165,7 +165,7 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 
 	if c.devMode {
 		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[DEBUG] Play_media response status: %d, body: %s", resp.StatusCode, string(body))
+		logger.Debug("Play_media response received", "status_code", resp.StatusCode, "response_body", string(body))
 
 		// Need to check status after reading body
 		if resp.StatusCode != http.StatusOK {

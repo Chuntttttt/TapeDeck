@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -16,6 +17,7 @@ type RestClient struct {
 	baseURL    string
 	token      string
 	httpClient *http.Client
+	devMode    bool
 }
 
 // NewRestClient creates a new Home Assistant REST API client
@@ -33,6 +35,7 @@ func NewRestClient(haURL, token string, devMode bool) *RestClient {
 		baseURL:    haURL,
 		token:      token,
 		httpClient: client,
+		devMode:    devMode,
 	}
 }
 
@@ -45,6 +48,10 @@ type EntityState struct {
 // GetEntityState retrieves the current state of an entity
 func (c *RestClient) GetEntityState(entityID string) (string, error) {
 	url := fmt.Sprintf("%s/api/states/%s", c.baseURL, entityID)
+
+	if c.devMode {
+		log.Printf("[DEBUG] Getting entity state - URL: %s, Entity: %s", url, entityID)
+	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -69,6 +76,10 @@ func (c *RestClient) GetEntityState(entityID string) (string, error) {
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	if c.devMode {
+		log.Printf("[DEBUG] Entity state: %s", state.State)
+	}
+
 	return state.State, nil
 }
 
@@ -85,6 +96,10 @@ func (c *RestClient) TurnOn(entityID string) error {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
 
+	if c.devMode {
+		log.Printf("[DEBUG] Calling turn_on service - URL: %s, Entity: %s", url, entityID)
+	}
+
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -98,6 +113,10 @@ func (c *RestClient) TurnOn(entityID string) error {
 		return fmt.Errorf("failed to make request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	if c.devMode {
+		log.Printf("[DEBUG] Turn_on response status: %d", resp.StatusCode)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -132,6 +151,11 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
 
+	if c.devMode {
+		log.Printf("[DEBUG] Calling play_media service - URL: %s", url)
+		log.Printf("[DEBUG] Request body: %s", string(jsonData))
+	}
+
 	// Execute request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -139,10 +163,20 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// Check response status
-	if resp.StatusCode != http.StatusOK {
+	if c.devMode {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+		log.Printf("[DEBUG] Play_media response status: %d, body: %s", resp.StatusCode, string(body))
+
+		// Need to check status after reading body
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+		}
+	} else {
+		// Check response status (non-dev mode)
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+		}
 	}
 
 	return nil

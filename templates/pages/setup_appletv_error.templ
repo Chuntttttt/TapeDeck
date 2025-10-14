@@ -1,0 +1,19 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+
+// SetupAppleTVError renders the Apple TV error page
+templ SetupAppleTVError(errorMsg string) {
+	@layouts.SetupLayout("Error", 4, appleTVErrorContent(errorMsg))
+}
+
+templ appleTVErrorContent(errorMsg string) {
+	<div class="container">
+		@components.BackLink("/setup/ha", "Back")
+		<h1>❌ Error</h1>
+		@components.ErrorBox(errorMsg)
+		@components.ButtonLink("Try Again", "/setup/appletv", templ.Attributes{})
+		@components.ButtonLink("Skip for Now", "/setup/complete", templ.Attributes{})
+	</div>
+}

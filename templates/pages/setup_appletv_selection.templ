@@ -1,0 +1,42 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+import "github.com/Chuntttttt/tapedeck/internal/ha"
+import "fmt"
+
+// SetupAppleTVSelection renders the Apple TV selection page
+templ SetupAppleTVSelection(mediaPlayers []ha.Entity, selectedTVs map[string]bool) {
+	@layouts.SetupLayout("Select Apple TVs", 4, appleTVSelectionContent(mediaPlayers, selectedTVs))
+}
+
+templ appleTVSelectionContent(mediaPlayers []ha.Entity, selectedTVs map[string]bool) {
+	<div class="container">
+		@components.BackLink("/setup/ha", "Back")
+		<h1>Select Apple TVs</h1>
+		<p>We found { fmt.Sprintf("%d", len(mediaPlayers)) } media player(s) in Home Assistant. Select which ones you'd like to use with TapeDeck.</p>
+		<form method="post" action="/setup/appletv/save">
+			<div class="tv-list">
+				for _, player := range mediaPlayers {
+					@appleTVItem(player, len(mediaPlayers) == 1 || selectedTVs[player.EntityID])
+				}
+			</div>
+			<button type="submit" class="btn">Continue</button>
+			@components.ButtonLink("Skip for Now", "/setup/complete", templ.Attributes{"class": "btn-secondary"})
+		</form>
+	</div>
+}
+
+templ appleTVItem(player ha.Entity, checked bool) {
+	<label class="tv-item">
+		if checked {
+			<input type="checkbox" name="tv_entities" value={ player.EntityID } checked/>
+		} else {
+			<input type="checkbox" name="tv_entities" value={ player.EntityID }/>
+		}
+		<div>
+			<div class="tv-name">{ player.GetFriendlyName() }</div>
+			<div class="tv-meta">{ player.EntityID } - { player.State }</div>
+		</div>
+	</label>
+}

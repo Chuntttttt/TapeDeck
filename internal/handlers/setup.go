@@ -353,169 +353,25 @@ func (h *SetupHandler) Step4AppleTVs(w http.ResponseWriter, r *http.Request) {
 	h.renderAppleTVSelection(w, r, mediaPlayers, state)
 }
 
-func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, _ *http.Request, mediaPlayers []ha.Entity, state *SetupState) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Select Apple TVs - TapeDeck Setup</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px; }
-        .btn:hover { background: #cc8f0a; }
-        .btn-secondary { background: #666; }
-        .btn-secondary:hover { background: #555; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-        .tv-list { margin: 20px 0; }
-        .tv-item { display: flex; align-items: flex-start; padding: 15px; border: 2px solid #ddd; border-radius: 4px; margin-bottom: 10px; cursor: pointer; }
-        .tv-item:hover { border-color: #e5a00d; background: #fffbf0; }
-        .tv-item input[type="checkbox"] { margin: 3px 12px 0 0; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer; }
-        .tv-item > div { flex: 1; }
-        .tv-name { font-weight: bold; margin-bottom: 5px; }
-        .tv-meta { font-size: 14px; color: #666; }
-        p { line-height: 1.6; color: #555; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-        </div>
-
-        <a href="/setup/ha" class="back-link">← Back</a>
-        <h1>Select Apple TVs</h1>
-        <p>We found %d media player(s) in Home Assistant. Select which ones you'd like to use with TapeDeck.</p>
-
-        <form method="post" action="/setup/appletv/save">
-            <div class="tv-list">`, len(mediaPlayers))
-
-	for _, player := range mediaPlayers {
-		friendlyName := player.GetFriendlyName()
-		checked := ""
-		if len(mediaPlayers) == 1 || state.SelectedTVs[player.EntityID] {
-			checked = "checked"
-		}
-
-		_, _ = fmt.Fprintf(w, `
-                <label class="tv-item">
-                    <input type="checkbox" name="tv_entities" value="%s" %s>
-                    <div>
-                        <div class="tv-name">%s</div>
-                        <div class="tv-meta">%s - %s</div>
-                    </div>
-                </label>`,
-			html.EscapeString(player.EntityID),
-			checked,
-			html.EscapeString(friendlyName),
-			html.EscapeString(player.EntityID),
-			html.EscapeString(player.State))
+func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, r *http.Request, mediaPlayers []ha.Entity, state *SetupState) {
+	if err := pages.SetupAppleTVSelection(mediaPlayers, state.SelectedTVs).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}
-
-	_, _ = fmt.Fprint(w, `
-            </div>
-
-            <button type="submit" class="btn">Continue</button>
-            <a href="/setup/complete" class="btn btn-secondary">Skip for Now</a>
-        </form>
-    </div>
-</body>
-</html>`)
 }
 
-func (h *SetupHandler) renderAppleTVEmpty(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprint(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>No Apple TVs Found - TapeDeck Setup</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #cc8f0a; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-        .info { background: #fef3c7; border: 2px solid #f59e0b; padding: 15px; border-radius: 4px; color: #92400e; margin: 20px 0; }
-        p { line-height: 1.6; color: #555; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-        </div>
-
-        <a href="/setup/ha" class="back-link">← Back</a>
-        <h1>No Apple TVs Found</h1>
-        <div class="info">No media players were found in Home Assistant. You can add them later in settings.</div>
-        <p>Make sure your Apple TV devices are configured in Home Assistant before continuing.</p>
-
-        <a href="/setup/complete" class="btn">Skip for Now</a>
-    </div>
-</body>
-</html>`)
+func (h *SetupHandler) renderAppleTVEmpty(w http.ResponseWriter, r *http.Request) {
+	if err := pages.SetupAppleTVEmpty().Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
-func (h *SetupHandler) renderAppleTVError(w http.ResponseWriter, _ *http.Request, errorMsg string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Error - TapeDeck Setup</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .error { background: #fee2e2; border: 2px solid #ef4444; padding: 15px; border-radius: 4px; color: #991b1b; margin: 20px 0; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px; }
-        .btn:hover { background: #cc8f0a; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-        </div>
-
-        <a href="/setup/ha" class="back-link">← Back</a>
-        <h1>❌ Error</h1>
-        <div class="error">%s</div>
-
-        <a href="/setup/appletv" class="btn">Try Again</a>
-        <a href="/setup/complete" class="btn">Skip for Now</a>
-    </div>
-</body>
-</html>`, html.EscapeString(errorMsg))
+func (h *SetupHandler) renderAppleTVError(w http.ResponseWriter, r *http.Request, errorMsg string) {
+	if err := pages.SetupAppleTVError(errorMsg).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 // SaveAppleTVs handles POST /setup/appletv/save

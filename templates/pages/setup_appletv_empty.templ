@@ -1,0 +1,19 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+
+// SetupAppleTVEmpty renders the empty state when no Apple TVs are found
+templ SetupAppleTVEmpty() {
+	@layouts.SetupLayout("No Apple TVs Found", 4, appleTVEmptyContent())
+}
+
+templ appleTVEmptyContent() {
+	<div class="container">
+		@components.BackLink("/setup/ha", "Back")
+		<h1>No Apple TVs Found</h1>
+		@components.InfoBox("No media players were found in Home Assistant. You can add them later in settings.")
+		<p>Make sure your Apple TV devices are configured in Home Assistant before continuing.</p>
+		@components.ButtonLink("Skip for Now", "/setup/complete", templ.Attributes{})
+	</div>
+}

@@ -9,9 +9,9 @@ A Go-based web application that bridges physical and digital media using NFC car
 
 ## Project Status
 
-🚧 **In Development** - Stages 0-10 complete, Stage 11 next
+✅ **Feature Complete** - All 11 development stages complete!
 
-Core functionality complete: authentication, media browsing, card mapping, Home Assistant integration, real-time NFC pairing via WebSocket, configuration management with setup wizard, and production-ready deployment with Docker, logging, and metrics.
+TapeDeck is ready for production use. Complete feature set includes: Plex authentication, multi-server media browsing, card mapping with real-time NFC pairing, Home Assistant integration with WebSocket, web-based setup wizard, production deployment with Docker and metrics, and comprehensive hardware documentation.
 
 ## Known Issues
 
@@ -65,12 +65,20 @@ TapeDeck recreates the nostalgic experience of physical media libraries for the 
 
 ## Prerequisites
 
+### Software
 - Go 1.25 or higher
 - Air (hot reload during development)
 - Templ CLI (template generation)
 - Plex Media Server
-- Home Assistant (with ESPHome NFC reader)
+- Home Assistant with Apple TV integration
+
+### Hardware
+- ESPHome-compatible device (ESP32 or ESP8266)
+- NFC reader (RC522 or PN532)
+- NFC cards/tags (NTAG213/215/216 or MIFARE Classic)
 - Apple TV with Plex app
+
+**See the [Hardware Setup Guide](docs/hardware-setup.md) for detailed instructions on wiring and configuring your NFC reader.**
 
 ## Quick Start
 
@@ -403,10 +411,13 @@ Following Test-Driven Development (TDD):
   - Health checks and graceful shutdown
   - Multi-platform builds (amd64, arm64)
 
-- [ ] **Stage 11**: Integration Testing & Documentation
-  - End-to-end tests
-  - Hardware setup guide
-  - User documentation
+- [x] **Stage 11**: Hardware Setup Documentation ✅
+  - Complete hardware setup guide with component recommendations
+  - Wiring diagrams for RC522 and PN532 readers
+  - ESPHome configuration examples for ESP32/ESP8266
+  - Home Assistant integration and event verification
+  - Comprehensive troubleshooting guide
+  - Physical installation recommendations
 
 **Estimated Timeline**: 60-82 hours total (~6-8 weeks at 10-15 hours/week)
 
@@ -414,6 +425,8 @@ Following Test-Driven Development (TDD):
 
 The following improvements are documented for future work and may be good candidates for community contributions:
 
+- **End-to-End Testing**: Automated integration tests covering full user workflows
+- **User Documentation**: Comprehensive user guide with screenshots and video tutorials
 - **Plex SDK Integration**: Replace custom Plex API client with established SDK like [plexgo](https://github.com/lukehagar/plexgo) to avoid XML parsing issues and stay current with API changes
 - **Media Player Filtering**: Add ability to filter/distinguish between different types of media players (Apple TV, Chromecast, smart speakers) during setup wizard, possibly using entity ID patterns or Home Assistant device attributes
 - **Responsive Design**: Mobile and tablet optimization - see [`docs/responsive-design.md`](docs/responsive-design.md)

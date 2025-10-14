@@ -171,12 +171,10 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
 		}
-	} else {
+	} else if resp.StatusCode != http.StatusOK {
 		// Check response status (non-dev mode)
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
-		}
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
 	}
 
 	return nil

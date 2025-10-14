@@ -479,9 +479,9 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 		_ = client.conn.Close()
 	}()
 
-	client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	_ = client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	client.conn.SetPongHandler(func(string) error {
-		client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 
@@ -531,7 +531,7 @@ func (client *pairingClient) writePump() {
 	for {
 		select {
 		case message, ok := <-client.send:
-			client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_ = client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
 				_ = client.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -542,7 +542,7 @@ func (client *pairingClient) writePump() {
 			}
 
 		case <-ticker.C:
-			client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_ = client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

@@ -240,14 +240,14 @@ func (c *HAClient) Reconnect(newToken string) error {
 	if len(c.token) > 8 {
 		oldTokenPreview = c.token[:8] + "..."
 	} else if len(c.token) > 0 {
-		oldTokenPreview = c.token[:] + "..."
+		oldTokenPreview = c.token + "..."
 	}
 
 	newTokenPreview := "empty"
 	if len(newToken) > 8 {
 		newTokenPreview = newToken[:8] + "..."
 	} else if len(newToken) > 0 {
-		newTokenPreview = newToken[:] + "..."
+		newTokenPreview = newToken + "..."
 	}
 
 	log.Printf("Reconnect: Old token: %s (len=%d), New token: %s (len=%d), Same=%v",

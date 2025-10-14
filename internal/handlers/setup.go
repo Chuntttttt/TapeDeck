@@ -17,21 +17,21 @@ import (
 
 // SetupHandler handles the first-time setup wizard
 type SetupHandler struct {
-	sessionStore     *sessions.CookieStore
-	configPath       string
-	plexAuth         *plex.AuthClient
-	db               *db.DB
-	devMode          bool
-	onSetupComplete  func() error // Callback to initialize handlers after setup
+	sessionStore    *sessions.CookieStore
+	configPath      string
+	plexAuth        *plex.AuthClient
+	db              *db.DB
+	devMode         bool
+	onSetupComplete func() error // Callback to initialize handlers after setup
 }
 
 // SetupState tracks the wizard progress in the session
 type SetupState struct {
-	Step          int                   `json:"step"`
-	PlexServers   []config.PlexServer   `json:"plex_servers"`
-	HAConfig      config.HAConfig       `json:"ha_config"`
-	AppleTVs      []config.AppleTV      `json:"apple_tvs"`
-	SelectedTVs   map[string]bool       `json:"selected_tvs"` // entity_id -> selected
+	Step        int                 `json:"step"`
+	PlexServers []config.PlexServer `json:"plex_servers"`
+	HAConfig    config.HAConfig     `json:"ha_config"`
+	AppleTVs    []config.AppleTV    `json:"apple_tvs"`
+	SelectedTVs map[string]bool     `json:"selected_tvs"` // entity_id -> selected
 }
 
 // NewSetupHandler creates a new setup handler

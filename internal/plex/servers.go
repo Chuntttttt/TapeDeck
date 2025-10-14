@@ -18,11 +18,11 @@ type ResourcesResponse struct {
 
 // Resource represents a Plex device (server or client) in the resources response
 type Resource struct {
-	Name             string           `xml:"name,attr"`
-	ClientIdentifier string           `xml:"clientIdentifier,attr"`
-	Owned            string           `xml:"owned,attr"` // "1" or "0"
-	OwnerID          string           `xml:"ownerId,attr"`
-	Provides         string           `xml:"provides,attr"` // e.g., "server", "player", etc.
+	Name             string             `xml:"name,attr"`
+	ClientIdentifier string             `xml:"clientIdentifier,attr"`
+	Owned            string             `xml:"owned,attr"` // "1" or "0"
+	OwnerID          string             `xml:"ownerId,attr"`
+	Provides         string             `xml:"provides,attr"` // e.g., "server", "player", etc.
 	Connections      ConnectionsWrapper `xml:"connections"`
 }
 

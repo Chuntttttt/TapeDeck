@@ -9,10 +9,10 @@ import (
 
 // RuntimeConfig represents the user-configurable runtime settings
 type RuntimeConfig struct {
-	Version       int           `yaml:"version"`
-	PlexServers   []PlexServer  `yaml:"plex_servers"`
-	HomeAssistant HAConfig      `yaml:"home_assistant"`
-	AppleTVs      []AppleTV     `yaml:"apple_tvs"`
+	Version       int          `yaml:"version"`
+	PlexServers   []PlexServer `yaml:"plex_servers"`
+	HomeAssistant HAConfig     `yaml:"home_assistant"`
+	AppleTVs      []AppleTV    `yaml:"apple_tvs"`
 }
 
 // PlexServer represents a Plex Media Server configuration

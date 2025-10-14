@@ -30,7 +30,7 @@ func TestMediaHandler_Libraries(t *testing.T) {
 		servers: []ServerInfo{
 			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
 		},
-		devMode:      false,
+		devMode: false,
 		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
 			return mockPlex
 		},
@@ -114,7 +114,7 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 		servers: []ServerInfo{
 			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
 		},
-		devMode:      false,
+		devMode: false,
 		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
 			return mockPlex
 		},
@@ -197,7 +197,7 @@ func TestMediaHandler_Search(t *testing.T) {
 		servers: []ServerInfo{
 			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
 		},
-		devMode:      false,
+		devMode: false,
 		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
 			return mockPlex
 		},
@@ -268,7 +268,7 @@ func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
 		servers: []ServerInfo{
 			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
 		},
-		devMode:      false,
+		devMode: false,
 	}
 
 	// Create test database and user

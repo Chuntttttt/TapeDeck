@@ -500,12 +500,12 @@ func (m *mockHAClient) simulateTagScan(tagID string) {
 
 // Mock HA REST client for testing
 type mockHARestClient struct {
-	entityState       string
-	getStateError     error
-	turnOnCalls       []string
-	turnOnError       error
-	playMediaCalls    []playMediaCall
-	playMediaError    error
+	entityState    string
+	getStateError  error
+	turnOnCalls    []string
+	turnOnError    error
+	playMediaCalls []playMediaCall
+	playMediaError error
 }
 
 type playMediaCall struct {

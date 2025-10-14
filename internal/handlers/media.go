@@ -343,13 +343,13 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
     </div>
 `, NavigationHTML(), ConnectionBannerHTML())
 
-	_, _ = fmt.Fprint(w, `    <form class="search-form" method="get" action="/search">
+		_, _ = fmt.Fprint(w, `    <form class="search-form" method="get" action="/search">
         <input type="text" name="q" placeholder="Search for movies, shows, music..." required autofocus>
         <button type="submit">Search</button>
     </form>
 `)
 
-	_, _ = fmt.Fprintf(w, `
+		_, _ = fmt.Fprintf(w, `
 %s
 </body>
 </html>`, ConnectionBannerScript())

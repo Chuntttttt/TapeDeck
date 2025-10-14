@@ -10,22 +10,15 @@ templ MediaSearchEmpty(navHTML string, bannerHTML string, bannerScript string) {
 }
 
 templ searchEmptyContent() {
-	<style>
-		body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
-		.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-		.back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-		.search-form { margin: 50px auto; max-width: 500px; text-align: center; }
-		.search-form input { padding: 15px; width: 100%; font-size: 18px; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-		.search-form button { padding: 15px 30px; font-size: 18px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
-		.search-form button:hover { background: #cc8f0a; }
-	</style>
-	<div class="header">
-		<h1>🎬 Search Media</h1>
+	<div class="app-page">
+		<div class="header">
+			<h1>🎬 Search Media</h1>
+		</div>
+		<form class="search-form" method="get" action="/search" style="margin: 50px auto; max-width: 500px; text-align: center;">
+			<input type="text" name="q" placeholder="Search for movies, shows, music..." required autofocus style="padding: 15px; width: 100%; font-size: 18px; box-sizing: border-box;"/>
+			<button type="submit" class="btn" style="margin-top: 20px;">Search</button>
+		</form>
 	</div>
-	<form class="search-form" method="get" action="/search">
-		<input type="text" name="q" placeholder="Search for movies, shows, music..." required autofocus/>
-		<button type="submit">Search</button>
-	</form>
 }
 
 // MediaSearchResults renders the search results page
@@ -34,45 +27,30 @@ templ MediaSearchResults(query string, items []plex.MediaItem, navHTML string, b
 }
 
 templ searchResultsContent(query string, items []plex.MediaItem) {
-	<style>
-		body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
-		.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-		.back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-		.search-form { margin-bottom: 30px; }
-		.search-form input { padding: 10px; width: 300px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
-		.search-form button { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; }
-		.search-form button:hover { background: #cc8f0a; }
-		.results-info { color: #666; margin-bottom: 20px; }
-		.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
-		.media-card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; }
-		.media-title { font-weight: bold; margin-bottom: 5px; }
-		.media-year { color: #666; font-size: 14px; }
-		.media-type { color: #999; font-size: 12px; text-transform: uppercase; }
-		.media-server { color: #1976d2; font-size: 12px; margin-top: 5px; font-weight: 500; }
-		.no-results { text-align: center; color: #666; margin-top: 50px; font-size: 18px; }
-	</style>
-	<div class="header">
-		<h1>🎬 Search Results</h1>
-	</div>
-	<form class="search-form" method="get" action="/search">
-		<input type="text" name="q" value={ query } placeholder="Search media..." required/>
-		<button type="submit">Search</button>
-	</form>
-	<div class="results-info">Found { fmt.Sprintf("%d", len(items)) } result(s) for "{ query }"</div>
-	if len(items) == 0 {
-		<div class="no-results">No results found. Try a different search term.</div>
-	} else {
-		<div class="media-grid">
-			for _, item := range items {
-				<div class="media-card">
-					<div class="media-title">{ item.Title }</div>
-					if item.Year > 0 {
-						<div class="media-year">({ fmt.Sprintf("%d", item.Year) })</div>
-					}
-					<div class="media-type">{ item.Type }</div>
-					<div class="media-server">📡 { item.ServerName }</div>
-				</div>
-			}
+	<div class="app-page">
+		<div class="header">
+			<h1>🎬 Search Results</h1>
 		</div>
-	}
+		<form class="search-form" method="get" action="/search" style="margin-bottom: 30px;">
+			<input type="text" name="q" value={ query } placeholder="Search media..." required style="padding: 10px; width: 300px; font-size: 16px;"/>
+			<button type="submit" class="btn">Search</button>
+		</form>
+		<div class="results-info" style="color: #666; margin-bottom: 20px;">Found { fmt.Sprintf("%d", len(items)) } result(s) for "{ query }"</div>
+		if len(items) == 0 {
+			<div class="empty-state">No results found. Try a different search term.</div>
+		} else {
+			<div class="media-grid">
+				for _, item := range items {
+					<div class="media-card">
+						<div class="media-title">{ item.Title }</div>
+						if item.Year > 0 {
+							<div class="media-year">({ fmt.Sprintf("%d", item.Year) })</div>
+						}
+						<div class="media-type">{ item.Type }</div>
+						<div class="media-server">📡 { item.ServerName }</div>
+					</div>
+				}
+			</div>
+		}
+	</div>
 }

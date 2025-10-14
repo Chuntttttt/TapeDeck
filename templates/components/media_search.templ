@@ -1,0 +1,149 @@
+package components
+
+import "fmt"
+
+// MediaSearch renders a reusable media search component with vanilla JS
+// hiddenFieldPrefix - prefix for hidden form fields (e.g., "media_" creates media_type, media_id, media_title)
+templ MediaSearch(hiddenFieldPrefix string, showServerInfo bool) {
+	<div class="search-container" id={ "search-container-" + hiddenFieldPrefix }>
+		<input
+			type="text"
+			id={ "media-search-" + hiddenFieldPrefix }
+			class="media-search-input"
+			placeholder="Start typing to search..."
+			autocomplete="off"
+		/>
+		<div class="search-loading" style="display: none;">
+			<div class="loading"></div>
+		</div>
+		<div class="search-results" style="display: none;"></div>
+	</div>
+	<div class="selected-media" id={ "selected-media-" + hiddenFieldPrefix } style="display: none;">
+		<div class="selected-media-title"></div>
+		<div class="selected-media-meta"></div>
+	</div>
+	@templ.Raw(fmt.Sprintf(`<script type="text/javascript">
+		(function() {
+			const prefix = %q;
+			const showServerInfo = %t;
+			const searchInput = document.getElementById('media-search-' + prefix);
+			const searchContainer = document.getElementById('search-container-' + prefix);
+			const loadingEl = searchContainer.querySelector('.search-loading');
+			const resultsEl = searchContainer.querySelector('.search-results');
+			const selectedEl = document.getElementById('selected-media-' + prefix);
+
+			let debounceTimer;
+			let currentResults = [];
+			let selectedItem = null;
+
+			function debounce(fn, delay) {
+				return function(...args) {
+					clearTimeout(debounceTimer);
+					debounceTimer = setTimeout(() => fn(...args), delay);
+				};
+			}
+
+			function setFormFields(item) {
+				const typeField = document.getElementById(prefix + 'type');
+				const idField = document.getElementById(prefix + 'id');
+				const titleField = document.getElementById(prefix + 'title');
+				const serverField = document.getElementById(prefix + 'server_id');
+
+				if (typeField) typeField.value = item.type || '';
+				if (idField) idField.value = item.ratingKey || '';
+				if (titleField) titleField.value = item.title || '';
+				if (serverField) serverField.value = item.serverID || '';
+			}
+
+			function selectItem(item) {
+				selectedItem = item;
+				searchInput.value = item.title;
+				resultsEl.style.display = 'none';
+				setFormFields(item);
+
+				// Update selected display
+				const titleEl = selectedEl.querySelector('.selected-media-title');
+				const metaEl = selectedEl.querySelector('.selected-media-meta');
+				titleEl.textContent = item.title;
+
+				let meta = item.type;
+				if (item.year) meta += ' (' + item.year + ')';
+				if (showServerInfo && item.serverName) meta += ' • ' + item.serverName;
+				metaEl.textContent = meta;
+
+				selectedEl.style.display = 'block';
+			}
+
+			function renderResults(results) {
+				currentResults = results;
+				resultsEl.innerHTML = '';
+
+				if (results.length === 0) {
+					resultsEl.style.display = 'none';
+					return;
+				}
+
+				results.forEach(item => {
+					const div = document.createElement('div');
+					div.className = 'search-result-item';
+
+					const titleDiv = document.createElement('div');
+					titleDiv.className = 'result-title';
+					titleDiv.textContent = item.title;
+					div.appendChild(titleDiv);
+
+					const metaDiv = document.createElement('div');
+					metaDiv.className = 'result-meta';
+					let meta = item.type;
+					if (item.year) meta += ' (' + item.year + ')';
+					metaDiv.textContent = meta;
+					div.appendChild(metaDiv);
+
+					if (showServerInfo && item.serverName) {
+						const serverDiv = document.createElement('div');
+						serverDiv.className = 'result-server';
+						serverDiv.textContent = '📡 ' + item.serverName;
+						div.appendChild(serverDiv);
+					}
+
+					div.addEventListener('click', () => selectItem(item));
+					resultsEl.appendChild(div);
+				});
+
+				resultsEl.style.display = 'block';
+			}
+
+			const performSearch = debounce(function(query) {
+				if (query.length < 2) {
+					resultsEl.style.display = 'none';
+					loadingEl.style.display = 'none';
+					return;
+				}
+
+				loadingEl.style.display = 'block';
+
+				fetch('/api/search?q=' + encodeURIComponent(query))
+					.then(r => r.json())
+					.then(data => {
+						loadingEl.style.display = 'none';
+						renderResults(data.results || []);
+					})
+					.catch(err => {
+						console.error('Search error:', err);
+						loadingEl.style.display = 'none';
+					});
+			}, 300);
+
+			searchInput.addEventListener('input', function(e) {
+				performSearch(e.target.value);
+			});
+
+			// Click outside to close
+			document.addEventListener('click', function(e) {
+				if (!searchContainer.contains(e.target)) {
+					resultsEl.style.display = 'none';
+				}
+			});
+		})();
+	</script>`, hiddenFieldPrefix, showServerInfo))
+}

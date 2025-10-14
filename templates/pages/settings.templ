@@ -9,96 +9,74 @@ templ Settings(plexServers []config.PlexServer, haURL string, haToken string, ap
 }
 
 templ settingsContent(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV) {
-	<style>
-		body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 80px; }
-		.header { margin-bottom: 30px; }
-		.section { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px; }
-		.section h2 { margin-top: 0; color: #333; border-bottom: 2px solid #e5a00d; padding-bottom: 10px; }
-		.server-list { margin-top: 15px; }
-		.server-item { display: flex; align-items: center; padding: 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px; background: #f9f9f9; }
-		.server-item input[type="checkbox"] { margin-right: 12px; width: 20px; height: 20px; }
-		.server-name { font-weight: bold; margin-right: 10px; }
-		.server-owner { color: #666; font-size: 14px; margin-left: auto; }
-		.server-owner.shared { color: #f59e0b; }
-		.server-disabled { opacity: 0.5; }
-		.btn { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-		.btn:hover { background: #cc8f0a; }
-		.btn-secondary { background: #6b7280; }
-		.btn-secondary:hover { background: #4b5563; }
-		.info-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 15px 0; border-radius: 4px; }
-		.info-box p { margin: 0; color: #92400e; }
-		.actions { margin-top: 20px; display: flex; gap: 10px; }
-		.form-group { margin-bottom: 20px; }
-		.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-		.form-group input[type="url"], .form-group input[type="password"] { padding: 10px; width: 100%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-		.form-group input[type="url"]:focus, .form-group input[type="password"]:focus { border-color: #e5a00d; outline: none; }
-	</style>
-	<div class="header">
-		<h1>⚙️ Settings</h1>
-	</div>
-	<form method="post" action="/settings/servers">
-		<div class="section">
-			<h2>Plex Servers</h2>
-			<div class="server-list">
-				if len(plexServers) == 0 {
-					<p>No Plex servers configured.</p>
+	<div class="app-page">
+		<div class="header">
+			<h1>⚙️ Settings</h1>
+		</div>
+		<form method="post" action="/settings/servers">
+			<div class="section" style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px;">
+				<h2 style="margin-top: 0; color: #333; border-bottom: 2px solid #e5a00d; padding-bottom: 10px;">Plex Servers</h2>
+				<div class="server-list" style="margin-top: 15px;">
+					if len(plexServers) == 0 {
+						<p>No Plex servers configured.</p>
+					} else {
+						for _, srv := range plexServers {
+							if srv.Owner == "Shared" {
+								<div class="server-item" style="opacity: 0.5;">
+									<input type="checkbox" name="servers" value={ srv.ID } checked disabled/>
+									<span class="server-name">{ srv.Name }</span>
+									<span class="server-owner" style="color: #f59e0b;">Shared (not supported)</span>
+								</div>
+							} else {
+								<div class="server-item">
+									<input type="checkbox" name="servers" value={ srv.ID } checked/>
+									<span class="server-name">{ srv.Name }</span>
+									<span class="server-owner">{ srv.Owner }</span>
+								</div>
+							}
+						}
+					}
+				</div>
+				<div class="info" style="margin-top: 15px;">
+					<p><strong>Note:</strong> Shared servers are currently not supported due to Plex API limitations. Uncheck servers you don't want to use.</p>
+				</div>
+			</div>
+			<div class="section" style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px;">
+				<h2 style="margin-top: 0; color: #333; border-bottom: 2px solid #e5a00d; padding-bottom: 10px;">Home Assistant</h2>
+				<div class="form-group">
+					<label for="ha_url">URL</label>
+					<input type="url" id="ha_url" name="ha_url" value={ haURL } placeholder="http://homeassistant.local:8123"/>
+				</div>
+				<div class="form-group">
+					<label for="ha_token">Long-Lived Access Token</label>
+					<input type="password" id="ha_token" name="ha_token" value={ haToken } placeholder="Enter token..."/>
+				</div>
+				<div class="form-group">
+					<button type="button" id="testHABtn" class="btn btn-secondary">Test Connection</button>
+					<span id="haStatus" style="margin-left: 15px;">Click to test</span>
+				</div>
+			</div>
+			<div class="section" style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px;">
+				<h2 style="margin-top: 0; color: #333; border-bottom: 2px solid #e5a00d; padding-bottom: 10px;">Apple TVs</h2>
+				if len(appleTVs) == 0 {
+					<p>No Apple TVs configured.</p>
 				} else {
-					for _, srv := range plexServers {
-						if srv.Owner == "Shared" {
-							<div class="server-item server-disabled">
-								<input type="checkbox" name="servers" value={ srv.ID } checked disabled/>
-								<span class="server-name">{ srv.Name }</span>
-								<span class="server-owner shared">Shared (not supported)</span>
-							</div>
+					for _, tv := range appleTVs {
+						if tv.Default {
+							<p>• { tv.Name } <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">DEFAULT</span></p>
 						} else {
-							<div class="server-item">
-								<input type="checkbox" name="servers" value={ srv.ID } checked/>
-								<span class="server-name">{ srv.Name }</span>
-								<span class="server-owner">{ srv.Owner }</span>
-							</div>
+							<p>• { tv.Name }</p>
 						}
 					}
 				}
 			</div>
-			<div class="info-box">
-				<p><strong>Note:</strong> Shared servers are currently not supported due to Plex API limitations. Uncheck servers you don't want to use.</p>
+			<div class="actions" style="margin-top: 20px;">
+				<button type="submit" class="btn">Save Changes</button>
+				<a href="/setup" class="btn btn-secondary">Re-run Setup Wizard</a>
+				<a href="/metrics" class="btn btn-secondary" target="_blank">View Metrics</a>
 			</div>
-		</div>
-		<div class="section">
-			<h2>Home Assistant</h2>
-			<div class="form-group">
-				<label for="ha_url">URL</label>
-				<input type="url" id="ha_url" name="ha_url" value={ haURL } placeholder="http://homeassistant.local:8123"/>
-			</div>
-			<div class="form-group">
-				<label for="ha_token">Long-Lived Access Token</label>
-				<input type="password" id="ha_token" name="ha_token" value={ haToken } placeholder="Enter token..."/>
-			</div>
-			<div class="form-group">
-				<button type="button" id="testHABtn" class="btn btn-secondary">Test Connection</button>
-				<span id="haStatus" style="margin-left: 15px;">Click to test</span>
-			</div>
-		</div>
-		<div class="section">
-			<h2>Apple TVs</h2>
-			if len(appleTVs) == 0 {
-				<p>No Apple TVs configured.</p>
-			} else {
-				for _, tv := range appleTVs {
-					if tv.Default {
-						<p>• { tv.Name } <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">DEFAULT</span></p>
-					} else {
-						<p>• { tv.Name }</p>
-					}
-				}
-			}
-		</div>
-		<div class="actions">
-			<button type="submit" class="btn">Save Changes</button>
-			<a href="/setup" class="btn btn-secondary">Re-run Setup Wizard</a>
-			<a href="/metrics" class="btn btn-secondary" target="_blank">View Metrics</a>
-		</div>
-	</form>
+		</form>
+	</div>
 	<script>
 		// Test HA connection
 		document.getElementById('testHABtn').addEventListener('click', function() {

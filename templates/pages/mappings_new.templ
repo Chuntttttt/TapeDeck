@@ -1,6 +1,7 @@
 package pages
 
 import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
 
 // MappingsNewForm renders the new mapping form page
 templ MappingsNewForm(navHTML string, bannerHTML string, bannerScript string) {
@@ -8,152 +9,46 @@ templ MappingsNewForm(navHTML string, bannerHTML string, bannerScript string) {
 }
 
 templ newFormContent() {
-	<style>
-		body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; padding-top: 60px; }
-		.back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-		.form-group { margin-bottom: 20px; }
-		label { display: block; margin-bottom: 5px; font-weight: bold; }
-		input[type="text"] { padding: 10px; width: 100%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-		.btn { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; }
-		.btn:hover { background: #cc8f0a; }
-		.btn:disabled { background: #ccc; cursor: not-allowed; }
-		.search-container { position: relative; }
-		.search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 300px; overflow-y: auto; display: none; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-		.search-result-item { padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
-		.search-result-item:hover { background: #f5f5f5; }
-		.result-title { font-weight: bold; margin-bottom: 3px; }
-		.result-meta { font-size: 14px; color: #666; }
-		.selected-media { padding: 12px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px; display: none; }
-		.selected-media-title { font-weight: bold; margin-bottom: 5px; }
-		.selected-media-meta { font-size: 14px; color: #666; }
-		.error { color: #d32f2f; margin-top: 10px; display: none; }
-		.help-text { font-size: 14px; color: #666; margin-top: 5px; }
-	</style>
-	<h1>Create New Card Mapping</h1>
-	<form method="post" action="/mappings" id="mappingForm">
-		<div class="form-group">
-			<label for="tag_id">NFC Tag ID *</label>
-			<input type="text" id="tag_id" name="tag_id" required placeholder="e.g., nfc-12345"/>
-			<div class="help-text">Enter the unique ID from your NFC card</div>
-		</div>
-		<div class="form-group">
-			<label for="media_search">Search for Media *</label>
-			<div class="search-container">
-				<input type="text" id="media_search" placeholder="Start typing to search..." autocomplete="off"/>
-				<div class="search-results" id="searchResults"></div>
+	<div class="app-page-narrow">
+		<h1>Create New Card Mapping</h1>
+		<form method="post" action="/mappings" id="mappingForm">
+			<div class="form-group">
+				<label for="tag_id">NFC Tag ID *</label>
+				<input type="text" id="tag_id" name="tag_id" required placeholder="e.g., nfc-12345"/>
+				<div class="help-text">Enter the unique ID from your NFC card</div>
 			</div>
-			<div class="selected-media" id="selectedMedia">
-				<div class="selected-media-title" id="selectedTitle"></div>
-				<div class="selected-media-meta" id="selectedMeta"></div>
+			<div class="form-group">
+				<label for="media_search">Search for Media *</label>
+				@components.MediaSearch("media_", false)
 			</div>
-			<div class="error" id="searchError">Failed to search. Please try again.</div>
-		</div>
-		<input type="hidden" id="media_type" name="media_type" required/>
-		<input type="hidden" id="media_id" name="media_id" required/>
-		<input type="hidden" id="media_title" name="media_title" required/>
-		<button type="submit" class="btn" id="submitBtn" disabled>Create Mapping</button>
-	</form>
+			<input type="hidden" id="media_type" name="media_type" required/>
+			<input type="hidden" id="media_id" name="media_id" required/>
+			<input type="hidden" id="media_title" name="media_title" required/>
+			<button type="submit" class="btn" id="submitBtn" disabled>Create Mapping</button>
+		</form>
+	</div>
 	<script>
-		const searchInput = document.getElementById('media_search');
-		const searchResults = document.getElementById('searchResults');
-		const selectedMedia = document.getElementById('selectedMedia');
-		const selectedTitle = document.getElementById('selectedTitle');
-		const selectedMeta = document.getElementById('selectedMeta');
-		const searchError = document.getElementById('searchError');
-		const submitBtn = document.getElementById('submitBtn');
-		const mediaTypeInput = document.getElementById('media_type');
-		const mediaIdInput = document.getElementById('media_id');
-		const mediaTitleInput = document.getElementById('media_title');
-
-		let searchTimeout;
-		let selectedItem = null;
-
-		searchInput.addEventListener('input', function() {
-			const query = this.value.trim();
-
-			clearTimeout(searchTimeout);
-
-			if (query.length < 2) {
-				searchResults.style.display = 'none';
-				searchResults.innerHTML = '';
-				return;
-			}
-
-			searchTimeout = setTimeout(() => {
-				performSearch(query);
-			}, 300);
+		// Enable submit button when media is selected
+		const observer = new MutationObserver(() => {
+			const submitBtn = document.getElementById('submitBtn');
+			const mediaId = document.getElementById('media_id').value;
+			submitBtn.disabled = !mediaId;
 		});
 
-		async function performSearch(query) {
-			try {
-				searchError.style.display = 'none';
-				const response = await fetch('/api/search?q=' + encodeURIComponent(query));
+		observer.observe(document.getElementById('media_id'), {
+			attributes: true,
+			attributeFilter: ['value']
+		});
 
-				if (!response.ok) {
-					throw new Error('Search failed');
-				}
-
-				const data = await response.json();
-
-				if (data.results.length === 0) {
-					searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
-					searchResults.style.display = 'block';
-					return;
-				}
-
-				searchResults.innerHTML = '';
-
-				data.results.forEach(result => {
-					const item = document.createElement('div');
-					item.className = 'search-result-item';
-					const yearStr = result.year ? ' (' + result.year + ')' : '';
-					item.innerHTML = '<div class="result-title">' + result.title + '</div><div class="result-meta">' + result.type + yearStr + '</div>';
-					item.dataset.title = result.title;
-					item.dataset.year = result.year || '';
-					item.dataset.type = result.type;
-					item.dataset.ratingKey = result.ratingKey;
-
-					item.addEventListener('click', function() {
-						selectMedia(this.dataset.title, this.dataset.type, this.dataset.ratingKey, this.dataset.year);
-					});
-
-					searchResults.appendChild(item);
-				});
-
-				searchResults.style.display = 'block';
-			} catch (error) {
-				console.error('Search error:', error);
-				searchError.style.display = 'block';
-			}
-		}
-
-		function selectMedia(title, type, ratingKey, year) {
-			selectedItem = { title, type, ratingKey, year };
-
-			selectedTitle.textContent = title;
-			selectedMeta.textContent = type + (year ? ' (' + year + ')' : '');
-			selectedMedia.style.display = 'block';
-
-			mediaTypeInput.value = type;
-			mediaIdInput.value = ratingKey;
-			mediaTitleInput.value = title;
-
-			searchResults.style.display = 'none';
-			searchInput.value = title;
-
-			submitBtn.disabled = false;
-		}
-
-		// Hide search results when clicking outside
-		document.addEventListener('click', function(e) {
-			if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-				searchResults.style.display = 'none';
-			}
+		// Also listen for input events
+		document.getElementById('media_id').addEventListener('input', () => {
+			const submitBtn = document.getElementById('submitBtn');
+			submitBtn.disabled = !document.getElementById('media_id').value;
 		});
 
 		// Validate form before submit
 		document.getElementById('mappingForm').addEventListener('submit', function(e) {
-			if (!mediaIdInput.value || !mediaTypeInput.value || !mediaTitleInput.value) {
+			if (!document.getElementById('media_id').value) {
 				e.preventDefault();
 				alert('Please select media from search results');
 			}

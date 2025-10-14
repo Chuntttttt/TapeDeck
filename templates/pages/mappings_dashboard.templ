@@ -10,65 +10,50 @@ templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHT
 }
 
 templ dashboardContent(mappings []*models.CardMapping) {
-	<style>
-		body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
-		.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-		.header-actions { display: flex; gap: 10px; }
-		.back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-		.btn { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-		.btn:hover { background: #cc8f0a; }
-		.btn-danger { background: #d32f2f; }
-		.btn-danger:hover { background: #b71c1c; }
-		.btn-small { padding: 5px 10px; font-size: 14px; }
-		table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-		th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-		th { background-color: #f5f5f5; font-weight: bold; }
-		.actions { display: flex; gap: 10px; }
-		.empty-state { text-align: center; padding: 50px 20px; color: #666; }
-		.empty-state h2 { margin-bottom: 10px; }
-	</style>
-	<div class="header">
-		<h1>Card Mappings</h1>
-		<div class="header-actions">
-			<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair NFC Card</a>
-			<a href="/mappings/new" class="btn">+ New Mapping</a>
+	<div class="app-page">
+		<div class="header">
+			<h1>Card Mappings</h1>
+			<div class="header-actions">
+				<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair NFC Card</a>
+				<a href="/mappings/new" class="btn">+ New Mapping</a>
+			</div>
 		</div>
-	</div>
-	if len(mappings) == 0 {
-		<div class="empty-state">
-			<h2>No card mappings yet</h2>
-			<p>Create your first mapping to link an NFC card with media.</p>
-			<a href="/mappings/new" class="btn">Create Mapping</a>
-		</div>
-	} else {
-		<table>
-			<thead>
-				<tr>
-					<th>Tag ID</th>
-					<th>Media Title</th>
-					<th>Type</th>
-					<th>Media ID</th>
-					<th>Created</th>
-					<th>Actions</th>
-				</tr>
-			</thead>
-			<tbody>
-				for _, mapping := range mappings {
+		if len(mappings) == 0 {
+			<div class="empty-state">
+				<h2>No card mappings yet</h2>
+				<p>Create your first mapping to link an NFC card with media.</p>
+				<a href="/mappings/new" class="btn">Create Mapping</a>
+			</div>
+		} else {
+			<table class="mappings-table">
+				<thead>
 					<tr>
-						<td>{ mapping.TagID }</td>
-						<td>{ mapping.MediaTitle }</td>
-						<td>{ mapping.MediaType }</td>
-						<td>{ mapping.MediaID }</td>
-						<td>{ mapping.CreatedAt.Format("2006-01-02 15:04") }</td>
-						<td class="actions">
-							<a href={ templ.SafeURL(fmt.Sprintf("/mappings/%d/edit", mapping.ID)) } class="btn btn-small">Edit</a>
-							<form method="post" action={ templ.SafeURL(fmt.Sprintf("/mappings/%d/delete", mapping.ID)) } style="margin: 0;">
-								<button type="submit" class="btn btn-small btn-danger" onclick="return confirm('Delete this mapping?')">Delete</button>
-							</form>
-						</td>
+						<th>Tag ID</th>
+						<th>Media Title</th>
+						<th>Type</th>
+						<th>Media ID</th>
+						<th>Created</th>
+						<th>Actions</th>
 					</tr>
-				}
-			</tbody>
-		</table>
-	}
+				</thead>
+				<tbody>
+					for _, mapping := range mappings {
+						<tr>
+							<td>{ mapping.TagID }</td>
+							<td>{ mapping.MediaTitle }</td>
+							<td>{ mapping.MediaType }</td>
+							<td>{ mapping.MediaID }</td>
+							<td>{ mapping.CreatedAt.Format("2006-01-02 15:04") }</td>
+							<td class="actions">
+								<a href={ templ.SafeURL(fmt.Sprintf("/mappings/%d/edit", mapping.ID)) } class="btn btn-small">Edit</a>
+								<form method="post" action={ templ.SafeURL(fmt.Sprintf("/mappings/%d/delete", mapping.ID)) } style="margin: 0;">
+									<button type="submit" class="btn btn-small btn-danger" onclick="return confirm('Delete this mapping?')">Delete</button>
+								</form>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
 }

@@ -305,3 +305,260 @@ select:focus {
 .summary-value {
     color: #666;
 }
+
+/* App Pages Layout */
+.app-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    padding-top: 60px;
+}
+
+.app-page-narrow {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    padding-top: 60px;
+}
+
+/* Search Autocomplete */
+.search-container {
+    position: relative;
+}
+
+.search-loading {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+    z-index: 10;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.search-results.show {
+    display: block;
+}
+
+.search-result-item {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+}
+
+.search-result-item:hover {
+    background: #f5f5f5;
+}
+
+.result-title {
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.result-meta {
+    font-size: 14px;
+    color: #666;
+}
+
+.result-server {
+    font-size: 12px;
+    color: #1976d2;
+    margin-top: 3px;
+    font-weight: 500;
+}
+
+.selected-media {
+    padding: 12px;
+    background: #f0f9ff;
+    border: 2px solid #0284c7;
+    border-radius: 4px;
+    margin-top: 10px;
+    display: none;
+}
+
+.selected-media.show {
+    display: block;
+}
+
+.selected-media-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 5px;
+    color: #0c4a6e;
+}
+
+.selected-media-meta {
+    font-size: 14px;
+    color: #075985;
+}
+
+/* Media Grid */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.media-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.media-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.media-year {
+    color: #666;
+    font-size: 14px;
+}
+
+.media-type {
+    color: #999;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.media-server {
+    color: #1976d2;
+    font-size: 12px;
+    margin-top: 5px;
+    font-weight: 500;
+}
+
+/* Library Grid */
+.library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.library-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.library-card:hover {
+    background: #f5f5f5;
+}
+
+.library-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.library-type {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Mappings Table */
+.mappings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.mappings-table th,
+.mappings-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.mappings-table th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 14px;
+}
+
+.btn-danger {
+    background: #d32f2f;
+}
+
+.btn-danger:hover {
+    background: #b71c1c;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: #666;
+}
+
+.empty-state h2 {
+    margin-bottom: 10px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Pairing Styles */
+.step {
+    margin-bottom: 30px;
+}
+
+.step-number {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    background: #e5a00d;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 30px;
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.ws-status {
+    font-size: 12px;
+    color: #666;
+    margin-top: 10px;
+}
+
+.ws-status.connected {
+    color: #22c55e;
+}
+
+.ws-status.disconnected {
+    color: #ef4444;
+}

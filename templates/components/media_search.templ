@@ -35,6 +35,8 @@ templ MediaSearch(hiddenFieldPrefix string, showServerInfo bool) {
 			let debounceTimer;
 			let currentResults = [];
 			let selectedItem = null;
+			let currentController = null;
+			let requestId = 0;
 
 			function debounce(fn, delay) {
 				return function(...args) {
@@ -120,17 +122,37 @@ templ MediaSearch(hiddenFieldPrefix string, showServerInfo bool) {
 					return;
 				}
 
+				// Cancel any in-flight request
+				if (currentController) {
+					currentController.abort();
+				}
+
+				// Track this request
+				const thisRequestId = ++requestId;
+				currentController = new AbortController();
+
 				loadingEl.style.display = 'block';
 
-				fetch('/api/search?q=' + encodeURIComponent(query))
+				fetch('/api/search?q=' + encodeURIComponent(query), {
+					signal: currentController.signal
+				})
 					.then(r => r.json())
 					.then(data => {
-						loadingEl.style.display = 'none';
-						renderResults(data.results || []);
+						// Only render if this is still the latest request
+						if (thisRequestId === requestId) {
+							loadingEl.style.display = 'none';
+							renderResults(data.results || []);
+						}
 					})
 					.catch(err => {
-						console.error('Search error:', err);
-						loadingEl.style.display = 'none';
+						// Ignore AbortErrors (expected when cancelling)
+						if (err.name !== 'AbortError') {
+							console.error('Search error:', err);
+						}
+						// Only hide loading if this is still the latest request
+						if (thisRequestId === requestId) {
+							loadingEl.style.display = 'none';
+						}
 					});
 			}, 300);
 

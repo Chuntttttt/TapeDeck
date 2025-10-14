@@ -13,6 +13,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/gorilla/sessions"
 )
 
@@ -96,118 +97,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render login page with polling
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Login - TapeDeck</title>
-    <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center; }
-        .button { display: inline-block; padding: 15px 30px; background: #e5a00d; color: white;
-                  text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
-        .button:hover { background: #cc8f0a; }
-        .pin-code { font-size: 48px; font-weight: bold; margin: 30px 0; letter-spacing: 8px;
-                    color: #e5a00d; }
-        .status { color: #666; margin: 20px 0; font-size: 14px; }
-        .success { color: #2d5016; }
-        .error { color: #cc0000; }
-    </style>
-    <script>
-        // NOTE: We use polling instead of the recommended forwardUrl redirect flow
-        // because Plex broke OAuth for 3rd party apps in v4.152.0 (Sept 2025)
-        // See: https://forums.plex.tv/t/plex-oauth-authenticate-with-plex-broken-after-plex-web-update-v4-152-0/931098
-        // TODO: Switch back to forwardUrl when Plex fixes their OAuth implementation
-
-        let pollInterval = 5000; // 5 seconds to avoid rate limiting
-        let polling = true;
-
-        function showRetryButton() {
-            const status = document.getElementById('status');
-            status.textContent = '';
-            status.className = 'error';
-
-            const retryBtn = document.createElement('button');
-            retryBtn.textContent = 'Resume Checking';
-            retryBtn.className = 'button';
-            retryBtn.style.display = 'inline-block';
-            retryBtn.style.margin = '10px 0';
-            retryBtn.onclick = function() {
-                status.textContent = 'Waiting for authorization...';
-                status.className = 'status';
-                retryBtn.remove();
-                polling = true;
-                pollInterval = 5000;
-                setTimeout(checkAuth, 5000);
-            };
-
-            status.appendChild(document.createTextNode('Rate limited by Plex. Wait a moment and then: '));
-            status.appendChild(document.createElement('br'));
-            status.appendChild(retryBtn);
-        }
-
-        async function checkAuth() {
-            if (!polling) return;
-
-            console.log('[TapeDeck] Polling /auth/poll-status...');
-            try {
-                const response = await fetch('/auth/poll-status', {
-                    credentials: 'same-origin'
-                });
-
-                console.log('[TapeDeck] Poll response status:', response.status);
-
-                if (response.status === 429) {
-                    // Rate limited - stop polling and show retry button
-                    console.log('[TapeDeck] Rate limited (429) - stopping poll');
-                    polling = false;
-                    showRetryButton();
-                    return;
-                }
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('[TapeDeck] Poll response data:', data);
-                    if (data.authorized) {
-                        console.log('[TapeDeck] ✅ AUTHORIZED! Redirecting to home...');
-                        polling = false;
-                        document.getElementById('status').textContent = 'Success! Redirecting...';
-                        document.getElementById('status').className = 'success';
-                        window.location.href = '/';
-                        return;
-                    } else {
-                        console.log('[TapeDeck] Not authorized yet, will poll again in', pollInterval, 'ms');
-                    }
-                }
-
-                // Continue polling
-                setTimeout(checkAuth, pollInterval);
-            } catch (e) {
-                // On error, stop and show retry
-                console.error('[TapeDeck] Poll error:', e);
-                polling = false;
-                showRetryButton();
-            }
-        }
-
-        // Start polling after 5 seconds
-        setTimeout(checkAuth, 5000);
-    </script>
-</head>
-<body>
-    <h1>🎬 TapeDeck</h1>
-    <p>To connect your Plex account:</p>
-    <ol style="text-align: left; max-width: 400px; margin: 20px auto;">
-        <li>Click the button below to open plex.tv/link</li>
-        <li>Enter this PIN code on that page</li>
-        <li>This page will automatically detect when you're authorized</li>
-    </ol>
-    <div class="pin-code">%s</div>
-    <a href="https://plex.tv/link" class="button" target="_blank">Open Plex Link Page</a>
-    <p id="status" class="status">Waiting for authorization...</p>
-</body>
-</html>`, pin.Code)
+	if err := pages.AuthLogin(pin.Code).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 // PollStatus handles the GET /auth/poll-status endpoint for JavaScript polling

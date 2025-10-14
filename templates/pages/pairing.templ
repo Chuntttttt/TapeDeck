@@ -24,6 +24,9 @@ templ pairingFormContent(appleTVs []AppleTVOption) {
 				<strong>Search for media to pair</strong>
 				<div style="margin-top: 10px;">
 					@components.MediaSearch("media_", true)
+					<input type="hidden" id="media_type"/>
+					<input type="hidden" id="media_id"/>
+					<input type="hidden" id="media_title"/>
 					<input type="hidden" id="media_server_id"/>
 				</div>
 			</div>

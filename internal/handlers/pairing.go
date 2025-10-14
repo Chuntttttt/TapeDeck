@@ -204,16 +204,8 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 
         <div class="step">
             <span class="step-number">3</span>
-            <strong>Start pairing mode</strong>
-            <div style="margin-top: 10px;">
-                <button id="startPairingBtn" class="btn" disabled>Start Pairing Mode</button>
-            </div>
-            <div class="ws-status" id="wsStatus">Connecting...</div>
-        </div>
-
-        <div class="step">
-            <span class="step-number">4</span>
             <strong>Tap your NFC card</strong>
+            <div class="ws-status" id="wsStatus">Checking connection...</div>
         </div>
 
         <div class="status" id="status">
@@ -231,7 +223,6 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         const selectedMedia = document.getElementById('selectedMedia');
         const selectedTitle = document.getElementById('selectedTitle');
         const selectedMeta = document.getElementById('selectedMeta');
-        const startPairingBtn = document.getElementById('startPairingBtn');
         const status = document.getElementById('status');
         const statusIcon = document.getElementById('statusIcon');
         const statusText = document.getElementById('statusText');
@@ -242,6 +233,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         let searchTimeout;
         let selectedItem = null;
         let ws = null;
+        let pairingActive = false;
 
         // Connect WebSocket
         function connectWebSocket() {
@@ -260,16 +252,19 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 
             ws.onopen = function() {
                 console.log('WebSocket connected');
-                wsStatus.textContent = 'Connected';
-                wsStatus.classList.add('connected');
-                wsStatus.classList.remove('disconnected');
+                checkHAStatus();
+                // Start auto-pairing if media already selected
+                if (selectedItem && !pairingActive) {
+                    startPairing();
+                }
             };
 
             ws.onclose = function() {
                 console.log('WebSocket disconnected');
-                wsStatus.textContent = 'Disconnected';
+                wsStatus.textContent = 'Disconnected from server';
                 wsStatus.classList.add('disconnected');
                 wsStatus.classList.remove('connected');
+                pairingActive = false;
 
                 // Reconnect after 2 seconds
                 setTimeout(connectWebSocket, 2000);
@@ -287,6 +282,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                     showStatus('waiting', '⏳', 'Tag Detected!', 'Tag ID: ' + msg.tag_id);
                 } else if (msg.type === 'mapping_created') {
                     showStatus('ready', '✓', 'Success!', 'Mapping created for "' + msg.media_title + '"');
+                    pairingActive = false;
 
                     // Reset after 3 seconds
                     setTimeout(() => {
@@ -294,12 +290,38 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                     }, 3000);
                 } else if (msg.type === 'error') {
                     showStatus('error', '✗', 'Error', msg.message);
-                    startPairingBtn.disabled = false;
+                    pairingActive = false;
                 }
             };
         }
 
+        // Check Home Assistant connection status
+        async function checkHAStatus() {
+            try {
+                const response = await fetch('/api/status/ha');
+                const data = await response.json();
+
+                if (data.connected) {
+                    wsStatus.textContent = 'Home Assistant connected';
+                    wsStatus.classList.add('connected');
+                    wsStatus.classList.remove('disconnected');
+                } else {
+                    wsStatus.textContent = 'Home Assistant disconnected';
+                    wsStatus.classList.add('disconnected');
+                    wsStatus.classList.remove('connected');
+                }
+            } catch (error) {
+                console.error('Failed to check HA status:', error);
+                wsStatus.textContent = 'Connection status unknown';
+                wsStatus.classList.add('disconnected');
+                wsStatus.classList.remove('connected');
+            }
+        }
+
         connectWebSocket();
+
+        // Check HA status every 5 seconds
+        setInterval(checkHAStatus, 5000);
 
         // Search functionality
         searchInput.addEventListener('input', function() {
@@ -382,11 +404,14 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             searchResults.style.display = 'none';
             searchInput.value = title;
 
-            startPairingBtn.disabled = false;
+            // Automatically start pairing
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                startPairing();
+            }
         }
 
         // Start pairing
-        startPairingBtn.addEventListener('click', function() {
+        function startPairing() {
             if (!selectedItem || !ws || ws.readyState !== WebSocket.OPEN) {
                 return;
             }
@@ -399,7 +424,11 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                 return;
             }
 
-            startPairingBtn.disabled = true;
+            if (pairingActive) {
+                return; // Already in pairing mode
+            }
+
+            pairingActive = true;
 
             const msg = {
                 type: 'start_pairing',
@@ -413,7 +442,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             ws.send(JSON.stringify(msg));
 
             showStatus('ready', '📱', 'Ready to Scan', 'Tap your NFC card on the reader');
-        });
+        }
 
         function showStatus(className, icon, text, detail) {
             status.className = 'status ' + className;

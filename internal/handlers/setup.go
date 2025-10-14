@@ -190,7 +190,7 @@ func (h *SetupHandler) Step2Plex(w http.ResponseWriter, r *http.Request) {
 	h.renderServerSelection(w, r, servers)
 }
 
-func (h *SetupHandler) renderPlexLogin(w http.ResponseWriter, r *http.Request) {
+func (h *SetupHandler) renderPlexLogin(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -232,7 +232,7 @@ func (h *SetupHandler) renderPlexLogin(w http.ResponseWriter, r *http.Request) {
 </html>`)
 }
 
-func (h *SetupHandler) renderPlexError(w http.ResponseWriter, r *http.Request, errorMsg string) {
+func (h *SetupHandler) renderPlexError(w http.ResponseWriter, _ *http.Request, errorMsg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -276,7 +276,7 @@ func (h *SetupHandler) renderPlexError(w http.ResponseWriter, r *http.Request, e
 </html>`, html.EscapeString(errorMsg))
 }
 
-func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, r *http.Request, servers []config.PlexServer) {
+func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, _ *http.Request, servers []config.PlexServer) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -668,7 +668,7 @@ func (h *SetupHandler) Step4AppleTVs(w http.ResponseWriter, r *http.Request) {
 	h.renderAppleTVSelection(w, r, mediaPlayers, state)
 }
 
-func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, r *http.Request, mediaPlayers []ha.Entity, state *SetupState) {
+func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, _ *http.Request, mediaPlayers []ha.Entity, state *SetupState) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -748,7 +748,7 @@ func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, r *http.Req
 </html>`)
 }
 
-func (h *SetupHandler) renderAppleTVEmpty(w http.ResponseWriter, r *http.Request) {
+func (h *SetupHandler) renderAppleTVEmpty(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -791,7 +791,7 @@ func (h *SetupHandler) renderAppleTVEmpty(w http.ResponseWriter, r *http.Request
 </html>`)
 }
 
-func (h *SetupHandler) renderAppleTVError(w http.ResponseWriter, r *http.Request, errorMsg string) {
+func (h *SetupHandler) renderAppleTVError(w http.ResponseWriter, _ *http.Request, errorMsg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 

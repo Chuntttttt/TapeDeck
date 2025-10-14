@@ -229,7 +229,7 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
 </html>`, ConnectionBannerScript())
 }
 
-// SaveServers handles POST /settings/servers
+// SaveSettings handles POST /settings/servers
 func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	// Get user from session
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)

@@ -514,7 +514,7 @@ type playMediaCall struct {
 	contentID   string
 }
 
-func (m *mockHARestClient) GetEntityState(entityID string) (string, error) {
+func (m *mockHARestClient) GetEntityState(_ string) (string, error) {
 	if m.getStateError != nil {
 		return "", m.getStateError
 	}

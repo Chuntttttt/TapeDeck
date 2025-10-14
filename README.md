@@ -313,8 +313,7 @@ Following Test-Driven Development (TDD):
 
 - [ ] **Stage 8**: Enhanced UI & Polish
   - HA connection status banner (red alert if disconnected)
-  - Real-time connection health monitoring
-  - Search and filter improvements on mappings dashboard
+  - **Deferred to future**: Search and filter improvements on mappings dashboard
   - **Deferred to future**: Responsive design (see `docs/responsive-design.md`)
   - **Deferred to future**: Accessibility enhancements (see `docs/accessibility.md`)
 

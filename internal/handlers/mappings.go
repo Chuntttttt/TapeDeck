@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"html"
 	"log"
 	"net/http"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/gorilla/sessions"
 )
 
@@ -55,98 +55,11 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Render HTML response
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Card Mappings - TapeDeck</title>
-    <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .header-actions { display: flex; gap: 10px; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .btn { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #cc8f0a; }
-        .btn-danger { background: #d32f2f; }
-        .btn-danger:hover { background: #b71c1c; }
-        .btn-small { padding: 5px 10px; font-size: 14px; }
-        table { width: 100%%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #f5f5f5; font-weight: bold; }
-        .actions { display: flex; gap: 10px; }
-        .empty-state { text-align: center; padding: 50px 20px; color: #666; }
-        .empty-state h2 { margin-bottom: 10px; }
-    </style>
-</head>
-<body>
-%s
-%s
-    <div class="header">
-        <h1>Card Mappings</h1>
-        <div class="header-actions">
-            <a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair NFC Card</a>
-            <a href="/mappings/new" class="btn">+ New Mapping</a>
-        </div>
-    </div>
-`, NavigationHTML(), ConnectionBannerHTML())
-
-	if len(mappings) == 0 {
-		_, _ = fmt.Fprint(w, `
-    <div class="empty-state">
-        <h2>No card mappings yet</h2>
-        <p>Create your first mapping to link an NFC card with media.</p>
-        <a href="/mappings/new" class="btn">Create Mapping</a>
-    </div>
-`)
-	} else {
-		_, _ = fmt.Fprint(w, `
-    <table>
-        <thead>
-            <tr>
-                <th>Tag ID</th>
-                <th>Media Title</th>
-                <th>Type</th>
-                <th>Media ID</th>
-                <th>Created</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-`)
-
-		for _, mapping := range mappings {
-			createdAt := mapping.CreatedAt.Format("2006-01-02 15:04")
-			_, _ = fmt.Fprintf(w, `
-            <tr>
-                <td>%s</td>
-                <td>%s</td>
-                <td>%s</td>
-                <td>%s</td>
-                <td>%s</td>
-                <td class="actions">
-                    <a href="/mappings/%d/edit" class="btn btn-small">Edit</a>
-                    <form method="post" action="/mappings/%d/delete" style="margin: 0;">
-                        <button type="submit" class="btn btn-small btn-danger" onclick="return confirm('Delete this mapping?')">Delete</button>
-                    </form>
-                </td>
-            </tr>
-`, html.EscapeString(mapping.TagID), html.EscapeString(mapping.MediaTitle), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(createdAt), mapping.ID, mapping.ID)
-		}
-
-		_, _ = fmt.Fprint(w, `
-        </tbody>
-    </table>
-`)
+	// Render using templ template
+	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}
-
-	_, _ = fmt.Fprintf(w, `
-%s
-</body>
-</html>`, ConnectionBannerScript())
 }
 
 // NewMappingForm handles GET /mappings/new
@@ -159,180 +72,11 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Render HTML response
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>New Card Mapping - TapeDeck</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; padding-top: 60px; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"] { padding: 10px; width: 100%%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        .btn { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn:hover { background: #cc8f0a; }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .search-container { position: relative; }
-        .search-results { position: absolute; top: 100%%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 300px; overflow-y: auto; display: none; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .search-result-item { padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
-        .search-result-item:hover { background: #f5f5f5; }
-        .result-title { font-weight: bold; margin-bottom: 3px; }
-        .result-meta { font-size: 14px; color: #666; }
-        .selected-media { padding: 12px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px; display: none; }
-        .selected-media-title { font-weight: bold; margin-bottom: 5px; }
-        .selected-media-meta { font-size: 14px; color: #666; }
-        .error { color: #d32f2f; margin-top: 10px; display: none; }
-        .help-text { font-size: 14px; color: #666; margin-top: 5px; }
-    </style>
-</head>
-<body>
-%s
-%s
-    <h1>Create New Card Mapping</h1>
-
-    <form method="post" action="/mappings" id="mappingForm">
-        <div class="form-group">
-            <label for="tag_id">NFC Tag ID *</label>
-            <input type="text" id="tag_id" name="tag_id" required placeholder="e.g., nfc-12345">
-            <div class="help-text">Enter the unique ID from your NFC card</div>
-        </div>
-
-        <div class="form-group">
-            <label for="media_search">Search for Media *</label>
-            <div class="search-container">
-                <input type="text" id="media_search" placeholder="Start typing to search..." autocomplete="off">
-                <div class="search-results" id="searchResults"></div>
-            </div>
-            <div class="selected-media" id="selectedMedia">
-                <div class="selected-media-title" id="selectedTitle"></div>
-                <div class="selected-media-meta" id="selectedMeta"></div>
-            </div>
-            <div class="error" id="searchError">Failed to search. Please try again.</div>
-        </div>
-
-        <input type="hidden" id="media_type" name="media_type" required>
-        <input type="hidden" id="media_id" name="media_id" required>
-        <input type="hidden" id="media_title" name="media_title" required>
-
-        <button type="submit" class="btn" id="submitBtn" disabled>Create Mapping</button>
-    </form>
-`, NavigationHTML(), ConnectionBannerHTML())
-
-	_, _ = fmt.Fprintf(w, `
-    <script>
-        const searchInput = document.getElementById('media_search');
-        const searchResults = document.getElementById('searchResults');
-        const selectedMedia = document.getElementById('selectedMedia');
-        const selectedTitle = document.getElementById('selectedTitle');
-        const selectedMeta = document.getElementById('selectedMeta');
-        const searchError = document.getElementById('searchError');
-        const submitBtn = document.getElementById('submitBtn');
-        const mediaTypeInput = document.getElementById('media_type');
-        const mediaIdInput = document.getElementById('media_id');
-        const mediaTitleInput = document.getElementById('media_title');
-
-        let searchTimeout;
-        let selectedItem = null;
-
-        searchInput.addEventListener('input', function() {
-            const query = this.value.trim();
-
-            clearTimeout(searchTimeout);
-
-            if (query.length < 2) {
-                searchResults.style.display = 'none';
-                searchResults.innerHTML = '';
-                return;
-            }
-
-            searchTimeout = setTimeout(() => {
-                performSearch(query);
-            }, 300);
-        });
-
-        async function performSearch(query) {
-            try {
-                searchError.style.display = 'none';
-                const response = await fetch('/api/search?q=' + encodeURIComponent(query));
-
-                if (!response.ok) {
-                    throw new Error('Search failed');
-                }
-
-                const data = await response.json();
-
-                if (data.results.length === 0) {
-                    searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
-                    searchResults.style.display = 'block';
-                    return;
-                }
-
-                searchResults.innerHTML = '';
-
-                data.results.forEach(result => {
-                    const item = document.createElement('div');
-                    item.className = 'search-result-item';
-                    const yearStr = result.year ? ' (' + result.year + ')' : '';
-                    item.innerHTML = '<div class="result-title">' + result.title + '</div><div class="result-meta">' + result.type + yearStr + '</div>';
-                    item.dataset.title = result.title;
-                    item.dataset.year = result.year || '';
-                    item.dataset.type = result.type;
-                    item.dataset.ratingKey = result.ratingKey;
-
-                    item.addEventListener('click', function() {
-                        selectMedia(this.dataset.title, this.dataset.type, this.dataset.ratingKey, this.dataset.year);
-                    });
-
-                    searchResults.appendChild(item);
-                });
-
-                searchResults.style.display = 'block';
-            } catch (error) {
-                console.error('Search error:', error);
-                searchError.style.display = 'block';
-            }
-        }
-
-        function selectMedia(title, type, ratingKey, year) {
-            selectedItem = { title, type, ratingKey, year };
-
-            selectedTitle.textContent = title;
-            selectedMeta.textContent = type + (year ? ' (' + year + ')' : '');
-            selectedMedia.style.display = 'block';
-
-            mediaTypeInput.value = type;
-            mediaIdInput.value = ratingKey;
-            mediaTitleInput.value = title;
-
-            searchResults.style.display = 'none';
-            searchInput.value = title;
-
-            submitBtn.disabled = false;
-        }
-
-        // Hide search results when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-                searchResults.style.display = 'none';
-            }
-        });
-
-        // Validate form before submit
-        document.getElementById('mappingForm').addEventListener('submit', function(e) {
-            if (!mediaIdInput.value || !mediaTypeInput.value || !mediaTitleInput.value) {
-                e.preventDefault();
-                alert('Please select media from search results');
-            }
-        });
-    </script>
-%s
-</body>
-</html>`, ConnectionBannerScript())
+	// Render using templ template
+	if err := pages.MappingsNewForm(NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 // CreateMapping handles POST /mappings
@@ -410,63 +154,11 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Render HTML response
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Edit Card Mapping - TapeDeck</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; padding-top: 60px; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"] { padding: 10px; width: 100%%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        .btn { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn:hover { background: #cc8f0a; }
-        .help-text { font-size: 14px; color: #666; margin-top: 5px; }
-        .current-media { padding: 12px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px; }
-        .current-media-label { font-size: 14px; color: #666; margin-bottom: 5px; }
-        .current-media-title { font-weight: bold; margin-bottom: 5px; }
-        .current-media-meta { font-size: 14px; color: #666; }
-    </style>
-</head>
-<body>
-%s
-%s
-    <h1>Edit Card Mapping</h1>
-
-    <form method="post" action="/mappings/%d">
-        <div class="form-group">
-            <label for="tag_id">NFC Tag ID *</label>
-            <input type="text" id="tag_id" name="tag_id" value="%s" required placeholder="e.g., nfc-12345">
-            <div class="help-text">Enter the unique ID from your NFC card</div>
-        </div>
-
-        <div class="form-group">
-            <label>Current Media</label>
-            <div class="current-media">
-                <div class="current-media-title">%s</div>
-                <div class="current-media-meta">%s - %s</div>
-            </div>
-            <div class="help-text">To change media, please delete this mapping and create a new one</div>
-        </div>
-
-        <input type="hidden" name="media_type" value="%s">
-        <input type="hidden" name="media_id" value="%s">
-        <input type="hidden" name="media_title" value="%s">
-
-        <button type="submit" class="btn">Update Mapping</button>
-    </form>
-`, NavigationHTML(), ConnectionBannerHTML(), mapping.ID, html.EscapeString(mapping.TagID), html.EscapeString(mapping.MediaTitle), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaTitle))
-
-	_, _ = fmt.Fprintf(w, `
-%s
-</body>
-</html>`, ConnectionBannerScript())
+	// Render using templ template
+	if err := pages.MappingsEditForm(mapping, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 // UpdateMapping handles POST /mappings/{id}

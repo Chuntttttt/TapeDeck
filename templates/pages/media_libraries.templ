@@ -1,0 +1,61 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/internal/plex"
+
+// ServerInfo holds information about a Plex server for rendering
+type ServerInfo struct {
+	ID   string
+	Name string
+}
+
+// MediaLibraries renders the libraries page
+templ MediaLibraries(servers []ServerInfo, selectedServer ServerInfo, libraries []plex.Library, navHTML string, bannerHTML string, bannerScript string) {
+	@layouts.AppLayout("Libraries", navHTML, bannerHTML, bannerScript, librariesContent(servers, selectedServer, libraries))
+}
+
+templ librariesContent(servers []ServerInfo, selectedServer ServerInfo, libraries []plex.Library) {
+	<style>
+		body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
+		.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+		.server-selector { margin-bottom: 20px; }
+		.server-selector label { font-weight: bold; margin-right: 10px; }
+		.server-selector select { padding: 8px 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; }
+		.search-form { margin-bottom: 30px; }
+		.search-form input { padding: 10px; width: 300px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
+		.search-form button { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; }
+		.search-form button:hover { background: #cc8f0a; }
+		.library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+		.library-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; text-decoration: none; color: inherit; display: block; }
+		.library-card:hover { background: #f5f5f5; }
+		.library-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+		.library-type { color: #666; font-size: 14px; }
+	</style>
+	<div class="header">
+		<h1>🎬 TapeDeck - Libraries</h1>
+	</div>
+	<div class="server-selector">
+		<label for="server_select">Plex Server:</label>
+		<select id="server_select" name="server_id" onchange={ templ.ComponentScript{Call: "window.location.href='/libraries?server_id=' + this.value"} }>
+			for _, srv := range servers {
+				if srv.ID == selectedServer.ID {
+					<option value={ srv.ID } selected>{ srv.Name }</option>
+				} else {
+					<option value={ srv.ID }>{ srv.Name }</option>
+				}
+			}
+		</select>
+	</div>
+	<form class="search-form" method="get" action="/search">
+		<input type="text" name="q" placeholder="Search all media..." required/>
+		<button type="submit">Search</button>
+	</form>
+	<div class="library-grid">
+		for _, lib := range libraries {
+			<a href={ templ.SafeURL("/libraries/" + lib.Key + "?server_id=" + selectedServer.ID) } class="library-card">
+				<div class="library-title">{ lib.Title }</div>
+				<div class="library-type">{ lib.Type }</div>
+			</a>
+		}
+	</div>
+}

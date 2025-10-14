@@ -106,7 +106,7 @@ func (c *RuntimeConfig) Validate() error {
 
 	for i, server := range c.PlexServers {
 		if server.ID == "" {
-			return fmt.Errorf("plex server %d missing ID", i)
+			return fmt.Errorf("Plex server %d missing ID", i) //nolint:stylecheck // Plex is a proper noun
 		}
 		if server.Name == "" {
 			return fmt.Errorf("plex server %d missing name", i)

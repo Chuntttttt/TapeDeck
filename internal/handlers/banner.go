@@ -1,5 +1,82 @@
 package handlers
 
+// NavigationHTML returns the HTML and CSS for the navigation bar
+func NavigationHTML() string {
+	return `
+    <style>
+        body { padding-top: 60px; }
+        .nav-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-bottom: 2px solid #e5a00d;
+            padding: 0 20px;
+            z-index: 999;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .nav-bar a {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-bar a:hover {
+            color: #e5a00d;
+        }
+        .nav-bar form {
+            margin: 0;
+        }
+        .nav-bar button {
+            padding: 8px 16px;
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .nav-bar button:hover {
+            background: #4b5563;
+        }
+    </style>
+    <nav class="nav-bar">
+        <div class="nav-content">
+            <div class="nav-left">
+                <a href="/libraries" style="font-size: 18px;">🎬 TapeDeck</a>
+                <a href="/libraries">Libraries</a>
+                <a href="/mappings">Mappings</a>
+            </div>
+            <div class="nav-right">
+                <a href="/settings">⚙️ Settings</a>
+                <form method="post" action="/auth/logout">
+                    <button type="submit">Logout</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+`
+}
+
 // ConnectionBannerHTML returns the HTML and CSS for the HA connection status banner
 func ConnectionBannerHTML() string {
 	return `

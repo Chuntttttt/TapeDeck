@@ -142,20 +142,13 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
 %s
-    <div class="header">`, ConnectionBannerHTML())
-
-	_, _ = fmt.Fprintf(w, `
+%s
+    <div class="header">
         <h1>🎬 TapeDeck - Libraries</h1>
-        <div style="display: flex; gap: 10px;">
-            <form method="get" action="/mappings" style="margin: 0;">
-                <button type="submit" style="padding: 10px 20px; font-size: 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Card Mappings</button>
-            </form>
-            <form method="post" action="/auth/logout" style="margin: 0;">
-                <button type="submit" style="padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
-            </form>
-        </div>
     </div>
-    <div class="server-selector">
+`, NavigationHTML(), ConnectionBannerHTML())
+
+	_, _ = fmt.Fprint(w, `    <div class="server-selector">
         <label for="server_select">Plex Server:</label>
         <select id="server_select" name="server_id" onchange="window.location.href='/libraries?server_id=' + this.value">
 `)
@@ -280,16 +273,13 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request, l
 </head>
 <body>
 %s
-    <a href="/libraries" class="back-link">← Back to Libraries</a>`, ConnectionBannerHTML())
-
-	_, _ = fmt.Fprint(w, `
+%s
     <div class="header">
         <h1>🎬 Library Contents</h1>
-        <form method="post" action="/auth/logout">
-            <button type="submit">Logout</button>
-        </form>
     </div>
-    <div class="media-grid">
+`, NavigationHTML(), ConnectionBannerHTML())
+
+	_, _ = fmt.Fprint(w, `    <div class="media-grid">
 `)
 
 	for _, item := range items {
@@ -347,16 +337,13 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
 %s
-    <a href="/libraries" class="back-link">← Back to Libraries</a>`, ConnectionBannerHTML())
-
-	_, _ = fmt.Fprint(w, `
+%s
     <div class="header">
         <h1>🎬 Search Media</h1>
-        <form method="post" action="/auth/logout">
-            <button type="submit">Logout</button>
-        </form>
     </div>
-    <form class="search-form" method="get" action="/search">
+`, NavigationHTML(), ConnectionBannerHTML())
+
+	_, _ = fmt.Fprint(w, `    <form class="search-form" method="get" action="/search">
         <input type="text" name="q" placeholder="Search for movies, shows, music..." required autofocus>
         <button type="submit">Search</button>
     </form>
@@ -470,16 +457,13 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
 %s
-    <a href="/libraries" class="back-link">← Back to Libraries</a>`, ConnectionBannerHTML())
-
-	_, _ = fmt.Fprintf(w, `
+%s
     <div class="header">
         <h1>🎬 Search Results</h1>
-        <form method="post" action="/auth/logout">
-            <button type="submit">Logout</button>
-        </form>
     </div>
-    <form class="search-form" method="get" action="/search">
+`, NavigationHTML(), ConnectionBannerHTML())
+
+	_, _ = fmt.Fprintf(w, `    <form class="search-form" method="get" action="/search">
         <input type="text" name="q" value="%s" placeholder="Search media..." required>
         <button type="submit">Search</button>
     </form>

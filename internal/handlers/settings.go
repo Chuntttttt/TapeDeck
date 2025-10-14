@@ -74,11 +74,12 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
         .actions { margin-top: 20px; display: flex; gap: 10px; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input[type="url"], .form-group input[type="password"] { padding: 10px; width: 100%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .form-group input[type="url"], .form-group input[type="password"] { padding: 10px; width: 100%%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         .form-group input[type="url"]:focus, .form-group input[type="password"]:focus { border-color: #e5a00d; outline: none; }
     </style>
 </head>
 <body>
+%s
 %s
     <div class="header">
         <h1>⚙️ Settings</h1>
@@ -88,7 +89,7 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
         <div class="section">
             <h2>Plex Servers</h2>
             <div class="server-list">
-`, ConnectionBannerHTML())
+`, NavigationHTML(), ConnectionBannerHTML())
 
 	if len(runtimeCfg.PlexServers) == 0 {
 		_, _ = fmt.Fprint(w, `                <p>No Plex servers configured.</p>`)
@@ -285,7 +286,7 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	runtimeCfg.PlexServers = filteredServers
 
 	// Save updated config
-	if err := config.SaveRuntimeConfig(h.configPath, runtimeCfg); err != nil {
+	if err := runtimeCfg.Save(h.configPath); err != nil {
 		log.Printf("Failed to save configuration: %v", err)
 		http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
 		return

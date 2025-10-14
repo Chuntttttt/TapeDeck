@@ -172,7 +172,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
 %s
-    <a href="/mappings" class="back-link">← Back to Mappings</a>
+%s
     <div class="container">
         <h1>NFC Pairing Mode</h1>
 
@@ -222,7 +222,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             <div class="status-detail" id="statusDetail"></div>
         </div>
     </div>
-`, ConnectionBannerHTML(), appleTVOptionsHTML)
+`, NavigationHTML(), ConnectionBannerHTML(), appleTVOptionsHTML)
 
 	_, _ = fmt.Fprintf(w, `
     <script>

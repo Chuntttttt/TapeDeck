@@ -84,19 +84,15 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
 %s
-    <a href="/libraries" class="back-link">← Back to Libraries</a>
+%s
     <div class="header">
         <h1>Card Mappings</h1>
         <div class="header-actions">
             <a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair NFC Card</a>
             <a href="/mappings/new" class="btn">+ New Mapping</a>
-            <a href="/settings" class="btn" style="background: #6b7280;">Settings</a>
-            <form method="post" action="/auth/logout" style="margin: 0;">
-                <button type="submit" class="btn">Logout</button>
-            </form>
         </div>
     </div>
-`, ConnectionBannerHTML())
+`, NavigationHTML(), ConnectionBannerHTML())
 
 	if len(mappings) == 0 {
 		_, _ = fmt.Fprint(w, `
@@ -196,7 +192,7 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
 </head>
 <body>
 %s
-    <a href="/mappings" class="back-link">← Back to Mappings</a>
+%s
     <h1>Create New Card Mapping</h1>
 
     <form method="post" action="/mappings" id="mappingForm">
@@ -225,7 +221,7 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
 
         <button type="submit" class="btn" id="submitBtn" disabled>Create Mapping</button>
     </form>
-`, ConnectionBannerHTML())
+`, NavigationHTML(), ConnectionBannerHTML())
 
 	_, _ = fmt.Fprintf(w, `
     <script>
@@ -440,7 +436,7 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
 </head>
 <body>
 %s
-    <a href="/mappings" class="back-link">← Back to Mappings</a>
+%s
     <h1>Edit Card Mapping</h1>
 
     <form method="post" action="/mappings/%d">
@@ -465,7 +461,7 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
 
         <button type="submit" class="btn">Update Mapping</button>
     </form>
-`, ConnectionBannerHTML(), mapping.ID, html.EscapeString(mapping.TagID), html.EscapeString(mapping.MediaTitle), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaTitle))
+`, NavigationHTML(), ConnectionBannerHTML(), mapping.ID, html.EscapeString(mapping.TagID), html.EscapeString(mapping.MediaTitle), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaTitle))
 
 	_, _ = fmt.Fprintf(w, `
 %s

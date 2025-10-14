@@ -1,0 +1,94 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+
+// SetupHomeAssistant renders the Home Assistant configuration page
+templ SetupHomeAssistant(haURL string, haToken string) {
+	@layouts.SetupLayout("Connect Home Assistant", 3, haContent(haURL, haToken))
+}
+
+templ haContent(haURL string, haToken string) {
+	<div class="container">
+		@components.BackLink("/setup/plex", "Back")
+		<h1>Connect Home Assistant</h1>
+		<p>Home Assistant controls playback on your Apple TV.</p>
+		<div id="status" class="status"></div>
+		<form method="post" action="/setup/ha/save" id="haForm">
+			<div class="form-group">
+				<label for="ha_url">Home Assistant URL *</label>
+				<input type="text" id="ha_url" name="ha_url" value={ haURL } required placeholder="http://homeassistant.local:8123"/>
+				<div class="help-text">Your Home Assistant instance URL</div>
+			</div>
+			<div class="form-group">
+				<label for="ha_token">Long-Lived Access Token *</label>
+				<input type="password" id="ha_token" name="ha_token" value={ haToken } required placeholder="Enter your HA token"/>
+				<div class="help-text">
+					Create one in Home Assistant Profile settings
+					<a href="https://www.home-assistant.io/docs/authentication/#your-account-profile" target="_blank" class="help-link">How to create a token →</a>
+				</div>
+			</div>
+			<button type="button" class="btn btn-secondary" id="testBtn">Test Connection</button>
+			if haURL != "" && haToken != "" {
+				<button type="submit" class="btn" id="continueBtn">Continue</button>
+			} else {
+				<button type="submit" class="btn" id="continueBtn" disabled>Continue</button>
+			}
+		</form>
+	</div>
+	<script>
+		const testBtn = document.getElementById('testBtn');
+		const continueBtn = document.getElementById('continueBtn');
+		const statusDiv = document.getElementById('status');
+		const haURL = document.getElementById('ha_url');
+		const haToken = document.getElementById('ha_token');
+
+		testBtn.addEventListener('click', async function() {
+			const url = haURL.value.trim();
+			const token = haToken.value.trim();
+
+			if (!url || !token) {
+				showStatus('error', 'Please enter both URL and token');
+				return;
+			}
+
+			testBtn.disabled = true;
+			testBtn.innerHTML = 'Testing...<span class="loading"></span>';
+
+			try {
+				const response = await fetch('/setup/ha/test', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ ha_url: url, ha_token: token })
+				});
+
+				const data = await response.json();
+
+				if (response.ok && data.success) {
+					showStatus('success', '✓ Connected to Home Assistant successfully!');
+					continueBtn.disabled = false;
+				} else {
+					showStatus('error', '✗ ' + (data.error || 'Connection failed'));
+					continueBtn.disabled = true;
+				}
+			} catch (error) {
+				showStatus('error', '✗ Connection failed: ' + error.message);
+				continueBtn.disabled = true;
+			} finally {
+				testBtn.disabled = false;
+				testBtn.textContent = 'Test Connection';
+			}
+		});
+
+		function showStatus(type, message) {
+			statusDiv.className = 'status ' + type;
+			statusDiv.textContent = message;
+			statusDiv.style.display = 'block';
+		}
+
+		// If values already populated, enable continue button
+		if (haURL.value && haToken.value) {
+			continueBtn.disabled = false;
+		}
+	</script>
+}

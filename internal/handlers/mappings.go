@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
@@ -20,20 +19,20 @@ import (
 type MappingsHandler struct {
 	sessionStore  *sessions.CookieStore
 	db            *db.DB
-	plexURL       string
+	servers       []ServerInfo
 	devMode       bool
 	newPlexClient PlexClientFactory
 }
 
 // NewMappingsHandler creates a new mappings handler
-func NewMappingsHandler(store *sessions.CookieStore, database *db.DB, plexURL string, devMode bool) *MappingsHandler {
+func NewMappingsHandler(store *sessions.CookieStore, database *db.DB, servers []ServerInfo, devMode bool) *MappingsHandler {
 	return &MappingsHandler{
 		sessionStore: store,
 		db:           database,
-		plexURL:      plexURL,
+		servers:      servers,
 		devMode:      devMode,
-		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
-			return plex.NewClient(serverURL, authToken, devMode)
+		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
+			return plex.NewClient(serverURL, serverID, authToken, devMode)
 		},
 	}
 }
@@ -91,6 +90,7 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
         <div class="header-actions">
             <a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair NFC Card</a>
             <a href="/mappings/new" class="btn">+ New Mapping</a>
+            <a href="/settings" class="btn" style="background: #6b7280;">Settings</a>
             <form method="post" action="/auth/logout" style="margin: 0;">
                 <button type="submit" class="btn">Logout</button>
             </form>
@@ -583,47 +583,93 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create Plex client
-	plexClient := h.newPlexClient(h.plexURL, user.PlexAuthToken, h.devMode)
-
-	// Search
-	items, err := plexClient.Search(query)
-	if err != nil {
-		log.Printf("Failed to search: %v", err)
-		http.Error(w, "Failed to search", http.StatusInternalServerError)
-		return
+	// Search across all servers in parallel
+	type serverResult struct {
+		serverName string
+		serverID   string
+		items      []plex.MediaItem
+		err        error
 	}
 
-	// Load runtime config to get server ID
-	// Phase 7: For now we use the first configured server ID, or empty if not configured
-	//         Future: Search across all servers in parallel
-	runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
-	serverID := ""
-	if err == nil && len(runtimeCfg.PlexServers) > 0 {
-		serverID = runtimeCfg.PlexServers[0].ID
+	resultChan := make(chan serverResult, len(h.servers))
+
+	// Launch goroutine for each server
+	for _, server := range h.servers {
+		go func(srv ServerInfo) {
+			// Try all URLs for this server until one works
+			var items []plex.MediaItem
+			var lastErr error
+
+			for _, url := range srv.URLs {
+				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
+				items, lastErr = plexClient.Search(query)
+				if lastErr == nil {
+					// Success! Use these results
+					break
+				}
+				// Try next URL
+			}
+
+			resultChan <- serverResult{
+				serverName: srv.Name,
+				serverID:   srv.ID,
+				items:      items,
+				err:        lastErr,
+			}
+		}(server)
+	}
+
+	// Collect results from all servers
+	var allItems []plex.MediaItem
+	var searchErrors []error
+
+	for i := 0; i < len(h.servers); i++ {
+		result := <-resultChan
+		if result.err != nil {
+			log.Printf("Failed to search server %s: %v", result.serverName, result.err)
+			searchErrors = append(searchErrors, result.err)
+			continue
+		}
+
+		// Add server name and ID to each item
+		for j := range result.items {
+			result.items[j].ServerName = result.serverName
+			result.items[j].ServerID = result.serverID
+		}
+
+		allItems = append(allItems, result.items...)
+	}
+
+	// If all servers failed, return error
+	if len(searchErrors) == len(h.servers) && len(h.servers) > 0 {
+		log.Printf("All servers failed to search")
+		http.Error(w, "Failed to search all servers", http.StatusInternalServerError)
+		return
 	}
 
 	// Convert to JSON response
 	type SearchResult struct {
-		RatingKey string `json:"ratingKey"`
-		Title     string `json:"title"`
-		Type      string `json:"type"`
-		Year      int    `json:"year,omitempty"`
-		ServerID  string `json:"serverID"`
+		RatingKey  string `json:"ratingKey"`
+		Title      string `json:"title"`
+		Type       string `json:"type"`
+		Year       int    `json:"year,omitempty"`
+		ServerID   string `json:"serverID"`
+		ServerName string `json:"serverName"`
 	}
 
 	type SearchResponse struct {
 		Results []SearchResult `json:"results"`
 	}
 
-	results := make([]SearchResult, len(items))
-	for i, item := range items {
+	results := make([]SearchResult, len(allItems))
+	for i, item := range allItems {
 		results[i] = SearchResult{
-			RatingKey: item.RatingKey,
-			Title:     item.Title,
-			Type:      item.Type,
-			Year:      item.Year,
-			ServerID:  serverID,
+			RatingKey:  item.RatingKey,
+			Title:      item.Title,
+			Type:       item.Type,
+			Year:       item.Year,
+			ServerID:   item.ServerID,
+			ServerName: item.ServerName,
 		}
 	}
 

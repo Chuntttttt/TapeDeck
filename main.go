@@ -104,11 +104,18 @@ func main() {
 	var playbackHandler *handlers.PlaybackHandler
 	var pairingHandler *handlers.PairingHandler
 	var statusHandler *handlers.StatusHandler
+	var settingsHandler *handlers.SettingsHandler
 	var haClient *ha.HAClient
 
-	// Define handler initialization callback for setup wizard
+	// Define handler initialization callback for setup wizard and settings
 	initializeHandlers := func() error {
 		log.Println("Initializing handlers after setup completion...")
+
+		// Close existing HA client if it exists
+		if haClient != nil {
+			log.Println("Closing existing Home Assistant connection...")
+			haClient.Close()
+		}
 
 		// Reload config
 		runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
@@ -116,54 +123,47 @@ func main() {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// Use first server's best connection for legacy handlers
-		var plexURL string
-		var plexServerID string
-		if len(runtimeCfg.PlexServers) > 0 {
-			plexServerID = runtimeCfg.PlexServers[0].ID
+		// Build list of servers with their best connections
+		var servers []handlers.ServerInfo
+		var plexURL string          // For legacy handlers that need a single URL
+		var plexServerID string     // For playback handler
 
-			// Find best connection: prefer local non-docker addresses, then any local, then first available
-			var bestConn *config.Connection
-			var localConn *config.Connection
+		for _, srv := range runtimeCfg.PlexServers {
+			// TODO: Skip shared servers for now - they return 401 Unauthorized
+			// See README.md "Known Limitations: Shared Plex Servers"
+			if srv.Owner == "Shared" {
+				log.Printf("Skipping shared server '%s' (not currently supported)", srv.Name)
+				continue
+			}
 
-			for i := range runtimeCfg.PlexServers[0].Connections {
-				conn := &runtimeCfg.PlexServers[0].Connections[i]
-
+			// Collect all connection URLs
+			var urls []string
+			for _, conn := range srv.Connections {
 				// Skip docker internal addresses (172.17.0.x)
 				if strings.Contains(conn.URI, "172-17-0-") {
 					continue
 				}
-
-				if conn.Local {
-					if localConn == nil {
-						localConn = conn
-					}
-					// Prefer 10.x or 192.168.x addresses
-					if strings.Contains(conn.URI, "10-0-0-") || strings.Contains(conn.URI, "192-168-") {
-						bestConn = conn
-						break
-					}
-				}
-
-				// Keep first available as fallback
-				if bestConn == nil && localConn == nil {
-					bestConn = conn
-				}
+				urls = append(urls, conn.URI)
 			}
 
-			// Use best connection found
-			if bestConn != nil {
-				plexURL = bestConn.URI
-			} else if localConn != nil {
-				plexURL = localConn.URI
-			} else if len(runtimeCfg.PlexServers[0].Connections) > 0 {
-				plexURL = runtimeCfg.PlexServers[0].Connections[0].URI
+			if len(urls) > 0 {
+				servers = append(servers, handlers.ServerInfo{
+					ID:   srv.ID,
+					Name: srv.Name,
+					URLs: urls,
+				})
+
+				// Use first server's first URL for legacy handlers
+				if plexURL == "" {
+					plexURL = urls[0]
+					plexServerID = srv.ID
+				}
 			}
 		}
 
 		// Initialize handlers
-		mediaHandler = handlers.NewMediaHandler(sessionStore, database, plexURL, cfg.DevMode)
-		mappingsHandler = handlers.NewMappingsHandler(sessionStore, database, plexURL, cfg.DevMode)
+		mediaHandler = handlers.NewMediaHandler(sessionStore, database, servers, cfg.DevMode)
+		mappingsHandler = handlers.NewMappingsHandler(sessionStore, database, servers, cfg.DevMode)
 		playbackHandler = handlers.NewPlaybackHandler(database, plexServerID)
 
 		// Initialize Home Assistant WebSocket client
@@ -208,6 +208,9 @@ func main() {
 	// Initialize setup handler (always available)
 	setupHandler := handlers.NewSetupHandler(sessionStore, "./config.yml", plexAuth, database, cfg.DevMode, initializeHandlers)
 
+	// Initialize settings handler (always available) - uses same reload callback as setup
+	settingsHandler = handlers.NewSettingsHandler(sessionStore, "./config.yml", initializeHandlers)
+
 	// Initialize handlers if config exists
 	if !needsSetup {
 		if err := initializeHandlers(); err != nil {
@@ -239,6 +242,10 @@ func main() {
 	mux.HandleFunc("/setup/appletv/save", setupHandler.SaveAppleTVs)
 	mux.HandleFunc("/setup/complete", setupHandler.Step5Complete)
 	mux.HandleFunc("/setup/finish", setupHandler.CompleteSetup)
+
+	// Settings routes (require auth)
+	mux.Handle("/settings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(settingsHandler.Settings)))
+	mux.Handle("/settings/servers", middleware.RequireAuth(sessionStore)(http.HandlerFunc(settingsHandler.SaveSettings)))
 
 	// Health check (unprotected, no setup middleware)
 	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)

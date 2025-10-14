@@ -32,6 +32,16 @@ Core functionality complete: authentication, media browsing, card mapping, Home 
 
 **Code Location**: `internal/handlers/auth.go` (Login handler with JavaScript polling)
 
+### Shared Plex Servers
+
+**Current Limitation**: Direct connections to shared Plex servers (servers not owned by you) may return 401 Unauthorized errors even with valid authentication tokens. This appears to be a Plex permission limitation.
+
+**Impact**: The application will try multiple connection URLs but may not be able to access content from shared servers. Your own servers will work normally.
+
+**Workaround**: None currently available. This is a low-priority issue as most users primarily use their own servers.
+
+**Code Location**: `internal/plex/client.go` (Search method with TODO comment)
+
 ## Overview
 
 TapeDeck recreates the nostalgic experience of physical media libraries for the streaming age. Kids (and adults!) can tap a physical card to play their favorite content without navigating complex streaming interfaces.

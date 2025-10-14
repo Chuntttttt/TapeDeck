@@ -20,26 +20,33 @@ type PlexClientInterface interface {
 }
 
 // PlexClientFactory creates a new Plex client
-type PlexClientFactory func(serverURL, authToken string, devMode bool) PlexClientInterface
+type PlexClientFactory func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface
+
+// ServerInfo holds information about a Plex server for the media handler
+type ServerInfo struct {
+	ID   string
+	Name string
+	URLs []string // All connection URLs, ordered by priority
+}
 
 // MediaHandler handles media browsing requests
 type MediaHandler struct {
 	sessionStore  *sessions.CookieStore
 	db            *db.DB
-	plexURL       string
+	servers       []ServerInfo
 	devMode       bool
 	newPlexClient PlexClientFactory
 }
 
 // NewMediaHandler creates a new media handler
-func NewMediaHandler(store *sessions.CookieStore, database *db.DB, plexURL string, devMode bool) *MediaHandler {
+func NewMediaHandler(store *sessions.CookieStore, database *db.DB, servers []ServerInfo, devMode bool) *MediaHandler {
 	return &MediaHandler{
 		sessionStore: store,
 		db:           database,
-		plexURL:      plexURL,
+		servers:      servers,
 		devMode:      devMode,
-		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
-			return plex.NewClient(serverURL, authToken, devMode)
+		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
+			return plex.NewClient(serverURL, serverID, authToken, devMode)
 		},
 	}
 }
@@ -62,13 +69,47 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create Plex client
-	plexClient := h.newPlexClient(h.plexURL, user.PlexAuthToken, h.devMode)
+	// Get selected server from query param, default to first server
+	selectedServerID := r.URL.Query().Get("server_id")
+	var selectedServer ServerInfo
+	if selectedServerID == "" && len(h.servers) > 0 {
+		selectedServer = h.servers[0]
+	} else {
+		// Find the requested server
+		found := false
+		for _, srv := range h.servers {
+			if srv.ID == selectedServerID {
+				selectedServer = srv
+				found = true
+				break
+			}
+		}
+		if !found {
+			if len(h.servers) > 0 {
+				selectedServer = h.servers[0]
+			} else {
+				http.Error(w, "No Plex servers configured", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
 
-	// Get libraries
-	libraries, err := plexClient.GetLibraries()
-	if err != nil {
-		log.Printf("Failed to get libraries: %v", err)
+	// Try all URLs for this server until one works
+	var libraries []plex.Library
+	var lastErr error
+
+	for _, url := range selectedServer.URLs {
+		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
+		libraries, lastErr = plexClient.GetLibraries()
+		if lastErr == nil {
+			// Success! Use these results
+			break
+		}
+		// Try next URL
+	}
+
+	if lastErr != nil {
+		log.Printf("Failed to get libraries from server %s (tried %d URLs): %v", selectedServer.Name, len(selectedServer.URLs), lastErr)
 		http.Error(w, "Failed to get libraries", http.StatusInternalServerError)
 		return
 	}
@@ -85,6 +126,9 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
     <style>
         body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .server-selector { margin-bottom: 20px; }
+        .server-selector label { font-weight: bold; margin-right: 10px; }
+        .server-selector select { padding: 8px 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; }
         .search-form { margin-bottom: 30px; }
         .search-form input { padding: 10px; width: 300px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
         .search-form button { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; }
@@ -111,6 +155,23 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
             </form>
         </div>
     </div>
+    <div class="server-selector">
+        <label for="server_select">Plex Server:</label>
+        <select id="server_select" name="server_id" onchange="window.location.href='/libraries?server_id=' + this.value">
+`)
+
+	// Render server dropdown options
+	for _, srv := range h.servers {
+		selected := ""
+		if srv.ID == selectedServer.ID {
+			selected = " selected"
+		}
+		_, _ = fmt.Fprintf(w, `            <option value="%s"%s>%s</option>
+`, html.EscapeString(srv.ID), selected, html.EscapeString(srv.Name))
+	}
+
+	_, _ = fmt.Fprint(w, `        </select>
+    </div>
     <form class="search-form" method="get" action="/search">
         <input type="text" name="q" placeholder="Search all media..." required>
         <button type="submit">Search</button>
@@ -120,11 +181,11 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 
 	for _, lib := range libraries {
 		_, _ = fmt.Fprintf(w, `
-        <a href="/libraries/%s" class="library-card">
+        <a href="/libraries/%s?server_id=%s" class="library-card">
             <div class="library-title">%s</div>
             <div class="library-type">%s</div>
         </a>
-`, html.EscapeString(lib.Key), html.EscapeString(lib.Title), html.EscapeString(lib.Type))
+`, html.EscapeString(lib.Key), html.EscapeString(selectedServer.ID), html.EscapeString(lib.Title), html.EscapeString(lib.Type))
 	}
 
 	_, _ = fmt.Fprintf(w, `
@@ -152,13 +213,47 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request, l
 		return
 	}
 
-	// Create Plex client
-	plexClient := h.newPlexClient(h.plexURL, user.PlexAuthToken, h.devMode)
+	// Get selected server from query param, default to first server
+	selectedServerID := r.URL.Query().Get("server_id")
+	var selectedServer ServerInfo
+	if selectedServerID == "" && len(h.servers) > 0 {
+		selectedServer = h.servers[0]
+	} else {
+		// Find the requested server
+		found := false
+		for _, srv := range h.servers {
+			if srv.ID == selectedServerID {
+				selectedServer = srv
+				found = true
+				break
+			}
+		}
+		if !found {
+			if len(h.servers) > 0 {
+				selectedServer = h.servers[0]
+			} else {
+				http.Error(w, "No Plex servers configured", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
 
-	// Get library contents
-	items, err := plexClient.GetLibraryContents(libraryKey)
-	if err != nil {
-		log.Printf("Failed to get library contents: %v", err)
+	// Try all URLs for this server until one works
+	var items []plex.MediaItem
+	var lastErr error
+
+	for _, url := range selectedServer.URLs {
+		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
+		items, lastErr = plexClient.GetLibraryContents(libraryKey)
+		if lastErr == nil {
+			// Success! Use these results
+			break
+		}
+		// Try next URL
+	}
+
+	if lastErr != nil {
+		log.Printf("Failed to get library contents from server %s (tried %d URLs): %v", selectedServer.Name, len(selectedServer.URLs), lastErr)
 		http.Error(w, "Failed to get library contents", http.StatusInternalServerError)
 		return
 	}
@@ -282,14 +377,67 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create Plex client
-	plexClient := h.newPlexClient(h.plexURL, user.PlexAuthToken, h.devMode)
+	// Search across all servers in parallel
+	type serverResult struct {
+		serverName string
+		serverID   string
+		items      []plex.MediaItem
+		err        error
+	}
 
-	// Search
-	items, err := plexClient.Search(query)
-	if err != nil {
-		log.Printf("Failed to search: %v", err)
-		http.Error(w, "Failed to search", http.StatusInternalServerError)
+	resultChan := make(chan serverResult, len(h.servers))
+
+	// Launch goroutine for each server
+	for _, server := range h.servers {
+		go func(srv ServerInfo) {
+			// Try all URLs for this server until one works
+			var items []plex.MediaItem
+			var lastErr error
+
+			for _, url := range srv.URLs {
+				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
+				items, lastErr = plexClient.Search(query)
+				if lastErr == nil {
+					// Success! Use these results
+					break
+				}
+				// Try next URL
+			}
+
+			resultChan <- serverResult{
+				serverName: srv.Name,
+				serverID:   srv.ID,
+				items:      items,
+				err:        lastErr,
+			}
+		}(server)
+	}
+
+	// Collect results from all servers
+	var items []plex.MediaItem
+	var searchErrors []error
+
+	for i := 0; i < len(h.servers); i++ {
+		result := <-resultChan
+		if result.err != nil {
+			log.Printf("Failed to search server %s: %v", result.serverName, result.err)
+			searchErrors = append(searchErrors, result.err)
+			continue
+		}
+
+		// Add server name and ID to each item
+		for j := range result.items {
+			result.items[j].ServerName = result.serverName
+			result.items[j].ServerID = result.serverID
+		}
+
+		items = append(items, result.items...)
+	}
+
+	// If all servers failed, return error
+	if len(searchErrors) == len(h.servers) {
+		log.Printf("All servers failed to search")
+		http.Error(w, "Failed to search all servers", http.StatusInternalServerError)
 		return
 	}
 
@@ -316,6 +464,7 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
         .media-title { font-weight: bold; margin-bottom: 5px; }
         .media-year { color: #666; font-size: 14px; }
         .media-type { color: #999; font-size: 12px; text-transform: uppercase; }
+        .media-server { color: #1976d2; font-size: 12px; margin-top: 5px; font-weight: 500; }
         .no-results { text-align: center; color: #666; margin-top: 50px; font-size: 18px; }
     </style>
 </head>
@@ -351,8 +500,9 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
             <div class="media-title">%s</div>
             <div class="media-year">%s</div>
             <div class="media-type">%s</div>
+            <div class="media-server">📡 %s</div>
         </div>
-`, html.EscapeString(item.Title), html.EscapeString(yearStr), html.EscapeString(item.Type))
+`, html.EscapeString(item.Title), html.EscapeString(yearStr), html.EscapeString(item.Type), html.EscapeString(item.ServerName))
 		}
 		_, _ = fmt.Fprint(w, `    </div>`)
 	}

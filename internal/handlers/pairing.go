@@ -146,6 +146,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         .search-result-item:hover { background: #f5f5f5; }
         .result-title { font-weight: bold; margin-bottom: 3px; }
         .result-meta { font-size: 14px; color: #666; }
+        .result-server { font-size: 12px; color: #1976d2; margin-top: 3px; font-weight: 500; }
         .selected-media { padding: 15px; background: #f0f9ff; border: 2px solid #0284c7; border-radius: 4px; margin-top: 10px; display: none; }
         .selected-media-title { font-weight: bold; font-size: 18px; margin-bottom: 5px; color: #0c4a6e; }
         .selected-media-meta { font-size: 14px; color: #075985; }
@@ -180,6 +181,9 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             <strong>Search for media to pair</strong>
             <div class="search-container">
                 <input type="text" id="media_search" placeholder="Start typing to search..." autocomplete="off">
+                <div style="position: absolute; right: 12px; top: 12px; display: none;" id="searchSpinner">
+                    <div class="loading"></div>
+                </div>
                 <div class="search-results" id="searchResults"></div>
             </div>
             <div class="selected-media" id="selectedMedia">
@@ -233,6 +237,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         const statusText = document.getElementById('statusText');
         const statusDetail = document.getElementById('statusDetail');
         const wsStatus = document.getElementById('wsStatus');
+        const searchSpinner = document.getElementById('searchSpinner');
 
         let searchTimeout;
         let selectedItem = null;
@@ -315,6 +320,10 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 
         async function performSearch(query) {
             try {
+                // Show loading spinner
+                searchSpinner.style.display = 'block';
+                searchResults.style.display = 'none';
+
                 const response = await fetch('/api/search?q=' + encodeURIComponent(query));
 
                 if (!response.ok) {
@@ -322,6 +331,9 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                 }
 
                 const data = await response.json();
+
+                // Hide loading spinner
+                searchSpinner.style.display = 'none';
 
                 if (data.results.length === 0) {
                     searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
@@ -335,15 +347,17 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                     const item = document.createElement('div');
                     item.className = 'search-result-item';
                     const yearStr = result.year ? ' (' + result.year + ')' : '';
-                    item.innerHTML = '<div class="result-title">' + result.title + '</div><div class="result-meta">' + result.type + yearStr + '</div>';
+                    const serverStr = result.serverName ? '<div class="result-server">📡 ' + result.serverName + '</div>' : '';
+                    item.innerHTML = '<div class="result-title">' + result.title + '</div><div class="result-meta">' + result.type + yearStr + '</div>' + serverStr;
                     item.dataset.title = result.title;
                     item.dataset.year = result.year || '';
                     item.dataset.type = result.type;
                     item.dataset.ratingKey = result.ratingKey;
                     item.dataset.serverID = result.serverID || '';
+                    item.dataset.serverName = result.serverName || '';
 
                     item.addEventListener('click', function() {
-                        selectMedia(this.dataset.title, this.dataset.type, this.dataset.ratingKey, this.dataset.year, this.dataset.serverID);
+                        selectMedia(this.dataset.title, this.dataset.type, this.dataset.ratingKey, this.dataset.year, this.dataset.serverID, this.dataset.serverName);
                     });
 
                     searchResults.appendChild(item);
@@ -352,14 +366,17 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                 searchResults.style.display = 'block';
             } catch (error) {
                 console.error('Search error:', error);
+                // Hide loading spinner on error
+                searchSpinner.style.display = 'none';
             }
         }
 
-        function selectMedia(title, type, ratingKey, year, serverID) {
-            selectedItem = { title, type, ratingKey, year, serverID };
+        function selectMedia(title, type, ratingKey, year, serverID, serverName) {
+            selectedItem = { title, type, ratingKey, year, serverID, serverName };
 
             selectedTitle.textContent = title;
-            selectedMeta.textContent = type + (year ? ' (' + year + ')' : '');
+            const serverInfo = serverName ? ' • ' + serverName : '';
+            selectedMeta.textContent = type + (year ? ' (' + year + ')' : '') + serverInfo;
             selectedMedia.style.display = 'block';
 
             searchResults.style.display = 'none';

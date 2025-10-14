@@ -11,6 +11,7 @@ import (
 // Client handles Plex Media Server API operations
 type Client struct {
 	serverURL  string
+	serverID   string
 	authToken  string
 	httpClient *http.Client
 }
@@ -35,12 +36,14 @@ type LibrariesResponse struct {
 
 // MediaItem represents a media item (movie, show, episode, etc.)
 type MediaItem struct {
-	RatingKey string `json:"ratingKey"`
-	Title     string `json:"title"`
-	Type      string `json:"type"`
-	Year      int    `json:"year,omitempty"`
-	Summary   string `json:"summary,omitempty"`
-	Thumb     string `json:"thumb,omitempty"`
+	RatingKey  string `json:"ratingKey"`
+	Title      string `json:"title"`
+	Type       string `json:"type"`
+	Year       int    `json:"year,omitempty"`
+	Summary    string `json:"summary,omitempty"`
+	Thumb      string `json:"thumb,omitempty"`
+	ServerName string `json:"-"` // Not from JSON, populated by handler
+	ServerID   string `json:"-"` // Not from JSON, populated by handler
 }
 
 // MediaItemContainer wraps media items
@@ -60,7 +63,7 @@ type SearchResponse struct {
 }
 
 // NewClient creates a new Plex API client
-func NewClient(serverURL, authToken string, devMode bool) *Client {
+func NewClient(serverURL, serverID, authToken string, devMode bool) *Client {
 	client := &http.Client{Timeout: 30 * time.Second}
 
 	// In dev mode, skip TLS verification (useful for macOS certificate issues)
@@ -72,6 +75,7 @@ func NewClient(serverURL, authToken string, devMode bool) *Client {
 
 	return &Client{
 		serverURL:  serverURL,
+		serverID:   serverID,
 		authToken:  authToken,
 		httpClient: client,
 	}
@@ -136,6 +140,9 @@ func (c *Client) GetLibraryContents(libraryKey string) ([]MediaItem, error) {
 }
 
 // Search performs a search across all libraries
+// TODO: Shared servers may return 401 Unauthorized when accessed via direct .plex.direct URLs
+// even with a valid auth token. This appears to be a Plex permission limitation for shared content.
+// Consider investigating alternative access methods or documenting this as a known limitation.
 func (c *Client) Search(query string) ([]MediaItem, error) {
 	searchURL := fmt.Sprintf("%s/search", c.serverURL)
 

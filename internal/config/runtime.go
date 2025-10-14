@@ -109,10 +109,10 @@ func (c *RuntimeConfig) Validate() error {
 			return fmt.Errorf("Plex server %d missing ID", i) //nolint:stylecheck // Plex is a proper noun
 		}
 		if server.Name == "" {
-			return fmt.Errorf("plex server %d missing name", i)
+			return fmt.Errorf("Plex server %d missing name", i) //nolint:stylecheck // Plex is a proper noun
 		}
 		if len(server.Connections) == 0 {
-			return fmt.Errorf("plex server %s has no connections", server.Name)
+			return fmt.Errorf("Plex server %s has no connections", server.Name) //nolint:stylecheck // Plex is a proper noun
 		}
 	}
 
@@ -127,10 +127,10 @@ func (c *RuntimeConfig) Validate() error {
 	// Apple TVs are optional, but validate if present
 	for i, tv := range c.AppleTVs {
 		if tv.Entity == "" {
-			return fmt.Errorf("apple TV %d missing entity ID", i)
+			return fmt.Errorf("Apple TV %d missing entity ID", i) //nolint:stylecheck // Apple TV is a proper noun
 		}
 		if tv.Name == "" {
-			return fmt.Errorf("apple TV %d missing name", i)
+			return fmt.Errorf("Apple TV %d missing name", i) //nolint:stylecheck // Apple TV is a proper noun
 		}
 	}
 

@@ -1,0 +1,37 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+import "fmt"
+
+// SetupComplete renders the setup completion page
+templ SetupComplete(numServers int, haURL string, numAppleTVs int) {
+	@layouts.SetupLayout("Complete Setup", 4, completeContent(numServers, haURL, numAppleTVs))
+}
+
+templ completeContent(numServers int, haURL string, numAppleTVs int) {
+	<div class="container">
+		@components.BackLink("/setup/appletv", "Back")
+		<div class="emoji">✓</div>
+		<h1>Setup Complete!</h1>
+		<p>Review your configuration summary below:</p>
+		<div class="summary">
+			<div class="summary-item">
+				<div class="summary-label">Plex Servers</div>
+				<div class="summary-value">{ fmt.Sprintf("%d server(s) connected", numServers) }</div>
+			</div>
+			<div class="summary-item">
+				<div class="summary-label">Home Assistant</div>
+				<div class="summary-value">Connected ({ haURL })</div>
+			</div>
+			<div class="summary-item">
+				<div class="summary-label">Apple TVs</div>
+				<div class="summary-value">{ fmt.Sprintf("%d device(s) available", numAppleTVs) }</div>
+			</div>
+		</div>
+		<p>You're ready to start pairing NFC cards with your media!</p>
+		<form method="post" action="/setup/finish">
+			<button type="submit" class="btn">Start Using TapeDeck</button>
+		</form>
+	</div>
+}

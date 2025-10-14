@@ -440,71 +440,10 @@ func (h *SetupHandler) Step5Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Complete Setup - TapeDeck</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .emoji { font-size: 48px; margin-bottom: 20px; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #cc8f0a; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-        .summary { background: #f5f5f5; padding: 20px; border-radius: 4px; margin: 20px 0; }
-        .summary-item { padding: 10px 0; border-bottom: 1px solid #ddd; }
-        .summary-item:last-child { border-bottom: none; }
-        .summary-label { font-weight: bold; margin-bottom: 5px; }
-        .summary-value { color: #666; }
-        p { line-height: 1.6; color: #555; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step active"></div>
-        </div>
-
-        <a href="/setup/appletv" class="back-link">← Back</a>
-
-        <div class="emoji">✓</div>
-        <h1>Setup Complete!</h1>
-        <p>Review your configuration summary below:</p>
-
-        <div class="summary">
-            <div class="summary-item">
-                <div class="summary-label">Plex Servers</div>
-                <div class="summary-value">%d server(s) connected</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Home Assistant</div>
-                <div class="summary-value">Connected (%s)</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Apple TVs</div>
-                <div class="summary-value">%d device(s) available</div>
-            </div>
-        </div>
-
-        <p>You're ready to start pairing NFC cards with your media!</p>
-
-        <form method="post" action="/setup/finish">
-            <button type="submit" class="btn">Start Using TapeDeck</button>
-        </form>
-    </div>
-</body>
-</html>`, len(state.PlexServers), html.EscapeString(state.HAConfig.URL), len(state.AppleTVs))
+	if err := pages.SetupComplete(len(state.PlexServers), state.HAConfig.URL, len(state.AppleTVs)).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 // CompleteSetup handles POST /setup/complete - Finalize and save config

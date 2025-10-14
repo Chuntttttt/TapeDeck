@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,7 +18,7 @@ import (
 func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil)
+	handler := NewPairingHandler(store, nil, nil, nil, "", "")
 
 	req := httptest.NewRequest(http.MethodGet, "/mappings/pair", nil)
 	w := httptest.NewRecorder()
@@ -32,7 +33,7 @@ func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
 func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil)
+	handler := NewPairingHandler(store, nil, nil, nil, "", "")
 
 	req := httptest.NewRequest(http.MethodGet, "/mappings/pair", nil)
 	w := httptest.NewRecorder()
@@ -68,7 +69,7 @@ func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 func TestPairingHandler_WebSocketUpgrade_NotAuthenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil)
+	handler := NewPairingHandler(store, nil, nil, nil, "", "")
 
 	req := httptest.NewRequest(http.MethodGet, "/ws/pairing", nil)
 	w := httptest.NewRecorder()
@@ -107,7 +108,7 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA)
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +231,7 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA)
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -319,7 +320,7 @@ func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA)
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -380,7 +381,7 @@ func TestPairingHandler_WebSocketPairing_MissingFields(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA)
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -486,5 +487,343 @@ func (m *mockHAClient) OnTagScanned(callback func(tagID string)) {
 func (m *mockHAClient) simulateTagScan(tagID string) {
 	for _, callback := range m.tagCallbacks {
 		callback(tagID)
+	}
+}
+
+// Mock HA REST client for testing
+type mockHARestClient struct {
+	entityState       string
+	getStateError     error
+	turnOnCalls       []string
+	turnOnError       error
+	playMediaCalls    []playMediaCall
+	playMediaError    error
+}
+
+type playMediaCall struct {
+	entityID    string
+	contentType string
+	contentID   string
+}
+
+func (m *mockHARestClient) GetEntityState(entityID string) (string, error) {
+	if m.getStateError != nil {
+		return "", m.getStateError
+	}
+	if m.entityState == "" {
+		return "idle", nil // Default state
+	}
+	return m.entityState, nil
+}
+
+func (m *mockHARestClient) TurnOn(entityID string) error {
+	m.turnOnCalls = append(m.turnOnCalls, entityID)
+	return m.turnOnError
+}
+
+func (m *mockHARestClient) PlayMedia(entityID, contentType, contentID string) error {
+	m.playMediaCalls = append(m.playMediaCalls, playMediaCall{
+		entityID:    entityID,
+		contentType: contentType,
+		contentID:   contentID,
+	})
+	return m.playMediaError
+}
+
+func TestPairingHandler_Playback_Success(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create test database
+	testDB, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer func() { _ = testDB.Close() }()
+
+	// Run migrations
+	if err := testDB.RunMigrations("../../migrations"); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Create test user
+	user := models.NewUser("testuser", "plex-user-123", "test-token")
+	userID, err := testDB.CreateUser(user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Create mapping
+	mapping := models.NewCardMapping(userID, "test-tag-123", "movie", "12345", "Toy Story")
+	_, err = testDB.CreateCardMapping(mapping)
+	if err != nil {
+		t.Fatalf("Failed to create mapping: %v", err)
+	}
+
+	// Create mock HA clients
+	mockHA := &mockHAClient{
+		tagCallbacks: []func(string){},
+	}
+	mockRest := &mockHARestClient{}
+
+	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+
+	// Simulate tag scan (no pairing clients active)
+	mockHA.simulateTagScan("test-tag-123")
+
+	// Wait for async processing
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify PlayMedia was called
+	if len(mockRest.playMediaCalls) != 1 {
+		t.Fatalf("PlayMedia calls = %d, want 1", len(mockRest.playMediaCalls))
+	}
+
+	call := mockRest.playMediaCalls[0]
+	if call.entityID != "media_player.apple_tv" {
+		t.Errorf("entityID = %s, want media_player.apple_tv", call.entityID)
+	}
+
+	if call.contentType != "url" {
+		t.Errorf("contentType = %s, want url", call.contentType)
+	}
+
+	expectedURL := "plex://play/?metadataKey=/library/metadata/12345&server=server-abc123"
+	if call.contentID != expectedURL {
+		t.Errorf("contentID = %s, want %s", call.contentID, expectedURL)
+	}
+}
+
+func TestPairingHandler_Playback_NoMapping(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create test database
+	testDB, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer func() { _ = testDB.Close() }()
+
+	// Run migrations
+	if err := testDB.RunMigrations("../../migrations"); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Create mock HA clients
+	mockHA := &mockHAClient{
+		tagCallbacks: []func(string){},
+	}
+	mockRest := &mockHARestClient{}
+
+	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+
+	// Simulate tag scan with unmapped tag
+	mockHA.simulateTagScan("unmapped-tag")
+
+	// Wait for async processing
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify PlayMedia was NOT called
+	if len(mockRest.playMediaCalls) != 0 {
+		t.Errorf("PlayMedia calls = %d, want 0", len(mockRest.playMediaCalls))
+	}
+}
+
+func TestPairingHandler_Playback_RestClientError(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create test database
+	testDB, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer func() { _ = testDB.Close() }()
+
+	// Run migrations
+	if err := testDB.RunMigrations("../../migrations"); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Create test user
+	user := models.NewUser("testuser", "plex-user-123", "test-token")
+	userID, err := testDB.CreateUser(user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Create mapping
+	mapping := models.NewCardMapping(userID, "test-tag-456", "movie", "67890", "Finding Nemo")
+	_, err = testDB.CreateCardMapping(mapping)
+	if err != nil {
+		t.Fatalf("Failed to create mapping: %v", err)
+	}
+
+	// Create mock HA clients with error
+	mockHA := &mockHAClient{
+		tagCallbacks: []func(string){},
+	}
+	mockRest := &mockHARestClient{
+		playMediaError: fmt.Errorf("HA service unavailable"),
+	}
+
+	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+
+	// Simulate tag scan
+	mockHA.simulateTagScan("test-tag-456")
+
+	// Wait for async processing
+	time.Sleep(50 * time.Millisecond)
+
+	// Verify PlayMedia was called (even though it errored)
+	if len(mockRest.playMediaCalls) != 1 {
+		t.Fatalf("PlayMedia calls = %d, want 1", len(mockRest.playMediaCalls))
+	}
+
+	// The handler should log the error but not crash
+}
+
+func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create test database
+	testDB, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer func() { _ = testDB.Close() }()
+
+	// Run migrations
+	if err := testDB.RunMigrations("../../migrations"); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Create test user
+	user := models.NewUser("testuser", "plex-user-123", "test-token")
+	userID, err := testDB.CreateUser(user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Create mapping
+	mapping := models.NewCardMapping(userID, "test-tag-789", "movie", "11111", "The Incredibles")
+	_, err = testDB.CreateCardMapping(mapping)
+	if err != nil {
+		t.Fatalf("Failed to create mapping: %v", err)
+	}
+
+	// Create mock HA client with nil REST client
+	mockHA := &mockHAClient{
+		tagCallbacks: []func(string){},
+	}
+
+	_ = NewPairingHandler(store, testDB, mockHA, nil, "media_player.apple_tv", "server-abc123")
+
+	// Simulate tag scan
+	mockHA.simulateTagScan("test-tag-789")
+
+	// Wait for async processing
+	time.Sleep(50 * time.Millisecond)
+
+	// Should handle gracefully without crashing
+}
+
+func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+
+	// Create test database
+	testDB, err := db.New(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer func() { _ = testDB.Close() }()
+
+	// Run migrations
+	if err := testDB.RunMigrations("../../migrations"); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Create test user
+	user := models.NewUser("testuser", "plex-user-123", "test-token")
+	userID, err := testDB.CreateUser(user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Create mock HA clients
+	mockHA := &mockHAClient{
+		tagCallbacks: []func(string){},
+	}
+	mockRest := &mockHARestClient{}
+
+	handler := NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+
+	// Create test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Setup authenticated session
+		session, _ := store.Get(r, middleware.SessionName)
+		middleware.SetUserID(session, userID)
+		_ = session.Save(r, w)
+
+		handler.WebSocketPairing(w, r)
+	}))
+	defer server.Close()
+
+	// Convert http URL to ws URL
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	// Connect WebSocket client (entering pairing mode)
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect WebSocket: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// Send start_pairing message
+	startMsg := map[string]interface{}{
+		"type":        "start_pairing",
+		"media_id":    "99999",
+		"media_title": "Test Movie",
+		"media_type":  "movie",
+	}
+	if err := conn.WriteJSON(startMsg); err != nil {
+		t.Fatalf("Failed to send start_pairing: %v", err)
+	}
+
+	// Simulate NFC tag scan
+	time.Sleep(50 * time.Millisecond)
+	mockHA.simulateTagScan("pairing-tag-123")
+
+	// Read tag_detected message
+	var tagDetectedMsg map[string]interface{}
+	if err := conn.ReadJSON(&tagDetectedMsg); err != nil {
+		t.Fatalf("Failed to read tag_detected: %v", err)
+	}
+
+	if tagDetectedMsg["type"] != "tag_detected" {
+		t.Errorf("Message type = %v, want tag_detected", tagDetectedMsg["type"])
+	}
+
+	// Read mapping_created message
+	var mappingCreatedMsg map[string]interface{}
+	if err := conn.ReadJSON(&mappingCreatedMsg); err != nil {
+		t.Fatalf("Failed to read mapping_created: %v", err)
+	}
+
+	if mappingCreatedMsg["type"] != "mapping_created" {
+		t.Errorf("Message type = %v, want mapping_created", mappingCreatedMsg["type"])
+	}
+
+	// Verify PlayMedia was NOT called (in pairing mode)
+	if len(mockRest.playMediaCalls) != 0 {
+		t.Errorf("PlayMedia calls = %d, want 0 (should not play in pairing mode)", len(mockRest.playMediaCalls))
+	}
+
+	// Verify mapping was created
+	mapping, err := testDB.GetCardMappingByTagID("pairing-tag-123")
+	if err != nil {
+		t.Fatalf("Failed to get mapping: %v", err)
+	}
+
+	if mapping.MediaTitle != "Test Movie" {
+		t.Errorf("mapping.MediaTitle = %s, want Test Movie", mapping.MediaTitle)
 	}
 }

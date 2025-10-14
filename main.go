@@ -83,8 +83,18 @@ func main() {
 	}
 	defer haClient.Close()
 
+	// Initialize Home Assistant REST client
+	haRest := ha.NewRestClient(cfg.HAURL, cfg.HAToken, cfg.DevMode)
+
 	// Initialize pairing handler
-	pairingHandler := handlers.NewPairingHandler(sessionStore, database, haClient)
+	pairingHandler := handlers.NewPairingHandler(
+		sessionStore,
+		database,
+		haClient,
+		haRest,
+		cfg.AppleTVEntity,
+		cfg.PlexServerID,
+	)
 
 	mux := http.NewServeMux()
 

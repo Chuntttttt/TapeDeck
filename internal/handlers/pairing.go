@@ -21,14 +21,24 @@ type HAClientInterface interface {
 	OnTagScanned(callback func(tagID string))
 }
 
+// HARestInterface defines the interface for Home Assistant REST client
+type HARestInterface interface {
+	GetEntityState(entityID string) (string, error)
+	TurnOn(entityID string) error
+	PlayMedia(entityID, contentType, contentID string) error
+}
+
 // PairingHandler handles NFC pairing requests
 type PairingHandler struct {
-	sessionStore *sessions.CookieStore
-	db           *db.DB
-	haClient     HAClientInterface
-	upgrader     websocket.Upgrader
-	clients      map[*pairingClient]bool
-	clientsMu    sync.Mutex
+	sessionStore  *sessions.CookieStore
+	db            *db.DB
+	haClient      HAClientInterface
+	haRest        HARestInterface
+	appleTVEntity string
+	plexServerID  string
+	upgrader      websocket.Upgrader
+	clients       map[*pairingClient]bool
+	clientsMu     sync.Mutex
 }
 
 // pairingClient represents a browser WebSocket client in pairing mode
@@ -42,11 +52,21 @@ type pairingClient struct {
 }
 
 // NewPairingHandler creates a new pairing handler
-func NewPairingHandler(store *sessions.CookieStore, database *db.DB, haClient HAClientInterface) *PairingHandler {
+func NewPairingHandler(
+	store *sessions.CookieStore,
+	database *db.DB,
+	haClient HAClientInterface,
+	haRest HARestInterface,
+	appleTVEntity string,
+	plexServerID string,
+) *PairingHandler {
 	handler := &PairingHandler{
-		sessionStore: store,
-		db:           database,
-		haClient:     haClient,
+		sessionStore:  store,
+		db:            database,
+		haClient:      haClient,
+		haRest:        haRest,
+		appleTVEntity: appleTVEntity,
+		plexServerID:  plexServerID,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for now (same-origin in production)
@@ -458,7 +478,14 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 	h.clientsMu.Lock()
 	defer h.clientsMu.Unlock()
 
-	// Broadcast to all pairing clients
+	// Check if any pairing clients are active
+	if len(h.clients) == 0 {
+		// NO PAIRING CLIENTS: Look up mapping and play media
+		h.playMedia(tagID)
+		return
+	}
+
+	// PAIRING MODE: Broadcast to all pairing clients
 	for client := range h.clients {
 		// Send tag_detected message
 		tagDetectedMsg := map[string]string{
@@ -499,6 +526,68 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 			"media_title": client.mediaTitle,
 		}
 		h.sendJSON(client, successMsg)
+	}
+}
+
+// playMedia looks up a mapping and triggers playback via Home Assistant
+func (h *PairingHandler) playMedia(tagID string) {
+	// Look up mapping
+	mapping, err := h.db.GetCardMappingByTagID(tagID)
+	if err != nil {
+		log.Printf("No mapping found for tag %s: %v", tagID, err)
+		return
+	}
+
+	// Build Plex deep link
+	plexURL := fmt.Sprintf(
+		"plex://play/?metadataKey=/library/metadata/%s&server=%s",
+		mapping.MediaID,
+		h.plexServerID,
+	)
+
+	// Call Home Assistant to play media
+	if h.haRest == nil {
+		log.Printf("HA REST client not configured, cannot play media")
+		return
+	}
+
+	// Check Apple TV state
+	state, err := h.haRest.GetEntityState(h.appleTVEntity)
+	if err != nil {
+		log.Printf("Failed to get Apple TV state: %v (continuing anyway)", err)
+		// Continue with playback attempt even if state check fails
+	} else {
+		log.Printf("Apple TV state: %s", state)
+
+		// Turn on Apple TV if it's off or in standby
+		if state == "off" || state == "standby" {
+			log.Printf("Apple TV is %s, turning on...", state)
+			err = h.haRest.TurnOn(h.appleTVEntity)
+			if err != nil {
+				log.Printf("Failed to turn on Apple TV: %v", err)
+				return
+			}
+
+			// Wait for Apple TV to wake up (5 seconds should be enough)
+			log.Printf("Waiting 5 seconds for Apple TV to wake up...")
+			time.Sleep(5 * time.Second)
+		}
+	}
+
+	// Play media
+	err = h.haRest.PlayMedia(h.appleTVEntity, "url", plexURL)
+	if err != nil {
+		log.Printf("Failed to play media for tag %s: %v", tagID, err)
+		return
+	}
+
+	log.Printf("Playing %s on %s", mapping.MediaTitle, h.appleTVEntity)
+
+	// Create playback log
+	playbackLog := models.NewPlaybackLog(mapping.UserID, mapping.TagID, mapping.MediaID, mapping.MediaTitle)
+	_, err = h.db.CreatePlaybackLog(playbackLog)
+	if err != nil {
+		log.Printf("Failed to create playback log: %v", err)
 	}
 }
 

@@ -65,7 +65,7 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
     <meta charset="UTF-8">
     <title>Card Mappings - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         .header-actions { display: flex; gap: 10px; }
         .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
@@ -83,6 +83,7 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
     </style>
 </head>
 <body>
+%s
     <a href="/libraries" class="back-link">← Back to Libraries</a>
     <div class="header">
         <h1>Card Mappings</h1>
@@ -94,7 +95,7 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
             </form>
         </div>
     </div>
-`)
+`, ConnectionBannerHTML())
 
 	if len(mappings) == 0 {
 		_, _ = fmt.Fprint(w, `
@@ -145,9 +146,10 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 `)
 	}
 
-	_, _ = fmt.Fprint(w, `
+	_, _ = fmt.Fprintf(w, `
+%s
 </body>
-</html>`)
+</html>`, ConnectionBannerScript())
 }
 
 // NewMappingForm handles GET /mappings/new
@@ -164,22 +166,22 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	_, _ = fmt.Fprint(w, `<!DOCTYPE html>
+	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>New Card Mapping - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"] { padding: 10px; width: 100%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        input[type="text"] { padding: 10px; width: 100%%; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         .btn { padding: 10px 20px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .btn:hover { background: #cc8f0a; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
         .search-container { position: relative; }
-        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 300px; overflow-y: auto; display: none; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .search-results { position: absolute; top: 100%%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 300px; overflow-y: auto; display: none; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .search-result-item { padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
         .search-result-item:hover { background: #f5f5f5; }
         .result-title { font-weight: bold; margin-bottom: 3px; }
@@ -192,6 +194,7 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
     </style>
 </head>
 <body>
+%s
     <a href="/mappings" class="back-link">← Back to Mappings</a>
     <h1>Create New Card Mapping</h1>
 
@@ -221,7 +224,9 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
 
         <button type="submit" class="btn" id="submitBtn" disabled>Create Mapping</button>
     </form>
+`, ConnectionBannerHTML())
 
+	_, _ = fmt.Fprintf(w, `
     <script>
         const searchInput = document.getElementById('media_search');
         const searchResults = document.getElementById('searchResults');
@@ -328,8 +333,9 @@ func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request)
             }
         });
     </script>
+%s
 </body>
-</html>`)
+</html>`, ConnectionBannerScript())
 }
 
 // CreateMapping handles POST /mappings
@@ -415,7 +421,7 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
     <meta charset="UTF-8">
     <title>Edit Card Mapping - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
@@ -430,6 +436,7 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
     </style>
 </head>
 <body>
+%s
     <a href="/mappings" class="back-link">← Back to Mappings</a>
     <h1>Edit Card Mapping</h1>
 
@@ -455,8 +462,12 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
 
         <button type="submit" class="btn">Update Mapping</button>
     </form>
+`, ConnectionBannerHTML(), mapping.ID, html.EscapeString(mapping.TagID), html.EscapeString(mapping.MediaTitle), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaTitle))
+
+	_, _ = fmt.Fprintf(w, `
+%s
 </body>
-</html>`, mapping.ID, html.EscapeString(mapping.TagID), html.EscapeString(mapping.MediaTitle), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaType), html.EscapeString(mapping.MediaID), html.EscapeString(mapping.MediaTitle))
+</html>`, ConnectionBannerScript())
 }
 
 // UpdateMapping handles POST /mappings/{id}

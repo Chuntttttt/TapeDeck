@@ -83,7 +83,7 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
     <meta charset="UTF-8">
     <title>Libraries - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .search-form { margin-bottom: 30px; }
         .search-form input { padding: 10px; width: 300px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
@@ -97,7 +97,10 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
     </style>
 </head>
 <body>
-    <div class="header">
+%s
+    <div class="header">`, ConnectionBannerHTML())
+
+	_, _ = fmt.Fprintf(w, `
         <h1>🎬 TapeDeck - Libraries</h1>
         <div style="display: flex; gap: 10px;">
             <form method="get" action="/mappings" style="margin: 0;">
@@ -124,10 +127,11 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 `, html.EscapeString(lib.Key), html.EscapeString(lib.Title), html.EscapeString(lib.Type))
 	}
 
-	_, _ = fmt.Fprint(w, `
+	_, _ = fmt.Fprintf(w, `
     </div>
+%s
 </body>
-</html>`)
+</html>`, ConnectionBannerScript())
 }
 
 // LibraryContents handles GET /libraries/{id}
@@ -169,7 +173,7 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request, l
     <meta charset="UTF-8">
     <title>Library - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
         .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
@@ -180,7 +184,10 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request, l
     </style>
 </head>
 <body>
-    <a href="/libraries" class="back-link">← Back to Libraries</a>
+%s
+    <a href="/libraries" class="back-link">← Back to Libraries</a>`, ConnectionBannerHTML())
+
+	_, _ = fmt.Fprint(w, `
     <div class="header">
         <h1>🎬 Library Contents</h1>
         <form method="post" action="/auth/logout">
@@ -204,10 +211,11 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request, l
 `, html.EscapeString(item.Title), html.EscapeString(yearStr), html.EscapeString(item.Type))
 	}
 
-	_, _ = fmt.Fprint(w, `
+	_, _ = fmt.Fprintf(w, `
     </div>
+%s
 </body>
-</html>`)
+</html>`, ConnectionBannerScript())
 }
 
 // Search handles GET /search
@@ -227,23 +235,26 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 	if query == "" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprint(w, `<!DOCTYPE html>
+		_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Search - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
         .search-form { margin: 50px auto; max-width: 500px; text-align: center; }
-        .search-form input { padding: 15px; width: 100%; font-size: 18px; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .search-form input { padding: 15px; width: 100%%; font-size: 18px; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         .search-form button { padding: 15px 30px; font-size: 18px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
         .search-form button:hover { background: #cc8f0a; }
     </style>
 </head>
 <body>
-    <a href="/libraries" class="back-link">← Back to Libraries</a>
+%s
+    <a href="/libraries" class="back-link">← Back to Libraries</a>`, ConnectionBannerHTML())
+
+	_, _ = fmt.Fprint(w, `
     <div class="header">
         <h1>🎬 Search Media</h1>
         <form method="post" action="/auth/logout">
@@ -254,8 +265,12 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
         <input type="text" name="q" placeholder="Search for movies, shows, music..." required autofocus>
         <button type="submit">Search</button>
     </form>
+`)
+
+	_, _ = fmt.Fprintf(w, `
+%s
 </body>
-</html>`)
+</html>`, ConnectionBannerScript())
 		return
 	}
 
@@ -288,7 +303,7 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
     <meta charset="UTF-8">
     <title>Search Results - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        body { font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 60px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
         .search-form { margin-bottom: 30px; }
@@ -305,7 +320,10 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
     </style>
 </head>
 <body>
-    <a href="/libraries" class="back-link">← Back to Libraries</a>
+%s
+    <a href="/libraries" class="back-link">← Back to Libraries</a>`, ConnectionBannerHTML())
+
+	_, _ = fmt.Fprintf(w, `
     <div class="header">
         <h1>🎬 Search Results</h1>
         <form method="post" action="/auth/logout">
@@ -339,7 +357,8 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprint(w, `    </div>`)
 	}
 
-	_, _ = fmt.Fprint(w, `
+	_, _ = fmt.Fprintf(w, `
+%s
 </body>
-</html>`)
+</html>`, ConnectionBannerScript())
 }

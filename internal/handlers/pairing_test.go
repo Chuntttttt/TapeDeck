@@ -484,6 +484,14 @@ func (m *mockHAClient) OnTagScanned(callback func(tagID string)) {
 	m.tagCallbacks = append(m.tagCallbacks, callback)
 }
 
+func (m *mockHAClient) IsConnected() bool {
+	return true
+}
+
+func (m *mockHAClient) Reconnect(newToken string) error {
+	return nil
+}
+
 func (m *mockHAClient) simulateTagScan(tagID string) {
 	for _, callback := range m.tagCallbacks {
 		callback(tagID)

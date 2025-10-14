@@ -19,6 +19,7 @@ import (
 // HAClientInterface defines the interface for Home Assistant WebSocket client
 type HAClientInterface interface {
 	OnTagScanned(callback func(tagID string))
+	IsConnected() bool
 }
 
 // HARestInterface defines the interface for Home Assistant REST client
@@ -97,20 +98,20 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	_, _ = fmt.Fprint(w, `<!DOCTYPE html>
+	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>NFC Pairing Mode - TapeDeck</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; padding-top: 60px; background: #f5f5f5; }
         .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
         .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h1 { color: #333; margin-top: 0; }
         .step { margin-bottom: 30px; }
-        .step-number { display: inline-block; width: 30px; height: 30px; background: #e5a00d; color: white; border-radius: 50%; text-align: center; line-height: 30px; font-weight: bold; margin-right: 10px; }
+        .step-number { display: inline-block; width: 30px; height: 30px; background: #e5a00d; color: white; border-radius: 50%%; text-align: center; line-height: 30px; font-weight: bold; margin-right: 10px; }
         .search-container { position: relative; margin-top: 10px; }
-        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 300px; overflow-y: auto; display: none; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .search-results { position: absolute; top: 100%%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 300px; overflow-y: auto; display: none; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .search-result-item { padding: 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
         .search-result-item:hover { background: #f5f5f5; }
         .result-title { font-weight: bold; margin-bottom: 3px; }
@@ -118,7 +119,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         .selected-media { padding: 15px; background: #f0f9ff; border: 2px solid #0284c7; border-radius: 4px; margin-top: 10px; display: none; }
         .selected-media-title { font-weight: bold; font-size: 18px; margin-bottom: 5px; color: #0c4a6e; }
         .selected-media-meta { font-size: 14px; color: #075985; }
-        input[type="text"] { padding: 12px; width: 100%; font-size: 16px; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        input[type="text"] { padding: 12px; width: 100%%; font-size: 16px; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         input[type="text"]:focus { border-color: #e5a00d; outline: none; }
         .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn:hover { background: #cc8f0a; }
@@ -131,14 +132,15 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         .status-text { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
         .status-detail { font-size: 14px; color: #666; }
         .tag-id { font-family: monospace; font-size: 16px; background: #f5f5f5; padding: 4px 8px; border-radius: 4px; margin: 5px 0; }
-        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #e5a00d; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #e5a00d; border-radius: 50%%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0%% { transform: rotate(0deg); } 100%% { transform: rotate(360deg); } }
         .ws-status { font-size: 12px; color: #666; margin-top: 10px; }
         .ws-status.connected { color: #22c55e; }
         .ws-status.disconnected { color: #ef4444; }
     </style>
 </head>
 <body>
+%s
     <a href="/mappings" class="back-link">← Back to Mappings</a>
     <div class="container">
         <h1>NFC Pairing Mode</h1>
@@ -176,7 +178,9 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             <div class="status-detail" id="statusDetail"></div>
         </div>
     </div>
+`, ConnectionBannerHTML())
 
+	_, _ = fmt.Fprintf(w, `
     <script>
         const searchInput = document.getElementById('media_search');
         const searchResults = document.getElementById('searchResults');
@@ -358,8 +362,9 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             }
         });
     </script>
+%s
 </body>
-</html>`)
+</html>`, ConnectionBannerScript())
 }
 
 // WebSocketPairing handles WebSocket connection for pairing

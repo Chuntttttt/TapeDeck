@@ -105,6 +105,9 @@ func main() {
 		cfg.PlexServerID,
 	)
 
+	// Initialize status handler
+	statusHandler := handlers.NewStatusHandler(haClient)
+
 	mux := http.NewServeMux()
 
 	// Auth routes
@@ -144,6 +147,10 @@ func main() {
 
 	// Health check (unprotected)
 	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
+
+	// Status API (unprotected - used for connection monitoring)
+	mux.HandleFunc("/api/status/ha", statusHandler.HAStatus)
+	mux.HandleFunc("/api/status/ha/reconnect", statusHandler.HAReconnect)
 
 	// Playback API for Home Assistant (unprotected - HA server is trusted)
 	mux.HandleFunc("/api/play", playbackHandler.Play)

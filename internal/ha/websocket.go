@@ -55,10 +55,6 @@ func (c *HAClient) Connect() error {
 		return fmt.Errorf("failed to dial Home Assistant: %w", err)
 	}
 
-	c.mu.Lock()
-	c.conn = conn
-	c.mu.Unlock()
-
 	// Read auth_required message
 	var authRequired map[string]interface{}
 	if err := conn.ReadJSON(&authRequired); err != nil {
@@ -131,6 +127,11 @@ func (c *HAClient) Connect() error {
 		_ = conn.Close()
 		return fmt.Errorf("subscription failed")
 	}
+
+	// Only set c.conn after successful auth and subscription
+	c.mu.Lock()
+	c.conn = conn
+	c.mu.Unlock()
 
 	log.Println("Connected to Home Assistant WebSocket")
 
@@ -211,6 +212,57 @@ func (c *HAClient) handleEvent(msg map[string]interface{}) {
 	if callback != nil {
 		callback(tagID)
 	}
+}
+
+// IsConnected returns true if the WebSocket connection is active
+func (c *HAClient) IsConnected() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Check if connection exists and done channel is not closed
+	if c.conn == nil {
+		return false
+	}
+
+	select {
+	case <-c.done:
+		return false
+	default:
+		return true
+	}
+}
+
+// Reconnect attempts to reconnect to Home Assistant with a new token
+func (c *HAClient) Reconnect(newToken string) error {
+	// Close existing connection if any
+	c.mu.Lock()
+	oldTokenPreview := "empty"
+	if len(c.token) > 8 {
+		oldTokenPreview = c.token[:8] + "..."
+	} else if len(c.token) > 0 {
+		oldTokenPreview = c.token[:len(c.token)] + "..."
+	}
+
+	newTokenPreview := "empty"
+	if len(newToken) > 8 {
+		newTokenPreview = newToken[:8] + "..."
+	} else if len(newToken) > 0 {
+		newTokenPreview = newToken[:len(newToken)] + "..."
+	}
+
+	log.Printf("Reconnect: Old token: %s (len=%d), New token: %s (len=%d), Same=%v",
+		oldTokenPreview, len(c.token), newTokenPreview, len(newToken), c.token == newToken)
+
+	if c.conn != nil {
+		_ = c.conn.Close()
+		c.conn = nil
+	}
+	// Update token
+	c.token = newToken
+	c.mu.Unlock()
+
+	// Attempt new connection
+	return c.Connect()
 }
 
 // Close closes the WebSocket connection

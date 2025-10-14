@@ -46,14 +46,14 @@ type PairingHandler struct {
 
 // pairingClient represents a browser WebSocket client in pairing mode
 type pairingClient struct {
-	conn            *websocket.Conn
-	send            chan []byte
-	userID          int64
-	mediaID         string
-	mediaType       string
-	mediaTitle      string
-	plexServerID    string // Selected Plex server ID
-	appleTVEntity   string // Selected Apple TV entity
+	conn          *websocket.Conn
+	send          chan []byte
+	userID        int64
+	mediaID       string
+	mediaType     string
+	mediaTitle    string
+	plexServerID  string // Selected Plex server ID
+	appleTVEntity string // Selected Apple TV entity
 }
 
 // NewPairingHandler creates a new pairing handler
@@ -464,6 +464,7 @@ func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request
 	h.clients[client] = true
 	h.clientsMu.Unlock()
 
+	middleware.IncrementWebSocketConnections()
 	log.Printf("WebSocket client connected (userID=%d)", userID)
 
 	// Start goroutines
@@ -708,6 +709,7 @@ func (h *PairingHandler) unregisterClient(client *pairingClient) {
 	if _, ok := h.clients[client]; ok {
 		delete(h.clients, client)
 		close(client.send)
+		middleware.DecrementWebSocketConnections()
 		log.Printf("WebSocket client disconnected (userID=%d)", client.userID)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -43,11 +44,11 @@ func main() {
 		log.Printf("Warning: Failed to load env config: %v", err)
 		// Use defaults for basic settings
 		cfg = &config.Config{
-			Port:         "8080",
-			DatabasePath: "./tapedeck.db",
+			Port:          "8080",
+			DatabasePath:  "./tapedeck.db",
 			SessionSecret: "change-me-in-production",
-			LogLevel:     "info",
-			DevMode:      false,
+			LogLevel:      "info",
+			DevMode:       false,
 		}
 	}
 
@@ -125,8 +126,8 @@ func main() {
 
 		// Build list of servers with their best connections
 		var servers []handlers.ServerInfo
-		var plexURL string          // For legacy handlers that need a single URL
-		var plexServerID string     // For playback handler
+		var plexURL string      // For legacy handlers that need a single URL
+		var plexServerID string // For playback handler
 
 		for _, srv := range runtimeCfg.PlexServers {
 			// TODO: Skip shared servers for now - they return 401 Unauthorized
@@ -247,6 +248,9 @@ func main() {
 	mux.Handle("/settings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(settingsHandler.Settings)))
 	mux.Handle("/settings/servers", middleware.RequireAuth(sessionStore)(http.HandlerFunc(settingsHandler.SaveSettings)))
 
+	// Metrics endpoint (unprotected)
+	mux.Handle("/metrics", promhttp.Handler())
+
 	// Health check (unprotected, no setup middleware)
 	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
 
@@ -363,8 +367,15 @@ func main() {
 		http.NotFound(w, r)
 	})
 
-	// Wrap mux with setup middleware (will check config for all non-exempted routes)
-	handler := middleware.SetupMiddleware("./config.yml", sessionStore)(mux)
+	// Wrap mux with middleware chain
+	// 1. Metrics middleware (tracks request metrics)
+	// 2. Request logging middleware (logs all requests)
+	// 3. Setup middleware (checks config for all non-exempted routes)
+	handler := middleware.MetricsMiddleware()(
+		middleware.RequestLogger()(
+			middleware.SetupMiddleware("./config.yml", sessionStore)(mux),
+		),
+	)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

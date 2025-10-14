@@ -39,6 +39,9 @@ COPY --from=builder /app/tapedeck .
 # Copy static assets (will be empty directory for now)
 COPY --from=builder /app/static ./static
 
+# Copy migrations directory
+COPY --from=builder /app/migrations ./migrations
+
 # Create data directory
 RUN mkdir -p /data
 

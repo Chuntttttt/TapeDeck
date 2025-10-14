@@ -13,9 +13,9 @@ import (
 
 // SettingsHandler handles settings/admin requests
 type SettingsHandler struct {
-	sessionStore       *sessions.CookieStore
-	configPath         string
-	reloadHandlers     func() error
+	sessionStore   *sessions.CookieStore
+	configPath     string
+	reloadHandlers func() error
 }
 
 // NewSettingsHandler creates a new settings handler
@@ -165,6 +165,7 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
         <div class="actions">
             <button type="submit" class="btn">Save Changes</button>
             <a href="/setup" class="btn btn-secondary">Re-run Setup Wizard</a>
+            <a href="/metrics" class="btn btn-secondary" target="_blank">View Metrics</a>
         </div>
     </form>
 

@@ -10,6 +10,8 @@ services:
       - "3001:3001"
     volumes:
       - ./data:/data
+      - ./config.yml:/app/config.yml
+      - ./tapedeck.log:/app/tapedeck.log
     env_file:
       - .env
     environment:

@@ -163,92 +163,11 @@ func (h *SetupHandler) renderPlexError(w http.ResponseWriter, r *http.Request, e
 	}
 }
 
-func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, _ *http.Request, servers []config.PlexServer) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Select Plex Servers - TapeDeck Setup</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #cc8f0a; }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-        .server-list { margin: 20px 0; }
-        .server-item { display: flex; align-items: flex-start; padding: 15px; border: 2px solid #ddd; border-radius: 4px; margin-bottom: 10px; cursor: pointer; }
-        .server-item:hover { border-color: #e5a00d; background: #fffbf0; }
-        .server-item input[type="checkbox"] { margin: 3px 12px 0 0; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer; }
-        .server-item > div { flex: 1; }
-        .server-name { font-weight: bold; margin-bottom: 5px; }
-        .server-meta { font-size: 14px; color: #666; word-break: break-all; }
-        p { line-height: 1.6; color: #555; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step"></div>
-            <div class="progress-step"></div>
-        </div>
-
-        <a href="/setup" class="back-link">← Back</a>
-        <h1>Select Plex Servers</h1>
-        <p>We found %d server(s) connected to your account. Select which servers you'd like to use with TapeDeck.</p>
-
-        <form method="post" action="/setup/plex/save" id="serverForm">
-            <div class="server-list">`, len(servers))
-
-	for _, server := range servers {
-		connInfo := ""
-		if len(server.Connections) > 0 {
-			connInfo = server.Connections[0].URI
-		}
-
-		_, _ = fmt.Fprintf(w, `
-                <label class="server-item">
-                    <input type="checkbox" name="server_ids" value="%s" checked>
-                    <div>
-                        <div class="server-name">%s (%s)</div>
-                        <div class="server-meta">%s</div>
-                    </div>
-                </label>`,
-			html.EscapeString(server.ID),
-			html.EscapeString(server.Name),
-			html.EscapeString(server.Owner),
-			html.EscapeString(connInfo))
+func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, r *http.Request, servers []config.PlexServer) {
+	if err := pages.SetupServerSelection(servers).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}
-
-	_, _ = fmt.Fprint(w, `
-            </div>
-
-            <p style="font-size: 14px; color: #666;">All servers are selected by default. Uncheck any you don't want to use.</p>
-
-            <button type="submit" class="btn" id="submitBtn">Continue with Selected Servers</button>
-        </form>
-    </div>
-
-    <script>
-        const form = document.getElementById('serverForm');
-        const submitBtn = document.getElementById('submitBtn');
-
-        form.addEventListener('change', function() {
-            const checked = form.querySelectorAll('input[type="checkbox"]:checked');
-            submitBtn.disabled = checked.length === 0;
-        });
-    </script>
-</body>
-</html>`)
 }
 
 // SavePlexServers handles POST /setup/plex/servers

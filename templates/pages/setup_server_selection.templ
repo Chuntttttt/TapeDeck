@@ -1,0 +1,54 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+import "github.com/Chuntttttt/tapedeck/internal/config"
+import "fmt"
+
+// SetupServerSelection renders the server selection page
+templ SetupServerSelection(servers []config.PlexServer) {
+	@layouts.SetupLayout("Select Plex Servers", 2, serverSelectionContent(servers))
+}
+
+templ serverSelectionContent(servers []config.PlexServer) {
+	<div class="container">
+		@components.BackLink("/setup", "Back")
+		<h1>Select Plex Servers</h1>
+		<p>We found { fmt.Sprintf("%d", len(servers)) } server(s) connected to your account. Select which servers you'd like to use with TapeDeck.</p>
+		<form method="post" action="/setup/plex/save" id="serverForm">
+			<div class="server-list">
+				for _, server := range servers {
+					@serverItem(server)
+				}
+			</div>
+			<p style="font-size: 14px; color: #666;">All servers are selected by default. Uncheck any you don't want to use.</p>
+			<button type="submit" class="btn" id="submitBtn">Continue with Selected Servers</button>
+		</form>
+	</div>
+	<script>
+		const form = document.getElementById('serverForm');
+		const submitBtn = document.getElementById('submitBtn');
+
+		form.addEventListener('change', function() {
+			const checked = form.querySelectorAll('input[type="checkbox"]:checked');
+			submitBtn.disabled = checked.length === 0;
+		});
+	</script>
+}
+
+templ serverItem(server config.PlexServer) {
+	<label class="server-item">
+		<input type="checkbox" name="server_ids" value={ server.ID } checked/>
+		<div>
+			<div class="server-name">{ server.Name } ({ server.Owner })</div>
+			<div class="server-meta">{ getConnectionInfo(server) }</div>
+		</div>
+	</label>
+}
+
+func getConnectionInfo(server config.PlexServer) string {
+	if len(server.Connections) > 0 {
+		return server.Connections[0].URI
+	}
+	return ""
+}

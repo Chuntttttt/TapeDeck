@@ -236,7 +236,7 @@ func TestAuthHandler_PollStatus_NotYetAuthorized(t *testing.T) {
 	mockPlex := &mockPlexAuthClient{
 		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
 			return &plex.PINCheckResponse{
-				ID:        pinID,
+				ID:        12345,
 				Code:      "ABC123",
 				AuthToken: "", // Not yet authorized
 			}, nil
@@ -283,7 +283,7 @@ func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
 	mockPlex := &mockPlexAuthClient{
 		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
 			return &plex.PINCheckResponse{
-				ID:        pinID,
+				ID:        12345,
 				Code:      "ABC123",
 				AuthToken: "test-auth-token-xyz",
 			}, nil

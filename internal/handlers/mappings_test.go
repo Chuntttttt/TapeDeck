@@ -249,6 +249,8 @@ func TestMappingsHandler_CreateMapping(t *testing.T) {
 	formData.Set("media_type", "movie")
 	formData.Set("media_id", "rating-456")
 	formData.Set("media_title", "The Matrix")
+	formData.Set("plex_server_id", "test-server-id")
+	formData.Set("apple_tv_entity", "media_player.test")
 
 	// Create request with authenticated session
 	req := httptest.NewRequest(http.MethodPost, "/mappings", strings.NewReader(formData.Encode()))
@@ -407,6 +409,8 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 	formData.Set("media_type", "movie")
 	formData.Set("media_id", "rating-456")
 	formData.Set("media_title", "The Matrix")
+	formData.Set("plex_server_id", "test-server-id")
+	formData.Set("apple_tv_entity", "media_player.test")
 
 	// Create request with authenticated session
 	req := httptest.NewRequest(http.MethodPost, "/mappings/1", strings.NewReader(formData.Encode()))
@@ -528,6 +532,13 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 		sessionStore: store,
 		db:           nil,
 		devMode:      false,
+		servers: []ServerInfo{
+			{
+				ID:   "test-server",
+				Name: "Test Server",
+				URLs: []string{"http://test-server:32400"},
+			},
+		},
 		newPlexClient: func(_ string, _ string, _ string, _ bool) PlexClientInterface {
 			return mockPlex
 		},

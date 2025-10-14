@@ -133,10 +133,12 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 
 	// Send start_pairing message
 	startMsg := map[string]interface{}{
-		"type":        "start_pairing",
-		"media_id":    "12345",
-		"media_title": "Toy Story",
-		"media_type":  "movie",
+		"type":            "start_pairing",
+		"media_id":        "12345",
+		"media_title":     "Toy Story",
+		"media_type":      "movie",
+		"server_id":       "test-server",
+		"apple_tv_entity": "media_player.test",
 	}
 	if err := conn.WriteJSON(startMsg); err != nil {
 		t.Fatalf("Failed to send start_pairing: %v", err)
@@ -256,10 +258,12 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 
 	// Send start_pairing message
 	startMsg := map[string]interface{}{
-		"type":        "start_pairing",
-		"media_id":    "12345",
-		"media_title": "Toy Story",
-		"media_type":  "movie",
+		"type":            "start_pairing",
+		"media_id":        "12345",
+		"media_title":     "Toy Story",
+		"media_type":      "movie",
+		"server_id":       "test-server",
+		"apple_tv_entity": "media_player.test",
 	}
 	if err := conn.WriteJSON(startMsg); err != nil {
 		t.Fatalf("Failed to send start_pairing: %v", err)
@@ -787,10 +791,12 @@ func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
 
 	// Send start_pairing message
 	startMsg := map[string]interface{}{
-		"type":        "start_pairing",
-		"media_id":    "99999",
-		"media_title": "Test Movie",
-		"media_type":  "movie",
+		"type":            "start_pairing",
+		"media_id":        "99999",
+		"media_title":     "Test Movie",
+		"media_type":      "movie",
+		"server_id":       "server-abc123",
+		"apple_tv_entity": "media_player.apple_tv",
 	}
 	if err := conn.WriteJSON(startMsg); err != nil {
 		t.Fatalf("Failed to send start_pairing: %v", err)

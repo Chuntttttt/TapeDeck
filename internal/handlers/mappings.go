@@ -357,9 +357,11 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	mediaType := r.FormValue("media_type")
 	mediaID := r.FormValue("media_id")
 	mediaTitle := r.FormValue("media_title")
+	plexServerID := r.FormValue("plex_server_id")
+	appleTVEntity := r.FormValue("apple_tv_entity")
 
-	log.Printf("CreateMapping: Received form data - tagID=%s, mediaType=%s, mediaID=%s, mediaTitle=%s, userID=%d",
-		tagID, mediaType, mediaID, mediaTitle, userID)
+	log.Printf("CreateMapping: Received form data - tagID=%s, mediaType=%s, mediaID=%s, mediaTitle=%s, userID=%d, plexServerID=%s, appleTVEntity=%s",
+		tagID, mediaType, mediaID, mediaTitle, userID, plexServerID, appleTVEntity)
 
 	// Validate required fields
 	if tagID == "" || mediaType == "" || mediaID == "" || mediaTitle == "" {
@@ -370,9 +372,7 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Create mapping
-	// TODO: Phase 7 - Get plexServerID and appleTVEntity from search result and user selection
-	// For now, use empty strings as placeholders (will be updated in Phase 7)
-	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle, "", "")
+	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle, plexServerID, appleTVEntity)
 	mappingID, err := h.db.CreateCardMapping(mapping)
 	if err != nil {
 		log.Printf("CreateMapping: Failed to create card mapping: %v", err)

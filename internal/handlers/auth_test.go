@@ -191,7 +191,7 @@ func TestAuthHandler_PollStatus_RateLimited(t *testing.T) {
 
 	// Create mock Plex client that returns rate limit error
 	mockPlex := &mockPlexAuthClient{
-		checkPINFunc: func(pinID int) (*plex.PINCheckResponse, error) {
+		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
 			return nil, &httpError{code: 429, message: "unexpected status code: 429"}
 		},
 	}
@@ -234,7 +234,7 @@ func TestAuthHandler_PollStatus_NotYetAuthorized(t *testing.T) {
 
 	// Create mock Plex client that returns empty auth token
 	mockPlex := &mockPlexAuthClient{
-		checkPINFunc: func(pinID int) (*plex.PINCheckResponse, error) {
+		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
 			return &plex.PINCheckResponse{
 				ID:        pinID,
 				Code:      "ABC123",
@@ -281,7 +281,7 @@ func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
 
 	// Create mock Plex client that returns auth token
 	mockPlex := &mockPlexAuthClient{
-		checkPINFunc: func(pinID int) (*plex.PINCheckResponse, error) {
+		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
 			return &plex.PINCheckResponse{
 				ID:        pinID,
 				Code:      "ABC123",
@@ -361,7 +361,7 @@ func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
 // Mock Plex auth client for testing
 type mockPlexAuthClient struct {
 	requestPINFunc func() (*plex.PINResponse, error)
-	checkPINFunc   func(pinID int) (*plex.PINCheckResponse, error)
+	checkPINFunc   func(_ int) (*plex.PINCheckResponse, error)
 }
 
 func (m *mockPlexAuthClient) RequestPIN() (*plex.PINResponse, error) {

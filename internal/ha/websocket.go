@@ -12,7 +12,7 @@ import (
 )
 
 // HAClient manages a WebSocket connection to Home Assistant
-type HAClient struct {
+type HAClient struct { //nolint:revive // HAClient name is intentional for clarity
 	url            string
 	token          string
 	conn           *websocket.Conn

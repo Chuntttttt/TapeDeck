@@ -53,7 +53,7 @@ func main() {
 	}
 
 	// Set up structured logging to both stdout and file
-	logFile, err := os.OpenFile("tapedeck.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile("tapedeck.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		log.Printf("Warning: Failed to open log file: %v", err)
 		logger.Init(cfg.LogLevel, os.Stdout)
@@ -75,15 +75,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+	defer func() { _ = database.Close() }()
 
-	// Run migrations (before setting up defer, so Fatalf can exit cleanly)
+	// Run migrations
 	if err := database.RunMigrations("./migrations"); err != nil {
-		_ = database.Close()
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
-
-	// Now set up defer for normal shutdown path
-	defer func() { _ = database.Close() }()
 
 	log.Println("Database initialized successfully")
 

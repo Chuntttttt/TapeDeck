@@ -57,7 +57,7 @@ func LoadRuntimeConfig(path string) (*RuntimeConfig, error) {
 	}
 
 	// Read file
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: Path is controlled, comes from constant
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}

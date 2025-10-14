@@ -528,7 +528,7 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 		sessionStore: store,
 		db:           nil,
 		devMode:      false,
-		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(_ string, _ string, _ string, _ bool) PlexClientInterface {
 			return mockPlex
 		},
 	}

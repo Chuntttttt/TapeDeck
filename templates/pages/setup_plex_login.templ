@@ -1,0 +1,19 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+
+// SetupPlexLogin renders the Plex login page
+templ SetupPlexLogin() {
+	@layouts.SetupLayout("Connect Plex", 2, plexLoginContent())
+}
+
+templ plexLoginContent() {
+	<div class="container">
+		@components.BackLink("/setup", "Back")
+		<h1>Connect Your Plex Account</h1>
+		<p>TapeDeck needs access to your Plex servers to browse and play media.</p>
+		<p>Click the button below to authenticate with your Plex account.</p>
+		@components.ButtonLink("Login with Plex", "/auth/login", templ.Attributes{})
+	</div>
+}

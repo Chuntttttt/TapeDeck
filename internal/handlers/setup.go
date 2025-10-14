@@ -12,6 +12,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/ha"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/gorilla/sessions"
 )
 
@@ -101,53 +102,11 @@ func (h *SetupHandler) Step1Welcome(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to save setup state: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Setup - TapeDeck</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .emoji { font-size: 48px; margin-bottom: 20px; }
-        .steps { list-style: none; padding: 0; margin: 30px 0; }
-        .steps li { padding: 10px 0; border-left: 3px solid #e5a00d; padding-left: 15px; margin-bottom: 10px; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #cc8f0a; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step active"></div>
-            <div class="progress-step"></div>
-            <div class="progress-step"></div>
-            <div class="progress-step"></div>
-        </div>
-
-        <div class="emoji">🎬</div>
-        <h1>Welcome to TapeDeck</h1>
-        <p>TapeDeck lets you play Plex media on your Apple TV by tapping NFC cards.</p>
-        <p>Let's get you set up in 4 easy steps:</p>
-
-        <ol class="steps">
-            <li><strong>Connect your Plex account</strong> - Browse your media libraries</li>
-            <li><strong>Configure Home Assistant</strong> - Control your Apple TV</li>
-            <li><strong>Add Apple TVs</strong> - Select your playback devices (optional)</li>
-            <li><strong>Start pairing cards!</strong> - Link NFC cards to your media</li>
-        </ol>
-
-        <a href="/setup/plex" class="btn">Get Started</a>
-    </div>
-</body>
-</html>`)
+	// Render using templ template
+	if err := pages.SetupWelcome().Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 // Step2Plex handles GET /setup/step/2 - Plex authentication
@@ -190,90 +149,18 @@ func (h *SetupHandler) Step2Plex(w http.ResponseWriter, r *http.Request) {
 	h.renderServerSelection(w, r, servers)
 }
 
-func (h *SetupHandler) renderPlexLogin(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Connect Plex - TapeDeck Setup</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #cc8f0a; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-        p { line-height: 1.6; color: #555; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step"></div>
-            <div class="progress-step"></div>
-        </div>
-
-        <a href="/setup" class="back-link">← Back</a>
-        <h1>Connect Your Plex Account</h1>
-        <p>TapeDeck needs access to your Plex servers to browse and play media.</p>
-        <p>Click the button below to authenticate with your Plex account.</p>
-
-        <a href="/auth/login" class="btn">Login with Plex</a>
-    </div>
-</body>
-</html>`)
+func (h *SetupHandler) renderPlexLogin(w http.ResponseWriter, r *http.Request) {
+	if err := pages.SetupPlexLogin().Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
-func (h *SetupHandler) renderPlexError(w http.ResponseWriter, _ *http.Request, errorMsg string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Plex Error - TapeDeck Setup</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #f5f5f5; }
-        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; }
-        .error { background: #fee2e2; border: 2px solid #ef4444; padding: 15px; border-radius: 4px; color: #991b1b; margin: 20px 0; }
-        .btn { padding: 12px 24px; font-size: 16px; background: #e5a00d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px; }
-        .btn:hover { background: #cc8f0a; }
-        .back-link { color: #e5a00d; text-decoration: none; margin-bottom: 20px; display: inline-block; }
-        .progress { display: flex; gap: 10px; margin-bottom: 30px; }
-        .progress-step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
-        .progress-step.active { background: #e5a00d; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="progress">
-            <div class="progress-step"></div>
-            <div class="progress-step active"></div>
-            <div class="progress-step"></div>
-            <div class="progress-step"></div>
-        </div>
-
-        <a href="/setup" class="back-link">← Back</a>
-        <h1>❌ Plex Server Error</h1>
-        <div class="error">%s</div>
-        <p>This usually happens when your Plex authentication has expired or is invalid.</p>
-        <p>Try logging out and back in to get a fresh authentication token:</p>
-
-        <a href="/auth/logout?redirect=/setup/plex" class="btn">Re-authenticate with Plex</a>
-        <a href="/setup/plex" class="btn" style="background: #666;">Try Again</a>
-    </div>
-</body>
-</html>`, html.EscapeString(errorMsg))
+func (h *SetupHandler) renderPlexError(w http.ResponseWriter, r *http.Request, errorMsg string) {
+	if err := pages.SetupPlexError(errorMsg).Render(r.Context(), w); err != nil {
+		log.Printf("Failed to render template: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, _ *http.Request, servers []config.PlexServer) {

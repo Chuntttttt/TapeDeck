@@ -1,0 +1,25 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+
+// SetupWelcome renders the setup wizard welcome page (step 1)
+templ SetupWelcome() {
+	@layouts.SetupLayout("Setup", 1, welcomeContent())
+}
+
+templ welcomeContent() {
+	<div class="container">
+		<div class="emoji">🎬</div>
+		<h1>Welcome to TapeDeck</h1>
+		<p>TapeDeck lets you play Plex media on your Apple TV by tapping NFC cards.</p>
+		<p>Let's get you set up in 4 easy steps:</p>
+		<ol class="steps">
+			<li><strong>Connect your Plex account</strong> - Browse your media libraries</li>
+			<li><strong>Configure Home Assistant</strong> - Control your Apple TV</li>
+			<li><strong>Add Apple TVs</strong> - Select your playback devices</li>
+			<li><strong>Start pairing cards!</strong> - Link NFC cards to your media</li>
+		</ol>
+		@components.ButtonLink("Get Started", "/setup/plex", templ.Attributes{})
+	</div>
+}

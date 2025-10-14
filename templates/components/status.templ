@@ -1,0 +1,22 @@
+package components
+
+// StatusBox renders a status message with icon
+templ StatusBox(statusType string, icon string, title string, message string) {
+	<div class={ "status", statusType }>
+		if icon != "" {
+			<div class="status-icon">{ icon }</div>
+		}
+		<div class="status-text">{ title }</div>
+		<div class="status-detail">{ message }</div>
+	</div>
+}
+
+// ErrorBox renders an error message
+templ ErrorBox(message string) {
+	<div class="error">{ message }</div>
+}
+
+// InfoBox renders an info message
+templ InfoBox(message string) {
+	<div class="info">{ message }</div>
+}

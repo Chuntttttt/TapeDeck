@@ -1,0 +1,21 @@
+package components
+
+// Button renders a primary button
+templ Button(text string, attrs templ.Attributes) {
+	<button class="btn" { attrs... }>{ text }</button>
+}
+
+// ButtonLink renders a link styled as a button
+templ ButtonLink(text string, href string, attrs templ.Attributes) {
+	<a href={ templ.URL(href) } class="btn" { attrs... }>{ text }</a>
+}
+
+// SecondaryButton renders a secondary style button
+templ SecondaryButton(text string, attrs templ.Attributes) {
+	<button class="btn btn-secondary" { attrs... }>{ text }</button>
+}
+
+// BackLink renders a back navigation link
+templ BackLink(href string, text string) {
+	<a href={ templ.URL(href) } class="back-link">← { text }</a>
+}

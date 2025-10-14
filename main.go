@@ -357,6 +357,10 @@ func main() {
 		playbackHandler.Play(w, r)
 	})
 
+	// Static files (CSS, JS, images)
+	fs := http.FileServer(http.Dir("./static"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	// Home route - redirect to libraries
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {

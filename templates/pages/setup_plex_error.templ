@@ -1,0 +1,21 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/templates/components"
+
+// SetupPlexError renders the Plex error page
+templ SetupPlexError(errorMsg string) {
+	@layouts.SetupLayout("Plex Error", 2, plexErrorContent(errorMsg))
+}
+
+templ plexErrorContent(errorMsg string) {
+	<div class="container">
+		@components.BackLink("/setup", "Back")
+		<h1>❌ Plex Server Error</h1>
+		@components.ErrorBox(errorMsg)
+		<p>This usually happens when your Plex authentication has expired or is invalid.</p>
+		<p>Try logging out and back in to get a fresh authentication token:</p>
+		@components.ButtonLink("Re-authenticate with Plex", "/auth/logout?redirect=/setup/plex", templ.Attributes{})
+		@components.ButtonLink("Try Again", "/setup/plex", templ.Attributes{"class": "btn-secondary"})
+	</div>
+}

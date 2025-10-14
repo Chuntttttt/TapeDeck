@@ -1,0 +1,23 @@
+package layouts
+
+// SetupLayout provides the common structure for setup wizard pages
+templ SetupLayout(title string, step int, content templ.Component) {
+	@Base(title, setupContent(step, content))
+}
+
+templ setupContent(step int, content templ.Component) {
+	<div class="setup-container">
+		@ProgressBar(step)
+		@content
+	</div>
+}
+
+// ProgressBar shows the current step in the setup wizard
+templ ProgressBar(currentStep int) {
+	<div class="progress">
+		<div class={ "progress-step", templ.KV("active", currentStep >= 1) }></div>
+		<div class={ "progress-step", templ.KV("active", currentStep >= 2) }></div>
+		<div class={ "progress-step", templ.KV("active", currentStep >= 3) }></div>
+		<div class={ "progress-step", templ.KV("active", currentStep >= 4) }></div>
+	</div>
+}

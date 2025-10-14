@@ -30,7 +30,7 @@ TapeDeck recreates the nostalgic experience of physical media libraries for the 
 
 - **Language**: Go 1.25+
 - **Templating**: Templ (type-safe Go templates)
-- **Frontend**: DataStar (SSE-based hypermedia)
+- **Frontend**: Vanilla JavaScript with WebSocket for real-time NFC pairing
 - **Database**: SQLite (pure Go driver, no CGO)
 - **WebSocket**: Home Assistant integration for NFC events
 - **Deployment**: Docker / Docker Compose (see [Docker Deployment](#docker-deployment))

@@ -106,31 +106,31 @@ func (c *RuntimeConfig) Validate() error {
 
 	for i, server := range c.PlexServers {
 		if server.ID == "" {
-			return fmt.Errorf("Plex server %d missing ID", i) //nolint:stylecheck // Plex is a proper noun
+			return fmt.Errorf("Plex server %d missing ID", i) //nolint:staticcheck // ST1005: Plex is a proper noun
 		}
 		if server.Name == "" {
-			return fmt.Errorf("Plex server %d missing name", i) //nolint:stylecheck // Plex is a proper noun
+			return fmt.Errorf("Plex server %d missing name", i) //nolint:staticcheck // ST1005: Plex is a proper noun
 		}
 		if len(server.Connections) == 0 {
-			return fmt.Errorf("Plex server %s has no connections", server.Name) //nolint:stylecheck // Plex is a proper noun
+			return fmt.Errorf("Plex server %s has no connections", server.Name) //nolint:staticcheck // ST1005: Plex is a proper noun
 		}
 	}
 
 	// Check Home Assistant
 	if c.HomeAssistant.URL == "" {
-		return fmt.Errorf("Home Assistant URL not configured") //nolint:stylecheck // Home Assistant is a proper noun
+		return fmt.Errorf("Home Assistant URL not configured") //nolint:staticcheck // ST1005: Home Assistant is a proper noun
 	}
 	if c.HomeAssistant.Token == "" {
-		return fmt.Errorf("Home Assistant token not configured") //nolint:stylecheck // Home Assistant is a proper noun
+		return fmt.Errorf("Home Assistant token not configured") //nolint:staticcheck // ST1005: Home Assistant is a proper noun
 	}
 
 	// Apple TVs are optional, but validate if present
 	for i, tv := range c.AppleTVs {
 		if tv.Entity == "" {
-			return fmt.Errorf("Apple TV %d missing entity ID", i) //nolint:stylecheck // Apple TV is a proper noun
+			return fmt.Errorf("Apple TV %d missing entity ID", i) //nolint:staticcheck // ST1005: Apple TV is a proper noun
 		}
 		if tv.Name == "" {
-			return fmt.Errorf("Apple TV %d missing name", i) //nolint:stylecheck // Apple TV is a proper noun
+			return fmt.Errorf("Apple TV %d missing name", i) //nolint:staticcheck // ST1005: Apple TV is a proper noun
 		}
 	}
 

@@ -247,12 +247,10 @@ func TestHAClient_OnTagScanned(t *testing.T) {
 		done:  make(chan struct{}),
 	}
 
-	// Setup callback
-	called := false
-	var receivedTagID string
+	// Setup callback with channel for synchronization
+	callbackDone := make(chan string, 1)
 	client.OnTagScanned(func(tagID string) {
-		called = true
-		receivedTagID = tagID
+		callbackDone <- tagID
 	})
 
 	// Connect
@@ -264,15 +262,14 @@ func TestHAClient_OnTagScanned(t *testing.T) {
 	// Trigger tag event
 	tagScannedChan <- true
 
-	// Wait for callback
-	time.Sleep(200 * time.Millisecond)
-
-	if !called {
-		t.Error("OnTagScanned callback was not called")
-	}
-
-	if receivedTagID != "04-16-5C-D4-2E-61-80" {
-		t.Errorf("tagID = %s, want 04-16-5C-D4-2E-61-80", receivedTagID)
+	// Wait for callback with timeout
+	select {
+	case receivedTagID := <-callbackDone:
+		if receivedTagID != "04-16-5C-D4-2E-61-80" {
+			t.Errorf("tagID = %s, want 04-16-5C-D4-2E-61-80", receivedTagID)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Error("OnTagScanned callback was not called within timeout")
 	}
 }
 

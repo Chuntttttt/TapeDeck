@@ -118,10 +118,10 @@ func (c *RuntimeConfig) Validate() error {
 
 	// Check Home Assistant
 	if c.HomeAssistant.URL == "" {
-		return fmt.Errorf("home Assistant URL not configured")
+		return fmt.Errorf("Home Assistant URL not configured") //nolint:stylecheck // Home Assistant is a proper noun
 	}
 	if c.HomeAssistant.Token == "" {
-		return fmt.Errorf("home Assistant token not configured")
+		return fmt.Errorf("Home Assistant token not configured") //nolint:stylecheck // Home Assistant is a proper noun
 	}
 
 	// Apple TVs are optional, but validate if present

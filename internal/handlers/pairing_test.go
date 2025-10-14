@@ -220,7 +220,7 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 	}
 
 	// Create existing mapping with same tag
-	existingMapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "99999", "Existing Movie")
+	existingMapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "99999", "Existing Movie", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(existingMapping)
 	if err != nil {
 		t.Fatalf("Failed to create existing mapping: %v", err)
@@ -561,7 +561,7 @@ func TestPairingHandler_Playback_Success(t *testing.T) {
 	}
 
 	// Create mapping
-	mapping := models.NewCardMapping(userID, "test-tag-123", "movie", "12345", "Toy Story")
+	mapping := models.NewCardMapping(userID, "test-tag-123", "movie", "12345", "Toy Story", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
@@ -659,7 +659,7 @@ func TestPairingHandler_Playback_RestClientError(t *testing.T) {
 	}
 
 	// Create mapping
-	mapping := models.NewCardMapping(userID, "test-tag-456", "movie", "67890", "Finding Nemo")
+	mapping := models.NewCardMapping(userID, "test-tag-456", "movie", "67890", "Finding Nemo", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
@@ -712,7 +712,7 @@ func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
 	}
 
 	// Create mapping
-	mapping := models.NewCardMapping(userID, "test-tag-789", "movie", "11111", "The Incredibles")
+	mapping := models.NewCardMapping(userID, "test-tag-789", "movie", "11111", "The Incredibles", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)

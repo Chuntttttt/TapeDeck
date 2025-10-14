@@ -331,7 +331,13 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to save session: %v", err)
 	}
 
-	http.Redirect(w, r, "/auth/login", http.StatusFound)
+	// Check for redirect parameter
+	redirectTo := r.URL.Query().Get("redirect")
+	if redirectTo == "" {
+		redirectTo = "/auth/login"
+	}
+
+	http.Redirect(w, r, redirectTo, http.StatusFound)
 }
 
 // getOrCreateSession retrieves or creates a session

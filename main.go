@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -22,10 +23,32 @@ import (
 )
 
 func main() {
-	// Load configuration first (need LOG_LEVEL for logger init)
+	// Try to load runtime configuration from config.yml
+	runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
+	needsSetup := false
+	if err != nil || runtimeCfg.IsEmpty() {
+		log.Printf("Runtime configuration not found or empty: %v", err)
+		log.Println("Setup wizard will be required before using the application")
+		needsSetup = true
+	} else if err := runtimeCfg.Validate(); err != nil {
+		log.Printf("Runtime configuration validation failed: %v", err)
+		log.Println("Setup wizard will be required before using the application")
+		needsSetup = true
+	}
+
+	// Load legacy env-based config for backward compatibility
+	// (will be deprecated once all config is in config.yml)
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Printf("Warning: Failed to load env config: %v", err)
+		// Use defaults for basic settings
+		cfg = &config.Config{
+			Port:         "8080",
+			DatabasePath: "./tapedeck.db",
+			SessionSecret: "change-me-in-production",
+			LogLevel:     "info",
+			DevMode:      false,
+		}
 	}
 
 	// Set up structured logging to both stdout and file
@@ -44,7 +67,7 @@ func main() {
 		log.SetOutput(multiWriter)
 	}
 
-	logger.Info("Starting TapeDeck", "log_level", cfg.LogLevel, "dev_mode", cfg.DevMode)
+	logger.Info("Starting TapeDeck", "log_level", cfg.LogLevel, "dev_mode", cfg.DevMode, "needs_setup", needsSetup)
 
 	// Initialize database
 	database, err := db.New(cfg.DatabasePath)
@@ -66,98 +89,279 @@ func main() {
 	// Initialize session store
 	sessionStore := middleware.NewSessionStore([]byte(cfg.SessionSecret))
 
-	// Initialize Plex auth client
+	// Initialize Plex auth client (needed for both normal operation and setup)
 	plexAuth := plex.NewAuthClient("https://plex.tv", "tapedeck-client-id", "TapeDeck", cfg.DevMode)
 	if cfg.DevMode {
 		log.Println("⚠️  DEV_MODE enabled: TLS verification disabled")
 	}
 
-	// Initialize auth handler
+	// Initialize auth handler (needed for both normal operation and setup)
 	authHandler := handlers.NewAuthHandler(sessionStore, plexAuth, database)
 
-	// Initialize media handler
-	mediaHandler := handlers.NewMediaHandler(sessionStore, database, cfg.PlexURL, cfg.DevMode)
+	// Declare handler variables that will be initialized either at startup or after setup
+	var mediaHandler *handlers.MediaHandler
+	var mappingsHandler *handlers.MappingsHandler
+	var playbackHandler *handlers.PlaybackHandler
+	var pairingHandler *handlers.PairingHandler
+	var statusHandler *handlers.StatusHandler
+	var haClient *ha.HAClient
 
-	// Initialize mappings handler
-	mappingsHandler := handlers.NewMappingsHandler(sessionStore, database, cfg.PlexURL, cfg.DevMode)
+	// Define handler initialization callback for setup wizard
+	initializeHandlers := func() error {
+		log.Println("Initializing handlers after setup completion...")
 
-	// Initialize playback handler (for Home Assistant integration)
-	playbackHandler := handlers.NewPlaybackHandler(database, cfg.PlexServerID)
+		// Reload config
+		runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
 
-	// Initialize Home Assistant WebSocket client
-	haClient := ha.NewHAClient(cfg.HAURL, cfg.HAToken)
-	if err := haClient.Connect(); err != nil {
-		log.Printf("Warning: Failed to connect to Home Assistant: %v", err)
-		log.Println("Pairing mode will not work until connection is established")
+		// Use first server's best connection for legacy handlers
+		var plexURL string
+		var plexServerID string
+		if len(runtimeCfg.PlexServers) > 0 {
+			plexServerID = runtimeCfg.PlexServers[0].ID
+
+			// Find best connection: prefer local non-docker addresses, then any local, then first available
+			var bestConn *config.Connection
+			var localConn *config.Connection
+
+			for i := range runtimeCfg.PlexServers[0].Connections {
+				conn := &runtimeCfg.PlexServers[0].Connections[i]
+
+				// Skip docker internal addresses (172.17.0.x)
+				if strings.Contains(conn.URI, "172-17-0-") {
+					continue
+				}
+
+				if conn.Local {
+					if localConn == nil {
+						localConn = conn
+					}
+					// Prefer 10.x or 192.168.x addresses
+					if strings.Contains(conn.URI, "10-0-0-") || strings.Contains(conn.URI, "192-168-") {
+						bestConn = conn
+						break
+					}
+				}
+
+				// Keep first available as fallback
+				if bestConn == nil && localConn == nil {
+					bestConn = conn
+				}
+			}
+
+			// Use best connection found
+			if bestConn != nil {
+				plexURL = bestConn.URI
+			} else if localConn != nil {
+				plexURL = localConn.URI
+			} else if len(runtimeCfg.PlexServers[0].Connections) > 0 {
+				plexURL = runtimeCfg.PlexServers[0].Connections[0].URI
+			}
+		}
+
+		// Initialize handlers
+		mediaHandler = handlers.NewMediaHandler(sessionStore, database, plexURL, cfg.DevMode)
+		mappingsHandler = handlers.NewMappingsHandler(sessionStore, database, plexURL, cfg.DevMode)
+		playbackHandler = handlers.NewPlaybackHandler(database, plexServerID)
+
+		// Initialize Home Assistant WebSocket client
+		haClient = ha.NewHAClient(runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token)
+		if err := haClient.Connect(); err != nil {
+			log.Printf("Warning: Failed to connect to Home Assistant: %v", err)
+		}
+
+		// Initialize Home Assistant REST client
+		haRest := ha.NewRestClient(runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token, cfg.DevMode)
+
+		// Get default Apple TV entity
+		var defaultAppleTV string
+		for _, tv := range runtimeCfg.AppleTVs {
+			if tv.Default {
+				defaultAppleTV = tv.Entity
+				break
+			}
+		}
+		if defaultAppleTV == "" && len(runtimeCfg.AppleTVs) > 0 {
+			defaultAppleTV = runtimeCfg.AppleTVs[0].Entity
+		}
+
+		// Initialize pairing handler
+		pairingHandler = handlers.NewPairingHandler(
+			sessionStore,
+			database,
+			haClient,
+			haRest,
+			defaultAppleTV,
+			plexServerID,
+			"./config.yml",
+		)
+
+		// Initialize status handler
+		statusHandler = handlers.NewStatusHandler(haClient)
+
+		log.Println("All handlers initialized successfully")
+		return nil
 	}
-	defer haClient.Close()
 
-	// Initialize Home Assistant REST client
-	haRest := ha.NewRestClient(cfg.HAURL, cfg.HAToken, cfg.DevMode)
+	// Initialize setup handler (always available)
+	setupHandler := handlers.NewSetupHandler(sessionStore, "./config.yml", plexAuth, database, cfg.DevMode, initializeHandlers)
 
-	// Initialize pairing handler
-	pairingHandler := handlers.NewPairingHandler(
-		sessionStore,
-		database,
-		haClient,
-		haRest,
-		cfg.AppleTVEntity,
-		cfg.PlexServerID,
-	)
-
-	// Initialize status handler
-	statusHandler := handlers.NewStatusHandler(haClient)
+	// Initialize handlers if config exists
+	if !needsSetup {
+		if err := initializeHandlers(); err != nil {
+			log.Fatalf("Failed to initialize handlers: %v", err)
+		}
+		// Set up cleanup for HA client
+		if haClient != nil {
+			defer haClient.Close()
+		}
+	} else {
+		log.Println("Config not ready - setup wizard will initialize handlers after completion")
+	}
 
 	mux := http.NewServeMux()
 
-	// Auth routes
+	// Auth routes (no setup middleware - always available)
 	mux.HandleFunc("/auth/login", authHandler.Login)
 	mux.HandleFunc("/auth/poll-status", authHandler.PollStatus)
 	mux.HandleFunc("/auth/logout", authHandler.Logout)
 
-	// Protected media routes
-	mux.Handle("/libraries", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mediaHandler.Libraries)))
-	mux.Handle("/libraries/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(libraryContentsHandler(mediaHandler))))
-	mux.Handle("/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mediaHandler.Search)))
+	// Setup routes (no setup middleware - must be accessible during setup)
+	mux.HandleFunc("/setup", setupHandler.Step1Welcome)
+	mux.HandleFunc("/setup/plex", setupHandler.Step2Plex)
+	mux.HandleFunc("/setup/plex/save", setupHandler.SavePlexServers)
+	mux.HandleFunc("/setup/ha", setupHandler.Step3HomeAssistant)
+	mux.HandleFunc("/setup/ha/test", setupHandler.TestHomeAssistant)
+	mux.HandleFunc("/setup/ha/save", setupHandler.SaveHomeAssistant)
+	mux.HandleFunc("/setup/appletv", setupHandler.Step4AppleTVs)
+	mux.HandleFunc("/setup/appletv/save", setupHandler.SaveAppleTVs)
+	mux.HandleFunc("/setup/complete", setupHandler.Step5Complete)
+	mux.HandleFunc("/setup/finish", setupHandler.CompleteSetup)
 
-	// Protected mappings routes
+	// Health check (unprotected, no setup middleware)
+	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
+
+	// Register all routes - setup middleware will redirect if config incomplete
+	// For routes that need initialized handlers, we'll use pointers that get set at startup
+	// This allows routes to exist but redirect appropriately if handlers aren't ready
+
+	mux.Handle("/libraries", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mediaHandler == nil {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+		mediaHandler.Libraries(w, r)
+	})))
+
+	mux.Handle("/libraries/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mediaHandler == nil {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+		libraryContentsHandler(mediaHandler)(w, r)
+	})))
+
+	mux.Handle("/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mediaHandler == nil {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+		mediaHandler.Search(w, r)
+	})))
+
 	mux.Handle("/mappings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mappingsHandler == nil {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
 		if r.Method == http.MethodPost {
 			mappingsHandler.CreateMapping(w, r)
 		} else {
 			mappingsHandler.Dashboard(w, r)
 		}
 	})))
-	mux.Handle("/mappings/new", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.NewMappingForm)))
-	mux.Handle("/mappings/pair", middleware.RequireAuth(sessionStore)(http.HandlerFunc(pairingHandler.PairForm)))
-	mux.Handle("/mappings/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsRouteHandler(mappingsHandler))))
-	mux.Handle("/api/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(mappingsHandler.SearchJSON)))
 
-	// Protected pairing WebSocket route
-	mux.Handle("/ws/pairing", middleware.RequireAuth(sessionStore)(http.HandlerFunc(pairingHandler.WebSocketPairing)))
+	mux.Handle("/mappings/new", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mappingsHandler == nil {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+		mappingsHandler.NewMappingForm(w, r)
+	})))
+
+	mux.Handle("/mappings/pair", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if pairingHandler == nil {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+		pairingHandler.PairForm(w, r)
+	})))
+
+	mux.Handle("/mappings/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mappingsHandler == nil {
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
+			return
+		}
+		mappingsRouteHandler(mappingsHandler)(w, r)
+	})))
+
+	mux.Handle("/api/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mappingsHandler == nil {
+			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		mappingsHandler.SearchJSON(w, r)
+	})))
+
+	mux.Handle("/ws/pairing", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if pairingHandler == nil {
+			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		pairingHandler.WebSocketPairing(w, r)
+	})))
+
+	mux.HandleFunc("/api/status/ha", func(w http.ResponseWriter, r *http.Request) {
+		if statusHandler == nil {
+			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		statusHandler.HAStatus(w, r)
+	})
+
+	mux.HandleFunc("/api/status/ha/reconnect", func(w http.ResponseWriter, r *http.Request) {
+		if statusHandler == nil {
+			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		statusHandler.HAReconnect(w, r)
+	})
+
+	mux.HandleFunc("/api/play", func(w http.ResponseWriter, r *http.Request) {
+		if playbackHandler == nil {
+			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		playbackHandler.Play(w, r)
+	})
 
 	// Home route - redirect to libraries
-	mux.Handle("/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/libraries", http.StatusFound)
 			return
 		}
 		http.NotFound(w, r)
-	})))
+	})
 
-	// Health check (unprotected)
-	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
-
-	// Status API (unprotected - used for connection monitoring)
-	mux.HandleFunc("/api/status/ha", statusHandler.HAStatus)
-	mux.HandleFunc("/api/status/ha/reconnect", statusHandler.HAReconnect)
-
-	// Playback API for Home Assistant (unprotected - HA server is trusted)
-	mux.HandleFunc("/api/play", playbackHandler.Play)
+	// Wrap mux with setup middleware (will check config for all non-exempted routes)
+	handler := middleware.SetupMiddleware("./config.yml", sessionStore)(mux)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

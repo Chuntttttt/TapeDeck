@@ -31,13 +31,14 @@ type PlayRequest struct {
 
 // PlayResponse represents the JSON response for successful playback requests
 type PlayResponse struct {
-	Success    bool   `json:"success"`
-	TagID      string `json:"tag_id"`
-	MediaTitle string `json:"media_title"`
-	MediaType  string `json:"media_type"`
-	MediaID    string `json:"media_id"`
-	PlexKey    string `json:"plex_key"`
-	ServerID   string `json:"server_id"`
+	Success       bool   `json:"success"`
+	TagID         string `json:"tag_id"`
+	MediaTitle    string `json:"media_title"`
+	MediaType     string `json:"media_type"`
+	MediaID       string `json:"media_id"`
+	PlexKey       string `json:"plex_key"`
+	ServerID      string `json:"server_id"`
+	AppleTVEntity string `json:"apple_tv_entity,omitempty"`
 }
 
 // PlayErrorResponse represents the JSON response for failed playback requests
@@ -106,16 +107,26 @@ func (h *PlaybackHandler) Play(w http.ResponseWriter, r *http.Request) {
 	// Build Plex key from media_id (rating key)
 	plexKey := fmt.Sprintf("/library/metadata/%s", mapping.MediaID)
 
+	// Use mapping's stored server ID and Apple TV entity
+	// Fall back to handler's default serverID if mapping doesn't have one (backward compatibility)
+	serverID := mapping.PlexServerID
+	if serverID == "" {
+		serverID = h.serverID
+	}
+
+	appleTVEntity := mapping.AppleTVEntity
+
 	// Return success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(PlayResponse{
-		Success:    true,
-		TagID:      mapping.TagID,
-		MediaTitle: mapping.MediaTitle,
-		MediaType:  mapping.MediaType,
-		MediaID:    mapping.MediaID,
-		PlexKey:    plexKey,
-		ServerID:   h.serverID,
+		Success:       true,
+		TagID:         mapping.TagID,
+		MediaTitle:    mapping.MediaTitle,
+		MediaType:     mapping.MediaType,
+		MediaID:       mapping.MediaID,
+		PlexKey:       plexKey,
+		ServerID:      serverID,
+		AppleTVEntity: appleTVEntity,
 	})
 }

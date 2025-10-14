@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewCardMapping(t *testing.T) {
-	mapping := NewCardMapping(1, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := NewCardMapping(1, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 
 	if mapping.UserID != 1 {
 		t.Errorf("UserID = %d, want 1", mapping.UserID)
@@ -21,6 +21,12 @@ func TestNewCardMapping(t *testing.T) {
 	}
 	if mapping.MediaTitle != "The Matrix" {
 		t.Errorf("MediaTitle = %q, want %q", mapping.MediaTitle, "The Matrix")
+	}
+	if mapping.PlexServerID != "test-server-id" {
+		t.Errorf("PlexServerID = %q, want %q", mapping.PlexServerID, "test-server-id")
+	}
+	if mapping.AppleTVEntity != "media_player.test" {
+		t.Errorf("AppleTVEntity = %q, want %q", mapping.AppleTVEntity, "media_player.test")
 	}
 	if mapping.CreatedAt.IsZero() {
 		t.Error("CreatedAt is zero")
@@ -38,32 +44,42 @@ func TestCardMappingValidate(t *testing.T) {
 	}{
 		{
 			name:    "valid mapping",
-			mapping: NewCardMapping(1, "nfc-123", "movie", "rating-456", "The Matrix"),
+			mapping: NewCardMapping(1, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test"),
 			wantErr: false,
 		},
 		{
 			name:    "missing user ID",
-			mapping: NewCardMapping(0, "nfc-123", "movie", "rating-456", "The Matrix"),
+			mapping: NewCardMapping(0, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test"),
 			wantErr: true,
 		},
 		{
 			name:    "missing tag ID",
-			mapping: NewCardMapping(1, "", "movie", "rating-456", "The Matrix"),
+			mapping: NewCardMapping(1, "", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test"),
 			wantErr: true,
 		},
 		{
 			name:    "missing media type",
-			mapping: NewCardMapping(1, "nfc-123", "", "rating-456", "The Matrix"),
+			mapping: NewCardMapping(1, "nfc-123", "", "rating-456", "The Matrix", "test-server-id", "media_player.test"),
 			wantErr: true,
 		},
 		{
 			name:    "missing media ID",
-			mapping: NewCardMapping(1, "nfc-123", "movie", "", "The Matrix"),
+			mapping: NewCardMapping(1, "nfc-123", "movie", "", "The Matrix", "test-server-id", "media_player.test"),
 			wantErr: true,
 		},
 		{
 			name:    "missing media title",
-			mapping: NewCardMapping(1, "nfc-123", "movie", "rating-456", ""),
+			mapping: NewCardMapping(1, "nfc-123", "movie", "rating-456", "", "test-server-id", "media_player.test"),
+			wantErr: true,
+		},
+		{
+			name:    "missing plex server ID",
+			mapping: NewCardMapping(1, "nfc-123", "movie", "rating-456", "The Matrix", "", "media_player.test"),
+			wantErr: true,
+		},
+		{
+			name:    "missing apple TV entity",
+			mapping: NewCardMapping(1, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", ""),
 			wantErr: true,
 		},
 	}

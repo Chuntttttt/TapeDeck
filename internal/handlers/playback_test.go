@@ -33,7 +33,7 @@ func TestPlaybackHandler_Play_ValidTagID(t *testing.T) {
 	}
 
 	// Create test card mapping
-	mapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "12345", "Toy Story")
+	mapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "12345", "Toy Story", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create card mapping: %v", err)
@@ -253,7 +253,7 @@ func TestPlaybackHandler_Play_CreatesPlaybackLog(t *testing.T) {
 	}
 
 	// Create test card mapping
-	mapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "12345", "Toy Story")
+	mapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "12345", "Toy Story", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create card mapping: %v", err)
@@ -323,14 +323,14 @@ func TestPlaybackHandler_Play_MultipleUsersWithSameTag(t *testing.T) {
 	}
 
 	// Both users create mappings for the same tag_id
-	mapping1 := models.NewCardMapping(userID1, "04-16-5C-D4-2E-61-80", "movie", "11111", "Movie A")
+	mapping1 := models.NewCardMapping(userID1, "04-16-5C-D4-2E-61-80", "movie", "11111", "Movie A", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping1)
 	if err != nil {
 		t.Fatalf("Failed to create card mapping 1: %v", err)
 	}
 
 	// Wait a moment to ensure created_at is different
-	mapping2 := models.NewCardMapping(userID2, "04-16-5C-D4-2E-61-80", "movie", "22222", "Movie B")
+	mapping2 := models.NewCardMapping(userID2, "04-16-5C-D4-2E-61-80", "movie", "22222", "Movie B", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping2)
 	if err != nil {
 		t.Fatalf("Failed to create card mapping 2: %v", err)

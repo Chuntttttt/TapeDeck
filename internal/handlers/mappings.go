@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
@@ -373,7 +374,9 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Create mapping
-	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle)
+	// TODO: Phase 7 - Get plexServerID and appleTVEntity from search result and user selection
+	// For now, use empty strings as placeholders (will be updated in Phase 7)
+	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle, "", "")
 	mappingID, err := h.db.CreateCardMapping(mapping)
 	if err != nil {
 		log.Printf("CreateMapping: Failed to create card mapping: %v", err)
@@ -591,12 +594,22 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load runtime config to get server ID
+	// Phase 7: For now we use the first configured server ID, or empty if not configured
+	//         Future: Search across all servers in parallel
+	runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
+	serverID := ""
+	if err == nil && len(runtimeCfg.PlexServers) > 0 {
+		serverID = runtimeCfg.PlexServers[0].ID
+	}
+
 	// Convert to JSON response
 	type SearchResult struct {
 		RatingKey string `json:"ratingKey"`
 		Title     string `json:"title"`
 		Type      string `json:"type"`
 		Year      int    `json:"year,omitempty"`
+		ServerID  string `json:"serverID"`
 	}
 
 	type SearchResponse struct {
@@ -610,6 +623,7 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 			Title:     item.Title,
 			Type:      item.Type,
 			Year:      item.Year,
+			ServerID:  serverID,
 		}
 	}
 

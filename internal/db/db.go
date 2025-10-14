@@ -166,13 +166,15 @@ func (db *DB) CreateCardMapping(mapping *models.CardMapping) (int64, error) {
 	}
 
 	result, err := db.conn.Exec(
-		`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		mapping.UserID,
 		mapping.TagID,
 		mapping.MediaType,
 		mapping.MediaID,
 		mapping.MediaTitle,
+		mapping.PlexServerID,
+		mapping.AppleTVEntity,
 		mapping.CreatedAt,
 		mapping.UpdatedAt,
 	)
@@ -191,7 +193,7 @@ func (db *DB) CreateCardMapping(mapping *models.CardMapping) (int64, error) {
 // GetCardMappingsByUserID retrieves all card mappings for a user
 func (db *DB) GetCardMappingsByUserID(userID int64) ([]*models.CardMapping, error) {
 	rows, err := db.conn.Query(
-		`SELECT id, user_id, tag_id, media_type, media_id, media_title, created_at, updated_at
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at
 		FROM card_mappings WHERE user_id = ? ORDER BY created_at DESC`,
 		userID,
 	)
@@ -210,6 +212,8 @@ func (db *DB) GetCardMappingsByUserID(userID int64) ([]*models.CardMapping, erro
 			&mapping.MediaType,
 			&mapping.MediaID,
 			&mapping.MediaTitle,
+			&mapping.PlexServerID,
+			&mapping.AppleTVEntity,
 			&mapping.CreatedAt,
 			&mapping.UpdatedAt,
 		)
@@ -230,7 +234,7 @@ func (db *DB) GetCardMappingsByUserID(userID int64) ([]*models.CardMapping, erro
 func (db *DB) GetCardMappingByID(id int64) (*models.CardMapping, error) {
 	mapping := &models.CardMapping{}
 	err := db.conn.QueryRow(
-		`SELECT id, user_id, tag_id, media_type, media_id, media_title, created_at, updated_at
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at
 		FROM card_mappings WHERE id = ?`,
 		id,
 	).Scan(
@@ -240,6 +244,8 @@ func (db *DB) GetCardMappingByID(id int64) (*models.CardMapping, error) {
 		&mapping.MediaType,
 		&mapping.MediaID,
 		&mapping.MediaTitle,
+		&mapping.PlexServerID,
+		&mapping.AppleTVEntity,
 		&mapping.CreatedAt,
 		&mapping.UpdatedAt,
 	)
@@ -260,12 +266,14 @@ func (db *DB) UpdateCardMapping(mapping *models.CardMapping) error {
 	}
 
 	_, err := db.conn.Exec(
-		`UPDATE card_mappings SET tag_id = ?, media_type = ?, media_id = ?, media_title = ?, updated_at = ?
+		`UPDATE card_mappings SET tag_id = ?, media_type = ?, media_id = ?, media_title = ?, plex_server_id = ?, apple_tv_entity = ?, updated_at = ?
 		WHERE id = ?`,
 		mapping.TagID,
 		mapping.MediaType,
 		mapping.MediaID,
 		mapping.MediaTitle,
+		mapping.PlexServerID,
+		mapping.AppleTVEntity,
 		mapping.UpdatedAt,
 		mapping.ID,
 	)
@@ -300,7 +308,7 @@ func (db *DB) DeleteCardMapping(id int64) error {
 func (db *DB) GetCardMappingByTagID(tagID string) (*models.CardMapping, error) {
 	mapping := &models.CardMapping{}
 	err := db.conn.QueryRow(
-		`SELECT id, user_id, tag_id, media_type, media_id, media_title, created_at, updated_at
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at
 		FROM card_mappings WHERE tag_id = ? ORDER BY created_at DESC LIMIT 1`,
 		tagID,
 	).Scan(
@@ -310,6 +318,8 @@ func (db *DB) GetCardMappingByTagID(tagID string) (*models.CardMapping, error) {
 		&mapping.MediaType,
 		&mapping.MediaID,
 		&mapping.MediaTitle,
+		&mapping.PlexServerID,
+		&mapping.AppleTVEntity,
 		&mapping.CreatedAt,
 		&mapping.UpdatedAt,
 	)

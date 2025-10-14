@@ -43,13 +43,13 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 	}
 
 	// Create some test mappings
-	mapping1 := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping1 := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping1)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
 
-	mapping2 := models.NewCardMapping(userID, "nfc-789", "show", "rating-101", "Breaking Bad")
+	mapping2 := models.NewCardMapping(userID, "nfc-789", "show", "rating-101", "Breaking Bad", "test-server-id", "media_player.test")
 	_, err = testDB.CreateCardMapping(mapping2)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
@@ -332,7 +332,7 @@ func TestMappingsHandler_EditMappingForm(t *testing.T) {
 	}
 
 	// Create a mapping
-	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	mappingID, err := testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
@@ -401,7 +401,7 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 	}
 
 	// Create a mapping
-	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	mappingID, err := testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
@@ -479,7 +479,7 @@ func TestMappingsHandler_DeleteMapping(t *testing.T) {
 	}
 
 	// Create a mapping
-	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	mappingID, err := testDB.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)

@@ -9,9 +9,9 @@ A Go-based web application that bridges physical and digital media using NFC car
 
 ## Project Status
 
-🚧 **In Development** - Stages 0-7 complete, Stage 8 next
+🚧 **In Development** - Stages 0-9 complete, Stage 10 next
 
-Core functionality complete: authentication, media browsing, card mapping, Home Assistant integration, and real-time NFC pairing via WebSocket.
+Core functionality complete: authentication, media browsing, card mapping, Home Assistant integration, real-time NFC pairing via WebSocket, and configuration management with setup wizard.
 
 ## Known Issues
 
@@ -78,14 +78,13 @@ go install github.com/air-verse/air@latest
 cd TapeDeck
 go mod download
 
-# Copy environment template
+# Copy environment template (contains only basic settings)
 cp .env.example .env
 
-# Edit .env with your configuration
-# - PLEX_URL: Your Plex server URL
-# - PLEX_SERVER_ID: Your Plex server identifier
-# - HA_URL: Your Home Assistant URL
-# - HA_TOKEN: Long-lived access token from HA
+# Generate a secure session secret
+# On Linux/macOS:
+openssl rand -hex 32 >> .env
+# Or manually edit .env and replace SESSION_SECRET value
 ```
 
 ### 3. Run Development Server
@@ -97,7 +96,20 @@ air
 # Server will start on http://localhost:3001
 ```
 
-### 4. Verify Installation
+### 4. Complete Setup Wizard
+
+On first run, the application will redirect you to the setup wizard at `http://localhost:3001/setup`:
+
+1. **Welcome**: Introduction to the setup process
+2. **Plex Authentication**: Log in with your Plex account to discover servers
+3. **Server Selection**: Choose which Plex servers to connect to (supports multiple)
+4. **Home Assistant**: Enter your HA URL and long-lived access token
+5. **Apple TV Selection**: Choose which Apple TVs to use for playback (supports multiple)
+6. **Completion**: Review configuration and finish setup
+
+The wizard creates `config.yml` with your settings. You can re-run setup anytime by deleting this file.
+
+### 5. Verify Installation
 
 ```bash
 # Test health check endpoint
@@ -191,22 +203,48 @@ tapedeck/
 └── data/                    # SQLite database (gitignored)
 ```
 
-## Environment Variables
+## Configuration
 
-See `.env.example` for all required variables:
+### Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `PLEX_URL` | Plex Media Server URL | `http://192.168.1.100:32400` |
-| `PLEX_SERVER_ID` | Plex server identifier | `your_plex_server_id_here` |
-| `HA_URL` | Home Assistant URL | `http://192.168.1.101:8123` |
-| `HA_TOKEN` | HA long-lived access token | `eyJhbGc...` |
-| `APPLE_TV_ENTITY` | HA media player entity | `media_player.apple_tv` |
-| `PORT` | HTTP server port | `3001` |
-| `DATABASE_PATH` | SQLite database location | `./data/tapedeck.db` |
-| `LOG_LEVEL` | Logging level | `info` |
-| `SESSION_SECRET` | Session encryption key | (auto-generated) |
-| `DEV_MODE` | Skip TLS verification (macOS dev) | `true` (optional) |
+Basic application settings are configured via environment variables (`.env` file):
+
+| Variable | Description | Example | Required |
+|----------|-------------|---------|----------|
+| `PORT` | HTTP server port | `3001` | Yes |
+| `DATABASE_PATH` | SQLite database location | `./data/tapedeck.db` | Yes |
+| `LOG_LEVEL` | Logging level | `info` | Yes |
+| `SESSION_SECRET` | Session encryption key (32+ chars) | (generate with `openssl rand -hex 32`) | Yes |
+| `DEV_MODE` | Skip TLS verification (dev only) | `true` | No |
+
+### Runtime Configuration (config.yml)
+
+Plex servers, Home Assistant, and Apple TVs are configured through the **setup wizard**, which creates a `config.yml` file:
+
+```yaml
+version: 1
+plex_servers:
+  - id: "server-id-123"
+    name: "Home Server"
+    owner: "username"
+    connections:
+      - uri: "http://192.168.1.100:32400"
+        local: true
+home_assistant:
+  url: "http://192.168.1.101:8123"
+  token: "your-long-lived-access-token"
+apple_tvs:
+  - entity: "media_player.living_room_apple_tv"
+    name: "Living Room"
+    default: true
+  - entity: "media_player.bedroom_apple_tv"
+    name: "Bedroom"
+    default: false
+```
+
+**Multiple Server Support**: You can connect to multiple Plex servers. When pairing cards, you'll select which server the media comes from.
+
+**Multiple Apple TV Support**: Configure multiple Apple TVs and choose which one to use when pairing each card.
 
 ## Docker Deployment
 
@@ -311,36 +349,41 @@ Following Test-Driven Development (TDD):
   - Real-time UI feedback with connection status
   - Duplicate tag detection
 
-- [ ] **Stage 8**: Enhanced UI & Polish
+- [x] **Stage 8**: Enhanced UI & Polish ✅
   - HA connection status banner (red alert if disconnected)
   - **Deferred to future**: Search and filter improvements on mappings dashboard
   - **Deferred to future**: Responsive design (see `docs/responsive-design.md`)
   - **Deferred to future**: Accessibility enhancements (see `docs/accessibility.md`)
 
-- [ ] **Stage 9**: Admin Interface
-  - **Settings page** (`/settings`) for managing all configuration
-  - **Home Assistant Settings**:
-    - Update HA URL and token from UI
-    - Auto-discover and select Apple TV entity (dropdown from available media_player entities)
-    - Test HA connection and WebSocket
+- [x] **Stage 9**: Configuration Management ✅
+  - **Web-based Setup Wizard**:
+    - First-time configuration flow (`/setup`)
+    - Plex OAuth authentication with server discovery
+    - Home Assistant URL and token configuration with connection testing
+    - Apple TV selection with auto-discovery
+    - Multi-step wizard with session state management
+  - **Runtime Configuration (config.yml)**:
+    - YAML-based configuration storage
+    - Multiple Plex server support
+    - Multiple Apple TV support
+    - Validation and error handling
+  - **Setup Middleware**:
+    - Automatic redirect to setup wizard if not configured
+    - Exempts /auth and /setup routes
+  - **Database Migration**:
+    - Added plex_server_id and apple_tv_entity columns to card_mappings
+    - Tracks which server and device each card uses
+  - **Enhanced Pairing**:
+    - Apple TV selection dropdown during pairing
+    - Server-aware media search results
+  - **Enhanced Playback**:
+    - Uses mapping's stored server and device info
+    - Falls back to defaults for backward compatibility
+  - **Future enhancements** (deferred to Stage 11+):
+    - Settings page to modify existing configuration
     - Token rotation and validation
-  - **Plex Settings**:
-    - Update Plex URL and server ID
-    - Test Plex connection and authentication
-    - Validate server is reachable
-  - **Connection Health Dashboard**:
-    - Real-time status of HA WebSocket connection
-    - Real-time status of Plex server
-    - Last successful connection timestamps
-    - Error logs for failed connections
-  - **Secure Storage**:
-    - Evaluate database vs encrypted config file
-    - Encrypt sensitive tokens at rest
-    - Audit log for configuration changes
-  - **User Roles** (optional):
-    - Admin users can access settings
-    - Regular users can only manage their own mappings
-  - See `docs/home-assistant-setup.md` for current manual setup process
+    - Connection health dashboard
+    - User roles and permissions
 
 - [ ] **Stage 10**: Production Deployment
   - Docker optimization
@@ -358,6 +401,8 @@ Following Test-Driven Development (TDD):
 
 The following improvements are documented for future work and may be good candidates for community contributions:
 
+- **Plex SDK Integration**: Replace custom Plex API client with established SDK like [plexgo](https://github.com/lukehagar/plexgo) to avoid XML parsing issues and stay current with API changes
+- **Media Player Filtering**: Add ability to filter/distinguish between different types of media players (Apple TV, Chromecast, smart speakers) during setup wizard, possibly using entity ID patterns or Home Assistant device attributes
 - **Responsive Design**: Mobile and tablet optimization - see [`docs/responsive-design.md`](docs/responsive-design.md)
 - **Accessibility**: WCAG compliance, keyboard navigation, screen reader support - see [`docs/accessibility.md`](docs/accessibility.md)
 

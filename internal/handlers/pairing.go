@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
@@ -35,8 +36,9 @@ type PairingHandler struct {
 	db            *db.DB
 	haClient      HAClientInterface
 	haRest        HARestInterface
-	appleTVEntity string
-	plexServerID  string
+	appleTVEntity string // Legacy: kept for backward compatibility
+	plexServerID  string // Legacy: kept for backward compatibility
+	configPath    string // Path to runtime config
 	upgrader      websocket.Upgrader
 	clients       map[*pairingClient]bool
 	clientsMu     sync.Mutex
@@ -44,12 +46,14 @@ type PairingHandler struct {
 
 // pairingClient represents a browser WebSocket client in pairing mode
 type pairingClient struct {
-	conn       *websocket.Conn
-	send       chan []byte
-	userID     int64
-	mediaID    string
-	mediaType  string
-	mediaTitle string
+	conn            *websocket.Conn
+	send            chan []byte
+	userID          int64
+	mediaID         string
+	mediaType       string
+	mediaTitle      string
+	plexServerID    string // Selected Plex server ID
+	appleTVEntity   string // Selected Apple TV entity
 }
 
 // NewPairingHandler creates a new pairing handler
@@ -60,6 +64,7 @@ func NewPairingHandler(
 	haRest HARestInterface,
 	appleTVEntity string,
 	plexServerID string,
+	configPath string,
 ) *PairingHandler {
 	handler := &PairingHandler{
 		sessionStore:  store,
@@ -68,6 +73,7 @@ func NewPairingHandler(
 		haRest:        haRest,
 		appleTVEntity: appleTVEntity,
 		plexServerID:  plexServerID,
+		configPath:    configPath,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for now (same-origin in production)
@@ -92,6 +98,30 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		http.Error(w, "Not authenticated", http.StatusUnauthorized)
 		return
+	}
+
+	// Load runtime config to get Apple TVs
+	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
+	if err != nil {
+		http.Error(w, "Failed to load configuration", http.StatusInternalServerError)
+		return
+	}
+
+	// Build Apple TV options HTML
+	appleTVOptionsHTML := ""
+	if len(runtimeCfg.AppleTVs) == 0 {
+		appleTVOptionsHTML = `<option value="">No Apple TVs configured</option>`
+	} else {
+		for _, tv := range runtimeCfg.AppleTVs {
+			selected := ""
+			if tv.Default {
+				selected = " selected"
+			}
+			appleTVOptionsHTML += fmt.Sprintf(`<option value="%s"%s>%s</option>`,
+				html.EscapeString(tv.Entity),
+				selected,
+				html.EscapeString(tv.Name))
+		}
 	}
 
 	// Render HTML response
@@ -160,6 +190,16 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 
         <div class="step">
             <span class="step-number">2</span>
+            <strong>Select Apple TV</strong>
+            <div style="margin-top: 10px;">
+                <select id="appleTVSelect" style="padding: 12px; width: 100%%; font-size: 16px; border: 2px solid #ddd; border-radius: 4px; background: white;">
+                    %s
+                </select>
+            </div>
+        </div>
+
+        <div class="step">
+            <span class="step-number">3</span>
             <strong>Start pairing mode</strong>
             <div style="margin-top: 10px;">
                 <button id="startPairingBtn" class="btn" disabled>Start Pairing Mode</button>
@@ -168,7 +208,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
         </div>
 
         <div class="step">
-            <span class="step-number">3</span>
+            <span class="step-number">4</span>
             <strong>Tap your NFC card</strong>
         </div>
 
@@ -178,7 +218,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             <div class="status-detail" id="statusDetail"></div>
         </div>
     </div>
-`, ConnectionBannerHTML())
+`, ConnectionBannerHTML(), appleTVOptionsHTML)
 
 	_, _ = fmt.Fprintf(w, `
     <script>
@@ -300,9 +340,10 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                     item.dataset.year = result.year || '';
                     item.dataset.type = result.type;
                     item.dataset.ratingKey = result.ratingKey;
+                    item.dataset.serverID = result.serverID || '';
 
                     item.addEventListener('click', function() {
-                        selectMedia(this.dataset.title, this.dataset.type, this.dataset.ratingKey, this.dataset.year);
+                        selectMedia(this.dataset.title, this.dataset.type, this.dataset.ratingKey, this.dataset.year, this.dataset.serverID);
                     });
 
                     searchResults.appendChild(item);
@@ -314,8 +355,8 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
             }
         }
 
-        function selectMedia(title, type, ratingKey, year) {
-            selectedItem = { title, type, ratingKey, year };
+        function selectMedia(title, type, ratingKey, year, serverID) {
+            selectedItem = { title, type, ratingKey, year, serverID };
 
             selectedTitle.textContent = title;
             selectedMeta.textContent = type + (year ? ' (' + year + ')' : '');
@@ -333,13 +374,23 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
                 return;
             }
 
+            const appleTVSelect = document.getElementById('appleTVSelect');
+            const selectedAppleTV = appleTVSelect.value;
+
+            if (!selectedAppleTV) {
+                alert('Please select an Apple TV');
+                return;
+            }
+
             startPairingBtn.disabled = true;
 
             const msg = {
                 type: 'start_pairing',
                 media_id: selectedItem.ratingKey,
                 media_title: selectedItem.title,
-                media_type: selectedItem.type
+                media_type: selectedItem.type,
+                server_id: selectedItem.serverID,
+                apple_tv_entity: selectedAppleTV
             };
 
             ws.send(JSON.stringify(msg));
@@ -430,8 +481,10 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 			mediaID, okID := msg["media_id"].(string)
 			mediaTitle, okTitle := msg["media_title"].(string)
 			mediaType, okType := msg["media_type"].(string)
+			serverID, okServerID := msg["server_id"].(string)
+			appleTVEntity, okAppleTV := msg["apple_tv_entity"].(string)
 
-			if !okID || !okTitle || !okType {
+			if !okID || !okTitle || !okType || !okServerID || !okAppleTV {
 				h.sendError(client, "Missing required fields")
 				continue
 			}
@@ -440,8 +493,11 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 			client.mediaID = mediaID
 			client.mediaTitle = mediaTitle
 			client.mediaType = mediaType
+			client.plexServerID = serverID
+			client.appleTVEntity = appleTVEntity
 
-			log.Printf("Client ready for pairing (userID=%d, media=%s)", client.userID, mediaTitle)
+			log.Printf("Client ready for pairing (userID=%d, media=%s, server=%s, appleTV=%s)",
+				client.userID, mediaTitle, serverID, appleTVEntity)
 		}
 	}
 }
@@ -513,8 +569,16 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 			continue
 		}
 
-		// Create mapping
-		mapping := models.NewCardMapping(client.userID, tagID, client.mediaType, client.mediaID, client.mediaTitle)
+		// Create mapping using selected server and Apple TV
+		mapping := models.NewCardMapping(
+			client.userID,
+			tagID,
+			client.mediaType,
+			client.mediaID,
+			client.mediaTitle,
+			client.plexServerID,
+			client.appleTVEntity,
+		)
 		mappingID, err := h.db.CreateCardMapping(mapping)
 		if err != nil {
 			log.Printf("Failed to create mapping: %v", err)
@@ -522,7 +586,8 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 			continue
 		}
 
-		log.Printf("Created mapping ID=%d for tag=%s", mappingID, tagID)
+		log.Printf("Created mapping ID=%d for tag=%s (server=%s, appleTV=%s)",
+			mappingID, tagID, client.plexServerID, client.appleTVEntity)
 
 		// Send success message
 		successMsg := map[string]string{

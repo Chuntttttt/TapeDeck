@@ -8,27 +8,31 @@ import (
 
 // CardMapping represents a mapping between an NFC card and Plex media
 type CardMapping struct {
-	ID         int64
-	UserID     int64
-	TagID      string
-	MediaType  string
-	MediaID    string
-	MediaTitle string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID            int64
+	UserID        int64
+	TagID         string
+	MediaType     string
+	MediaID       string
+	MediaTitle    string
+	PlexServerID  string
+	AppleTVEntity string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // NewCardMapping creates a new CardMapping with the given parameters
-func NewCardMapping(userID int64, tagID, mediaType, mediaID, mediaTitle string) *CardMapping {
+func NewCardMapping(userID int64, tagID, mediaType, mediaID, mediaTitle, plexServerID, appleTVEntity string) *CardMapping {
 	now := time.Now()
 	return &CardMapping{
-		UserID:     userID,
-		TagID:      tagID,
-		MediaType:  mediaType,
-		MediaID:    mediaID,
-		MediaTitle: mediaTitle,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		UserID:        userID,
+		TagID:         tagID,
+		MediaType:     mediaType,
+		MediaID:       mediaID,
+		MediaTitle:    mediaTitle,
+		PlexServerID:  plexServerID,
+		AppleTVEntity: appleTVEntity,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 }
 
@@ -48,6 +52,12 @@ func (cm *CardMapping) Validate() error {
 	}
 	if cm.MediaTitle == "" {
 		return errors.New("media title is required")
+	}
+	if cm.PlexServerID == "" {
+		return errors.New("plex server ID is required")
+	}
+	if cm.AppleTVEntity == "" {
+		return errors.New("apple TV entity is required")
 	}
 	return nil
 }

@@ -181,3 +181,79 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 
 	return nil
 }
+
+// Entity represents a Home Assistant entity with its state and attributes
+type Entity struct {
+	EntityID   string                 `json:"entity_id"`
+	State      string                 `json:"state"`
+	Attributes map[string]interface{} `json:"attributes"`
+}
+
+// GetStates retrieves all entity states from Home Assistant
+func (c *RestClient) GetStates() ([]Entity, error) {
+	url := fmt.Sprintf("%s/api/states", c.baseURL)
+
+	if c.devMode {
+		logger.Debug("Getting all entity states", "url", url)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var entities []Entity
+	if err := json.NewDecoder(resp.Body).Decode(&entities); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if c.devMode {
+		logger.Debug("Entity states retrieved", "count", len(entities))
+	}
+
+	return entities, nil
+}
+
+// GetMediaPlayers retrieves all media_player entities from Home Assistant
+func (c *RestClient) GetMediaPlayers() ([]Entity, error) {
+	// Get all states
+	allEntities, err := c.GetStates()
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter to media_player entities
+	var mediaPlayers []Entity
+	for _, entity := range allEntities {
+		if len(entity.EntityID) > 13 && entity.EntityID[:13] == "media_player." {
+			mediaPlayers = append(mediaPlayers, entity)
+		}
+	}
+
+	if c.devMode {
+		logger.Debug("Media players filtered", "count", len(mediaPlayers))
+	}
+
+	return mediaPlayers, nil
+}
+
+// GetFriendlyName extracts the friendly_name from entity attributes, or returns entity_id if not found
+func (e *Entity) GetFriendlyName() string {
+	if friendlyName, ok := e.Attributes["friendly_name"].(string); ok {
+		return friendlyName
+	}
+	return e.EntityID
+}

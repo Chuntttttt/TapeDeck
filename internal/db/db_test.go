@@ -149,7 +149,7 @@ func TestCreateCardMapping(t *testing.T) {
 	}
 
 	// Create a card mapping
-	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	id, err := db.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
@@ -171,13 +171,13 @@ func TestGetCardMappingsByUserID(t *testing.T) {
 	}
 
 	// Create multiple mappings
-	mapping1 := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping1 := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	_, err = db.CreateCardMapping(mapping1)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
 	}
 
-	mapping2 := models.NewCardMapping(userID, "nfc-456", "show", "rating-789", "Breaking Bad")
+	mapping2 := models.NewCardMapping(userID, "nfc-456", "show", "rating-789", "Breaking Bad", "test-server-id", "media_player.test")
 	_, err = db.CreateCardMapping(mapping2)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
@@ -211,7 +211,7 @@ func TestGetCardMappingByID(t *testing.T) {
 	}
 
 	// Create a mapping
-	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	id, err := db.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
@@ -259,7 +259,7 @@ func TestUpdateCardMapping(t *testing.T) {
 	}
 
 	// Create a mapping
-	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	id, err := db.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
@@ -304,7 +304,7 @@ func TestDeleteCardMapping(t *testing.T) {
 	}
 
 	// Create a mapping
-	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix")
+	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
 	id, err := db.CreateCardMapping(mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)

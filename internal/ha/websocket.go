@@ -27,7 +27,7 @@ func NewHAClient(haURL, token string) *HAClient {
 	// Convert HTTP(S) URL to WS(S) URL
 	wsURL := strings.Replace(haURL, "http://", "ws://", 1)
 	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
-	wsURL = wsURL + "/api/websocket"
+	wsURL += "/api/websocket"
 
 	return &HAClient{
 		url:            wsURL,

@@ -58,7 +58,7 @@ func main() {
 		log.Printf("Warning: Failed to open log file: %v", err)
 		logger.Init(cfg.LogLevel, os.Stdout)
 	} else {
-		defer logFile.Close()
+		defer func() { _ = logFile.Close() }()
 		logger.Init(cfg.LogLevel, os.Stdout, logFile)
 	}
 

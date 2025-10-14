@@ -345,11 +345,3 @@ func getOrCreateSession(store *sessions.CookieStore, r *http.Request) *sessions.
 	session, _ := store.Get(r, middleware.SessionName)
 	return session
 }
-
-// scheme returns the request scheme (http or https)
-func scheme(r *http.Request) string {
-	if r.TLS != nil {
-		return "https"
-	}
-	return "http"
-}

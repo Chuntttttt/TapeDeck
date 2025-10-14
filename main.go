@@ -73,7 +73,7 @@ func main() {
 	// Initialize database
 	database, err := db.New(cfg.DatabasePath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		log.Fatalf("Failed to initialize database: %v", err) //nolint:gocritic // exitAfterDefer: acceptable for fatal errors
 	}
 	defer func() {
 		_ = database.Close()

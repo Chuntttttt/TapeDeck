@@ -65,7 +65,7 @@ func (c *AuthClient) GetServers(authToken string) ([]config.PlexServer, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Plex API error (status %d): %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("plex API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	// Read response body for parsing

@@ -109,28 +109,28 @@ func (c *RuntimeConfig) Validate() error {
 			return fmt.Errorf("plex server %d missing ID", i)
 		}
 		if server.Name == "" {
-			return fmt.Errorf("Plex server %d missing name", i)
+			return fmt.Errorf("plex server %d missing name", i)
 		}
 		if len(server.Connections) == 0 {
-			return fmt.Errorf("Plex server %s has no connections", server.Name)
+			return fmt.Errorf("plex server %s has no connections", server.Name)
 		}
 	}
 
 	// Check Home Assistant
 	if c.HomeAssistant.URL == "" {
-		return fmt.Errorf("Home Assistant URL not configured")
+		return fmt.Errorf("home Assistant URL not configured")
 	}
 	if c.HomeAssistant.Token == "" {
-		return fmt.Errorf("Home Assistant token not configured")
+		return fmt.Errorf("home Assistant token not configured")
 	}
 
 	// Apple TVs are optional, but validate if present
 	for i, tv := range c.AppleTVs {
 		if tv.Entity == "" {
-			return fmt.Errorf("Apple TV %d missing entity ID", i)
+			return fmt.Errorf("apple TV %d missing entity ID", i)
 		}
 		if tv.Name == "" {
-			return fmt.Errorf("Apple TV %d missing name", i)
+			return fmt.Errorf("apple TV %d missing name", i)
 		}
 	}
 

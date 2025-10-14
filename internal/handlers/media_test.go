@@ -28,10 +28,10 @@ func TestMediaHandler_Libraries(t *testing.T) {
 		sessionStore: store,
 		db:           nil,
 		servers: []ServerInfo{
-			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
+			{ID: "test-server-1", Name: "Test Server", URLs: []string{"http://localhost:32400"}},
 		},
 		devMode: false,
-		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
 			return mockPlex
 		},
 	}
@@ -112,10 +112,10 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 		sessionStore: store,
 		db:           nil,
 		servers: []ServerInfo{
-			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
+			{ID: "test-server-1", Name: "Test Server", URLs: []string{"http://localhost:32400"}},
 		},
 		devMode: false,
-		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
 			return mockPlex
 		},
 	}
@@ -195,10 +195,10 @@ func TestMediaHandler_Search(t *testing.T) {
 		sessionStore: store,
 		db:           nil,
 		servers: []ServerInfo{
-			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
+			{ID: "test-server-1", Name: "Test Server", URLs: []string{"http://localhost:32400"}},
 		},
 		devMode: false,
-		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
 			return mockPlex
 		},
 	}
@@ -266,7 +266,7 @@ func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
 		sessionStore: store,
 		db:           nil,
 		servers: []ServerInfo{
-			{ID: "test-server-1", Name: "Test Server", URL: "http://localhost:32400"},
+			{ID: "test-server-1", Name: "Test Server", URLs: []string{"http://localhost:32400"}},
 		},
 		devMode: false,
 	}

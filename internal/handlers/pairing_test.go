@@ -18,7 +18,7 @@ import (
 func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil, nil, "", "")
+	handler := NewPairingHandler(store, nil, nil, nil, "", "", "")
 
 	req := httptest.NewRequest(http.MethodGet, "/mappings/pair", nil)
 	w := httptest.NewRecorder()
@@ -33,7 +33,7 @@ func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
 func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil, nil, "", "")
+	handler := NewPairingHandler(store, nil, nil, nil, "", "", "")
 
 	req := httptest.NewRequest(http.MethodGet, "/mappings/pair", nil)
 	w := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 func TestPairingHandler_WebSocketUpgrade_NotAuthenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil, nil, "", "")
+	handler := NewPairingHandler(store, nil, nil, nil, "", "", "")
 
 	req := httptest.NewRequest(http.MethodGet, "/ws/pairing", nil)
 	w := httptest.NewRecorder()
@@ -108,7 +108,7 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server", "")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -231,7 +231,7 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server", "")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +320,7 @@ func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server", "")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -381,7 +381,7 @@ func TestPairingHandler_WebSocketPairing_MissingFields(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server")
+	handler := NewPairingHandler(store, testDB, mockHA, nil, "media_player.test", "test-server", "")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -573,7 +573,7 @@ func TestPairingHandler_Playback_Success(t *testing.T) {
 	}
 	mockRest := &mockHARestClient{}
 
-	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123", "")
 
 	// Simulate tag scan (no pairing clients active)
 	mockHA.simulateTagScan("test-tag-123")
@@ -622,7 +622,7 @@ func TestPairingHandler_Playback_NoMapping(t *testing.T) {
 	}
 	mockRest := &mockHARestClient{}
 
-	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123", "")
 
 	// Simulate tag scan with unmapped tag
 	mockHA.simulateTagScan("unmapped-tag")
@@ -673,7 +673,7 @@ func TestPairingHandler_Playback_RestClientError(t *testing.T) {
 		playMediaError: fmt.Errorf("HA service unavailable"),
 	}
 
-	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+	_ = NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123", "")
 
 	// Simulate tag scan
 	mockHA.simulateTagScan("test-tag-456")
@@ -723,7 +723,7 @@ func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
 		tagCallbacks: []func(string){},
 	}
 
-	_ = NewPairingHandler(store, testDB, mockHA, nil, "media_player.apple_tv", "server-abc123")
+	_ = NewPairingHandler(store, testDB, mockHA, nil, "media_player.apple_tv", "server-abc123", "")
 
 	// Simulate tag scan
 	mockHA.simulateTagScan("test-tag-789")
@@ -762,7 +762,7 @@ func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
 	}
 	mockRest := &mockHARestClient{}
 
-	handler := NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123")
+	handler := NewPairingHandler(store, testDB, mockHA, mockRest, "media_player.apple_tv", "server-abc123", "")
 
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

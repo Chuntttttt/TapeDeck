@@ -18,7 +18,6 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
 	}
 
@@ -102,7 +101,6 @@ func TestMappingsHandler_Dashboard_Empty(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
 	}
 
@@ -161,7 +159,6 @@ func TestMappingsHandler_NewMappingForm(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
 	}
 
@@ -223,7 +220,6 @@ func TestMappingsHandler_CreateMapping(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
 	}
 
@@ -307,7 +303,6 @@ func TestMappingsHandler_EditMappingForm(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
 	}
 
@@ -376,7 +371,6 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
 	}
 
@@ -454,7 +448,6 @@ func TestMappingsHandler_DeleteMapping(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
 	}
 
@@ -534,9 +527,8 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
-		plexURL:      "http://localhost:32400",
 		devMode:      false,
-		newPlexClient: func(serverURL, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
 			return mockPlex
 		},
 	}

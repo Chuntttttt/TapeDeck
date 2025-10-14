@@ -84,7 +84,13 @@ func TestIntegration_PlexLibraries(t *testing.T) {
 
 	t.Logf("Testing against server: %s", serverURL)
 
-	client := NewClient(serverURL, authToken, false)
+	// Use PLEX_SERVER_ID from env, or default to test-server-id
+	serverID := os.Getenv("PLEX_SERVER_ID")
+	if serverID == "" {
+		serverID = "test-server-id"
+	}
+
+	client := NewClient(serverURL, serverID, authToken, false)
 
 	// Test 1: Get Libraries
 	t.Log("\n--- Testing GetLibraries ---")

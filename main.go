@@ -72,10 +72,14 @@ func main() {
 
 	// Initialize database
 	database, err := db.New(cfg.DatabasePath)
+	defer func() {
+		if database != nil {
+			_ = database.Close()
+		}
+	}()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer func() { _ = database.Close() }()
 
 	// Run migrations
 	if err := database.RunMigrations("./migrations"); err != nil {

@@ -97,7 +97,7 @@ func TestPlayMedia_Success(t *testing.T) {
 
 func TestPlayMedia_Unauthorized(t *testing.T) {
 	// Create test server that returns 401
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"message": "Unauthorized"}`))
 	}))
@@ -120,7 +120,7 @@ func TestPlayMedia_Unauthorized(t *testing.T) {
 
 func TestPlayMedia_NotFound(t *testing.T) {
 	// Create test server that returns 404
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"message": "Service not found"}`))
 	}))
@@ -143,7 +143,7 @@ func TestPlayMedia_NotFound(t *testing.T) {
 
 func TestPlayMedia_BadGateway(t *testing.T) {
 	// Create test server that returns 502
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write([]byte(`{"message": "Bad Gateway"}`))
 	}))

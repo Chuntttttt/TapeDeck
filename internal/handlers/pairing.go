@@ -75,7 +75,7 @@ func NewPairingHandler(
 		plexServerID:  plexServerID,
 		configPath:    configPath,
 		upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
+			CheckOrigin: func(_ *http.Request) bool {
 				return true // Allow all origins for now (same-origin in production)
 			},
 		},

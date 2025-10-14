@@ -20,7 +20,7 @@ var debugLog *os.File
 
 func init() {
 	var err error
-	debugLog, err = os.OpenFile("/tmp/tapedeck-auth-debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	debugLog, err = os.OpenFile("/tmp/tapedeck-auth-debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		log.Printf("Failed to open debug log: %v", err)
 	}

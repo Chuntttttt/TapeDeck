@@ -31,7 +31,7 @@ func TestMediaHandler_Libraries(t *testing.T) {
 			{ID: "test-server-1", Name: "Test Server", URLs: []string{"http://localhost:32400"}},
 		},
 		devMode: false,
-		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(_, _, _ string, _ bool) PlexClientInterface {
 			return mockPlex
 		},
 	}
@@ -115,7 +115,7 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 			{ID: "test-server-1", Name: "Test Server", URLs: []string{"http://localhost:32400"}},
 		},
 		devMode: false,
-		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(_, _, _ string, _ bool) PlexClientInterface {
 			return mockPlex
 		},
 	}
@@ -198,7 +198,7 @@ func TestMediaHandler_Search(t *testing.T) {
 			{ID: "test-server-1", Name: "Test Server", URLs: []string{"http://localhost:32400"}},
 		},
 		devMode: false,
-		newPlexClient: func(serverURL, serverID, authToken string, devMode bool) PlexClientInterface {
+		newPlexClient: func(_, _, _ string, _ bool) PlexClientInterface {
 			return mockPlex
 		},
 	}

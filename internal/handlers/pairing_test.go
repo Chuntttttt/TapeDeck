@@ -488,7 +488,7 @@ func (m *mockHAClient) IsConnected() bool {
 	return true
 }
 
-func (m *mockHAClient) Reconnect(newToken string) error {
+func (m *mockHAClient) Reconnect(_ string) error {
 	return nil
 }
 

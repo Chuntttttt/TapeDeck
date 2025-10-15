@@ -6,13 +6,12 @@ import (
 )
 
 func TestLoad_Success(t *testing.T) {
-	// Set all required environment variables
+	// Set environment variables
 	setTestEnv(t, map[string]string{
-		"PORT":           "3001",
-		"DATABASE_PATH":  "./test.db",
-		"LOG_LEVEL":      "info",
-		"SESSION_SECRET": "test-secret-key",
-		"DEV_MODE":       "true",
+		"PORT":          "3001",
+		"DATABASE_PATH": "./test.db",
+		"LOG_LEVEL":     "info",
+		"DEV_MODE":      "true",
 	})
 
 	cfg, err := Load()
@@ -29,46 +28,40 @@ func TestLoad_Success(t *testing.T) {
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel = %q, want %q", cfg.LogLevel, "info")
 	}
-	if cfg.SessionSecret != "test-secret-key" {
-		t.Errorf("SessionSecret = %q, want %q", cfg.SessionSecret, "test-secret-key")
+	// SessionSecret should be auto-generated (64 character hex string)
+	if len(cfg.SessionSecret) != 64 {
+		t.Errorf("SessionSecret length = %d, want 64 (32 bytes hex encoded)", len(cfg.SessionSecret))
 	}
 	if !cfg.DevMode {
 		t.Errorf("DevMode = %v, want %v", cfg.DevMode, true)
 	}
 }
 
-func TestLoad_MissingRequired(t *testing.T) {
-	tests := []struct {
-		name    string
-		missing string
-		envVars map[string]string
-	}{
-		{
-			name:    "missing SESSION_SECRET",
-			missing: "SESSION_SECRET",
-			envVars: map[string]string{
-				// SESSION_SECRET is the only required field
-			},
-		},
+func TestLoad_MissingSessionSecret(t *testing.T) {
+	// When SESSION_SECRET is missing, it should generate a random one
+	setTestEnv(t, map[string]string{
+		// Omit SESSION_SECRET
+	})
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setTestEnv(t, tt.envVars)
+	// Should have generated a random session secret
+	if cfg.SessionSecret == "" {
+		t.Error("SessionSecret is empty, expected random value")
+	}
 
-			_, err := Load()
-			if err == nil {
-				t.Fatal("Load() succeeded, want error")
-			}
-		})
+	// Should be a hex string of 64 characters (32 bytes)
+	if len(cfg.SessionSecret) != 64 {
+		t.Errorf("SessionSecret length = %d, want 64 (32 bytes hex encoded)", len(cfg.SessionSecret))
 	}
 }
 
 func TestLoad_OptionalDefaults(t *testing.T) {
-	setTestEnv(t, map[string]string{
-		"SESSION_SECRET": "test-secret",
-		// Omit PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE to test defaults
-	})
+	// Omit PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE to test defaults
+	setTestEnv(t, map[string]string{})
 
 	cfg, err := Load()
 	if err != nil {
@@ -87,6 +80,10 @@ func TestLoad_OptionalDefaults(t *testing.T) {
 	if cfg.DevMode != false {
 		t.Errorf("DevMode default = %v, want %v", cfg.DevMode, false)
 	}
+	// SessionSecret should still be auto-generated
+	if len(cfg.SessionSecret) != 64 {
+		t.Errorf("SessionSecret length = %d, want 64 (32 bytes hex encoded)", len(cfg.SessionSecret))
+	}
 }
 
 // setTestEnv sets environment variables for testing and cleans them up
@@ -95,7 +92,7 @@ func setTestEnv(t *testing.T, envVars map[string]string) {
 
 	// Clear all relevant env vars first
 	allKeys := []string{
-		"PORT", "DATABASE_PATH", "LOG_LEVEL", "SESSION_SECRET", "DEV_MODE",
+		"PORT", "DATABASE_PATH", "LOG_LEVEL", "DEV_MODE",
 	}
 	for _, key := range allKeys {
 		_ = os.Unsetenv(key)

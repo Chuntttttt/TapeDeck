@@ -1,6 +1,9 @@
 # Environment variables
 .env
 
+# Session secret (auto-generated if not in .env)
+.session_secret
+
 # Runtime configuration
 config.yml
 

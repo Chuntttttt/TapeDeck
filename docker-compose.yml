@@ -11,6 +11,7 @@ services:
     volumes:
       - ./data:/data
       - ./config.yml:/app/config.yml
+      - ./.session_secret:/app/.session_secret
       - ./tapedeck.log:/app/tapedeck.log
     env_file:
       - .env

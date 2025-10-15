@@ -235,12 +235,15 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	// Check for redirect parameter (validate to prevent open redirects)
 	redirectTo := r.URL.Query().Get("redirect")
+	if redirectTo == "" {
+		// No redirect specified, use default
+		http.Redirect(w, r, "/auth/login", http.StatusFound)
+		return
+	}
+
 	validatedRedirect, err := ValidateRedirectPath(redirectTo)
 	if err != nil {
 		log.Warn("Invalid redirect path", "error", err, "redirect", redirectTo)
-		validatedRedirect = "/auth/login"
-	}
-	if validatedRedirect == "" {
 		validatedRedirect = "/auth/login"
 	}
 

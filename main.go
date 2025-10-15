@@ -21,6 +21,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/internal/router"
+	"github.com/Chuntttttt/tapedeck/internal/services"
 )
 
 func main() {
@@ -197,14 +198,15 @@ func main() {
 			defaultAppleTV = runtimeCfg.AppleTVs[0].Entity
 		}
 
+		// Initialize playback service
+		playbackService := services.NewPlaybackService(database, haRest)
+
 		// Initialize pairing handler
 		pairingHandler = handlers.NewPairingHandler(
 			sessionStore,
 			database,
 			haClient,
-			haRest,
-			defaultAppleTV,
-			plexServerID,
+			playbackService,
 			"./config.yml",
 		)
 

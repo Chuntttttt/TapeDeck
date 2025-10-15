@@ -2,9 +2,18 @@
 
 This document contains the step-by-step plan for addressing code quality issues identified during code review.
 
+**Completed Issues:**
+- ✅ Issue #1: Remove Debug Logging in Production Code
+- ✅ Issue #2: Handler Initialization Pattern is Fragile
+- ✅ Issue #3: Dual Configuration Systems Create Confusion
+- ✅ Issue #4: WebSocket Security - Allow All Origins (CSRF Vulnerability)
+
+**Remaining:**
+- Issue #5: Race Condition in HA Reconnect (planning in progress)
+
 ---
 
-## Issue #1: Remove Debug Logging in Production Code
+## Issue #1: ~~Remove Debug Logging in Production Code~~ ✅ COMPLETED
 
 ### Files to modify:
 1. `internal/handlers/auth.go` - 10 changes
@@ -47,7 +56,7 @@ After removing the code, check if these imports are still needed:
 
 ---
 
-## Issue #2: Handler Initialization Pattern is Fragile
+## Issue #2: ~~Handler Initialization Pattern is Fragile~~ ✅ COMPLETED
 
 ### Current Problem:
 - 12 routes manually check `if handler == nil` and redirect to `/setup`
@@ -148,7 +157,7 @@ If there's concern about Settings page re-initialization causing brief nil windo
 
 ---
 
-## Issue #3: Dual Configuration Systems Create Confusion
+## Issue #3: ~~Dual Configuration Systems Create Confusion~~ ✅ COMPLETED
 
 ### Current Problem:
 
@@ -335,7 +344,7 @@ If any users have .env with Plex/HA vars (unlikely):
 
 ---
 
-## Issue #4: WebSocket Security - Allow All Origins (CSRF Vulnerability)
+## Issue #4: ~~WebSocket Security - Allow All Origins (CSRF Vulnerability)~~ ✅ COMPLETED
 
 ### Current Problem:
 

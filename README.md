@@ -68,13 +68,9 @@ go install github.com/air-verse/air@latest
 cd TapeDeck
 go mod download
 
-# Copy environment template (contains only basic settings)
-cp .env.example .env
-
-# Generate a secure session secret
-# On Linux/macOS:
-openssl rand -hex 32 >> .env
-# Or manually edit .env and replace SESSION_SECRET value
+# Optional: Create .env file to override defaults
+# cp .env.example .env
+# Edit .env to customize PORT, DATABASE_PATH, LOG_LEVEL, or DEV_MODE
 ```
 
 ### 3. Run Development Server
@@ -197,15 +193,16 @@ tapedeck/
 
 ### Environment Variables
 
-Basic application settings are configured via environment variables (`.env` file):
+Application settings can be configured via environment variables (`.env` file). All settings have sensible defaults and are optional:
 
-| Variable | Description | Example | Required |
-|----------|-------------|---------|----------|
-| `PORT` | HTTP server port | `3001` | Yes |
-| `DATABASE_PATH` | SQLite database location | `./data/tapedeck.db` | Yes |
-| `LOG_LEVEL` | Logging level | `info` | Yes |
-| `SESSION_SECRET` | Session encryption key (32+ chars) | (generate with `openssl rand -hex 32`) | Yes |
-| `DEV_MODE` | Skip TLS verification (dev only) | `true` | No |
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `PORT` | HTTP server port | `3001` | `3001` |
+| `DATABASE_PATH` | SQLite database location | `./data/tapedeck.db` | `./data/tapedeck.db` |
+| `LOG_LEVEL` | Logging level | `info` | `info`, `debug`, `warn`, `error` |
+| `DEV_MODE` | Skip TLS verification (dev only) | `false` | `true` |
+
+**Session Security**: The session encryption key is automatically generated on first run and stored in `.session_secret` (gitignored). This file persists sessions across restarts.
 
 ### Runtime Configuration (config.yml)
 

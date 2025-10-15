@@ -19,9 +19,9 @@ go mod download
 go install github.com/a-h/templ/cmd/templ@latest
 go install github.com/air-verse/air@latest
 
-# Setup environment
-cp .env.example .env
-# Edit .env to set SESSION_SECRET (generate with: openssl rand -hex 32)
+# Optional: Create .env to customize settings (all have defaults)
+# cp .env.example .env
+# SESSION_SECRET is auto-generated and stored in .session_secret on first run
 ```
 
 ### Running the Application
@@ -91,8 +91,9 @@ docker-compose logs -f tapedeck
 - Handlers are nil at startup if config.yml is missing; initialized after setup wizard completes via `initializeHandlers()` callback
 
 ### Configuration System
-- Environment variables (`.env`): Basic settings (PORT, DATABASE_PATH, SESSION_SECRET, LOG_LEVEL, DEV_MODE)
-- Runtime config (`config.yml`): Plex servers, Home Assistant URL/token, Apple TVs
+- Environment variables (`.env`): Optional overrides for basic settings (PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE). All have sensible defaults.
+- Session secret (`.session_secret`): Auto-generated on first run, persists across restarts (gitignored, 0600 permissions)
+- Runtime config (`config.yml`): Plex servers, Home Assistant URL/token, Apple TVs (created by setup wizard)
 - Setup wizard creates config.yml and triggers handler initialization
 - `internal/config/`: Loads both env-based config and runtime config from config.yml
 
@@ -167,9 +168,10 @@ docker-compose logs -f tapedeck
 
 ### Session Management
 - Uses gorilla/sessions with securecookie
-- Session store initialized with SESSION_SECRET from .env
+- Session secret auto-generated (32 bytes, cryptographically secure) and stored in .session_secret on first run
+- Session store initialized with secret from .session_secret file (0600 permissions, gitignored)
 - RequireAuth middleware checks for plex_user_id in session
-- Sessions survive server restart (stored in encrypted cookies)
+- Sessions survive server restart (cookies encrypted with persistent secret)
 
 ### Multi-Server Architecture
 - Handlers receive `[]ServerInfo` with multiple Plex servers and connection URLs

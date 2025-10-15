@@ -40,7 +40,6 @@ func main() {
 	// Load application configuration from environment variables
 	cfg, err := config.Load()
 	if err != nil {
-		// SESSION_SECRET is required for session security
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 

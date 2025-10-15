@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/go-chi/chi/v5"
 )
 
 func TestMediaHandler_Libraries(t *testing.T) {
@@ -155,9 +157,12 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request
+	// Make request with chi URL context
 	w = httptest.NewRecorder()
-	handler.LibraryContents(w, req, "1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("libraryKey", "1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler.LibraryContents(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)

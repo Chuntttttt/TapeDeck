@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/db"
@@ -12,6 +13,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
+	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/sessions"
 )
 
@@ -131,7 +133,14 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 }
 
 // EditMappingForm handles GET /mappings/{id}/edit
-func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request, mappingID int64) {
+func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	mappingID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid mapping ID", http.StatusBadRequest)
+		return
+	}
+
 	// Get user from session
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	userID, ok := middleware.GetUserID(session)
@@ -162,7 +171,14 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
 }
 
 // UpdateMapping handles POST /mappings/{id}
-func (h *MappingsHandler) UpdateMapping(w http.ResponseWriter, r *http.Request, mappingID int64) {
+func (h *MappingsHandler) UpdateMapping(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	mappingID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid mapping ID", http.StatusBadRequest)
+		return
+	}
+
 	// Get user from session
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	userID, ok := middleware.GetUserID(session)
@@ -210,7 +226,14 @@ func (h *MappingsHandler) UpdateMapping(w http.ResponseWriter, r *http.Request, 
 }
 
 // DeleteMapping handles POST /mappings/{id}/delete
-func (h *MappingsHandler) DeleteMapping(w http.ResponseWriter, r *http.Request, mappingID int64) {
+func (h *MappingsHandler) DeleteMapping(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	mappingID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid mapping ID", http.StatusBadRequest)
+		return
+	}
+
 	// Get user from session
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	userID, ok := middleware.GetUserID(session)

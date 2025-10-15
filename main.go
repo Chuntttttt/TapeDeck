@@ -20,7 +20,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/Chuntttttt/tapedeck/internal/router"
 )
 
 func main() {
@@ -224,159 +224,33 @@ func main() {
 		log.Println("Config not ready - setup wizard will initialize handlers after completion")
 	}
 
-	mux := http.NewServeMux()
+	// Create router dependencies
+	deps := &router.RouterDependencies{
+		AuthHandler:     authHandler,
+		SetupHandler:    setupHandler,
+		SettingsHandler: settingsHandler,
+		MappingsHandler: mappingsHandler,
+		MediaHandler:    mediaHandler,
+		PairingHandler:  pairingHandler,
+		PlaybackHandler: playbackHandler,
+		StatusHandler:   statusHandler,
+		AuthMiddleware:  middleware.RequireAuth(sessionStore),
+		HandlersReady: func() bool {
+			return mediaHandler != nil && mappingsHandler != nil && pairingHandler != nil &&
+				playbackHandler != nil && statusHandler != nil
+		},
+	}
 
-	// Auth routes (no setup middleware - always available)
-	mux.HandleFunc("/auth/login", authHandler.Login)
-	mux.HandleFunc("/auth/poll-status", authHandler.PollStatus)
-	mux.HandleFunc("/auth/logout", authHandler.Logout)
+	// Create router
+	r := router.New(deps, "./config.yml")
 
-	// Setup routes (no setup middleware - must be accessible during setup)
-	mux.HandleFunc("/setup", setupHandler.Step1Welcome)
-	mux.HandleFunc("/setup/plex", setupHandler.Step2Plex)
-	mux.HandleFunc("/setup/plex/save", setupHandler.SavePlexServers)
-	mux.HandleFunc("/setup/ha", setupHandler.Step3HomeAssistant)
-	mux.HandleFunc("/setup/ha/test", setupHandler.TestHomeAssistant)
-	mux.HandleFunc("/setup/ha/save", setupHandler.SaveHomeAssistant)
-	mux.HandleFunc("/setup/appletv", setupHandler.Step4AppleTVs)
-	mux.HandleFunc("/setup/appletv/save", setupHandler.SaveAppleTVs)
-	mux.HandleFunc("/setup/complete", setupHandler.Step5Complete)
-	mux.HandleFunc("/setup/finish", setupHandler.CompleteSetup)
-
-	// Settings routes (require auth)
-	mux.Handle("/settings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(settingsHandler.Settings)))
-	mux.Handle("/settings/servers", middleware.RequireAuth(sessionStore)(http.HandlerFunc(settingsHandler.SaveSettings)))
-
-	// Metrics endpoint (unprotected)
-	mux.Handle("/metrics", promhttp.Handler())
-
-	// Health check (unprotected, no setup middleware)
-	mux.HandleFunc("/health", healthCheckHandler().ServeHTTP)
-
-	// Register all routes - setup middleware will redirect if config incomplete
-	// For routes that need initialized handlers, we'll use pointers that get set at startup
-	// This allows routes to exist but redirect appropriately if handlers aren't ready
-
-	mux.Handle("/libraries", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mediaHandler == nil {
-			http.Redirect(w, r, "/setup", http.StatusSeeOther)
-			return
-		}
-		mediaHandler.Libraries(w, r)
-	})))
-
-	mux.Handle("/libraries/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mediaHandler == nil {
-			http.Redirect(w, r, "/setup", http.StatusSeeOther)
-			return
-		}
-		libraryContentsHandler(mediaHandler)(w, r)
-	})))
-
-	mux.Handle("/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mediaHandler == nil {
-			http.Redirect(w, r, "/setup", http.StatusSeeOther)
-			return
-		}
-		mediaHandler.Search(w, r)
-	})))
-
-	mux.Handle("/mappings", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mappingsHandler == nil {
-			http.Redirect(w, r, "/setup", http.StatusSeeOther)
-			return
-		}
-		if r.Method == http.MethodPost {
-			mappingsHandler.CreateMapping(w, r)
-		} else {
-			mappingsHandler.Dashboard(w, r)
-		}
-	})))
-
-	mux.Handle("/mappings/new", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mappingsHandler == nil {
-			http.Redirect(w, r, "/setup", http.StatusSeeOther)
-			return
-		}
-		mappingsHandler.NewMappingForm(w, r)
-	})))
-
-	mux.Handle("/mappings/pair", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if pairingHandler == nil {
-			http.Redirect(w, r, "/setup", http.StatusSeeOther)
-			return
-		}
-		pairingHandler.PairForm(w, r)
-	})))
-
-	mux.Handle("/mappings/", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mappingsHandler == nil {
-			http.Redirect(w, r, "/setup", http.StatusSeeOther)
-			return
-		}
-		mappingsRouteHandler(mappingsHandler)(w, r)
-	})))
-
-	mux.Handle("/api/search", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if mappingsHandler == nil {
-			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		mappingsHandler.SearchJSON(w, r)
-	})))
-
-	mux.Handle("/ws/pairing", middleware.RequireAuth(sessionStore)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if pairingHandler == nil {
-			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		pairingHandler.WebSocketPairing(w, r)
-	})))
-
-	mux.HandleFunc("/api/status/ha", func(w http.ResponseWriter, r *http.Request) {
-		if statusHandler == nil {
-			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		statusHandler.HAStatus(w, r)
-	})
-
-	mux.HandleFunc("/api/status/ha/reconnect", func(w http.ResponseWriter, r *http.Request) {
-		if statusHandler == nil {
-			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		statusHandler.HAReconnect(w, r)
-	})
-
-	mux.HandleFunc("/api/play", func(w http.ResponseWriter, r *http.Request) {
-		if playbackHandler == nil {
-			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		playbackHandler.Play(w, r)
-	})
-
-	// Static files (CSS, JS, images)
-	fs := http.FileServer(http.Dir("./static"))
-	mux.Handle("/static/", http.StripPrefix("/static/", fs))
-
-	// Home route - redirect to libraries
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			http.Redirect(w, r, "/libraries", http.StatusFound)
-			return
-		}
-		http.NotFound(w, r)
-	})
-
-	// Wrap mux with middleware chain
+	// Wrap with middleware chain
 	// 1. Metrics middleware (tracks request metrics)
 	// 2. Request logging middleware (logs all requests)
 	// 3. Setup middleware (checks config for all non-exempted routes)
 	handler := middleware.MetricsMiddleware()(
 		middleware.RequestLogger()(
-			middleware.SetupMiddleware("./config.yml", sessionStore)(mux),
+			middleware.SetupMiddleware("./config.yml", sessionStore)(r),
 		),
 	)
 
@@ -408,79 +282,4 @@ func main() {
 	}
 
 	log.Println("Server stopped")
-}
-
-// libraryContentsHandler extracts the library key from the URL path and calls LibraryContents
-func libraryContentsHandler(h *handlers.MediaHandler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract library key from /libraries/{key}
-		path := r.URL.Path
-		if len(path) <= len("/libraries/") {
-			http.Error(w, "Library ID required", http.StatusBadRequest)
-			return
-		}
-		libraryKey := path[len("/libraries/"):]
-		if libraryKey == "" {
-			http.Error(w, "Library ID required", http.StatusBadRequest)
-			return
-		}
-		h.LibraryContents(w, r, libraryKey)
-	}
-}
-
-// mappingsRouteHandler extracts the mapping ID from the URL path and routes to appropriate handler
-func mappingsRouteHandler(h *handlers.MappingsHandler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract path after /mappings/
-		path := r.URL.Path
-		if len(path) <= len("/mappings/") {
-			http.Error(w, "Mapping ID required", http.StatusBadRequest)
-			return
-		}
-
-		remainder := path[len("/mappings/"):]
-
-		// Parse the ID and action
-		var mappingID int64
-		var action string
-
-		// Check for /{id}/edit or /{id}/delete patterns
-		if n, err := fmt.Sscanf(remainder, "%d/edit", &mappingID); n == 1 && err == nil {
-			if r.Method != http.MethodGet {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-				return
-			}
-			h.EditMappingForm(w, r, mappingID)
-			return
-		}
-
-		if n, err := fmt.Sscanf(remainder, "%d/delete", &mappingID); n == 1 && err == nil {
-			if r.Method != http.MethodPost {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-				return
-			}
-			h.DeleteMapping(w, r, mappingID)
-			return
-		}
-
-		// Check for /{id} pattern (update)
-		if n, err := fmt.Sscanf(remainder, "%d%s", &mappingID, &action); n == 1 && err == nil {
-			if r.Method != http.MethodPost {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-				return
-			}
-			h.UpdateMapping(w, r, mappingID)
-			return
-		}
-
-		http.Error(w, "Invalid mapping route", http.StatusBadRequest)
-	}
-}
-
-func healthCheckHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprint(w, `{"status":"ok"}`)
-	})
 }

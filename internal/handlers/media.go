@@ -8,6 +8,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
+	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/sessions"
 )
 
@@ -127,8 +128,14 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// LibraryContents handles GET /libraries/{id}
-func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request, libraryKey string) {
+// LibraryContents handles GET /libraries/{libraryKey}
+func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
+	libraryKey := chi.URLParam(r, "libraryKey")
+	if libraryKey == "" {
+		http.Error(w, "Library key required", http.StatusBadRequest)
+		return
+	}
+
 	// Get user from session
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	userID, ok := middleware.GetUserID(session)

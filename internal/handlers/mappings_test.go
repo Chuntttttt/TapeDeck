@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +13,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/go-chi/chi/v5"
 )
 
 func TestMappingsHandler_Dashboard(t *testing.T) {
@@ -350,9 +353,12 @@ func TestMappingsHandler_EditMappingForm(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request
+	// Make request with chi URL context
 	w = httptest.NewRecorder()
-	handler.EditMappingForm(w, req, mappingID)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", fmt.Sprintf("%d", mappingID))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler.EditMappingForm(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -428,9 +434,12 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request
+	// Make request with chi URL context
 	w = httptest.NewRecorder()
-	handler.UpdateMapping(w, req, mappingID)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", fmt.Sprintf("%d", mappingID))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler.UpdateMapping(w, req)
 
 	if w.Code != http.StatusFound {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusFound)
@@ -497,9 +506,12 @@ func TestMappingsHandler_DeleteMapping(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request
+	// Make request with chi URL context
 	w = httptest.NewRecorder()
-	handler.DeleteMapping(w, req, mappingID)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", fmt.Sprintf("%d", mappingID))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler.DeleteMapping(w, req)
 
 	if w.Code != http.StatusFound {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusFound)

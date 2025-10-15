@@ -186,18 +186,6 @@ func main() {
 		// Initialize Home Assistant REST client
 		haRest := ha.NewRestClient(runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token, cfg.DevMode)
 
-		// Get default Apple TV entity
-		var defaultAppleTV string
-		for _, tv := range runtimeCfg.AppleTVs {
-			if tv.Default {
-				defaultAppleTV = tv.Entity
-				break
-			}
-		}
-		if defaultAppleTV == "" && len(runtimeCfg.AppleTVs) > 0 {
-			defaultAppleTV = runtimeCfg.AppleTVs[0].Entity
-		}
-
 		// Initialize playback service
 		playbackService := services.NewPlaybackService(database, haRest)
 

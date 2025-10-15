@@ -293,7 +293,7 @@ func TestPlay_PlexURLFormat(t *testing.T) {
 	var capturedContentID string
 	haRest := &mockHARestClient{
 		entityState: "idle",
-		playMediaFunc: func(ctx context.Context, entityID, contentType, contentID string) error {
+		playMediaFunc: func(_ context.Context, _ string, _ string, contentID string) error {
 			capturedContentID = contentID
 			return nil
 		},
@@ -325,7 +325,7 @@ func TestWakeAppleTV_Success(t *testing.T) {
 	db := &mockDB{}
 	turnOnCalled := false
 	haRest := &mockHARestClient{
-		turnOnFunc: func(ctx context.Context, entityID string) error {
+		turnOnFunc: func(_ context.Context, _ string) error {
 			turnOnCalled = true
 			return nil
 		},

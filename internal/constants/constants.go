@@ -23,8 +23,8 @@ const (
 	// AppleTVWakeTime is the wait time for Apple TV to wake up after power on.
 	AppleTVWakeTime = 5 * time.Second
 
-	// SessionMaxAge is the maximum age of session cookies (30 days).
-	SessionMaxAge = 30 * 24 * time.Hour
+	// SessionMaxAge is the maximum age of session cookies (7 days).
+	SessionMaxAge = 7 * 24 * time.Hour
 
 	// ServerReadHeaderTimeout is the timeout for reading HTTP request headers.
 	ServerReadHeaderTimeout = 10 * time.Second

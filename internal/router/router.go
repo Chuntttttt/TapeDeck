@@ -97,7 +97,11 @@ func New(deps *Dependencies) *chi.Mux {
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
+		if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+			// Health check is already failed at this point (can't write response)
+			// Log the error but there's nothing we can do
+			http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		}
 	})
 
 	// Home route - redirect to libraries

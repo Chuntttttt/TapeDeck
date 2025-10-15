@@ -6,12 +6,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/constants"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 )
 
 // AuthClientInterface defines the methods required for Plex authentication
@@ -94,7 +94,7 @@ func (c *AuthClient) RequestPIN(ctx context.Context) (*PINResponse, error) {
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 
@@ -133,7 +133,7 @@ func (c *AuthClient) CheckPIN(ctx context.Context, pinID int) (*PINCheckResponse
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 

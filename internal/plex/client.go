@@ -5,10 +5,10 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/constants"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 )
 
 // Client handles Plex Media Server API operations
@@ -100,7 +100,7 @@ func (c *Client) GetLibraries(ctx context.Context) ([]Library, error) {
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 
@@ -134,7 +134,7 @@ func (c *Client) GetLibraryContents(ctx context.Context, libraryKey string) ([]M
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 
@@ -176,7 +176,7 @@ func (c *Client) Search(ctx context.Context, query string) ([]MediaItem, error) 
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 

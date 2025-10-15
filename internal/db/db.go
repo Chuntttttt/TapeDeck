@@ -5,8 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
@@ -206,7 +206,7 @@ func (db *DB) GetCardMappingsByUserID(ctx context.Context, userID int64) ([]*mod
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("Failed to close rows: %v", err)
+			logger.Warn("Failed to close rows", "error", err)
 		}
 	}()
 

@@ -5,11 +5,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 )
 
 // ResourcesResponse represents the XML response from Plex API
@@ -65,7 +65,7 @@ func (c *AuthClient) GetServers(ctx context.Context, authToken string) ([]config
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 

@@ -28,12 +28,12 @@ func main() {
 	runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
 	needsSetup := false
 	if err != nil || runtimeCfg.IsEmpty() {
-		log.Printf("Runtime configuration not found or empty: %v", err)
-		log.Println("Setup wizard will be required before using the application")
+		logger.Info("Runtime configuration not found or empty", "error", err)
+		logger.Info("Setup wizard will be required before using the application")
 		needsSetup = true
 	} else if err := runtimeCfg.Validate(); err != nil {
-		log.Printf("Runtime configuration validation failed: %v", err)
-		log.Println("Setup wizard will be required before using the application")
+		logger.Info("Runtime configuration validation failed", "error", err)
+		logger.Info("Setup wizard will be required before using the application")
 		needsSetup = true
 	}
 
@@ -46,7 +46,7 @@ func main() {
 	// Set up structured logging to both stdout and file
 	logFile, err := os.OpenFile("tapedeck.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
-		log.Printf("Warning: Failed to open log file: %v", err)
+		logger.Warn("Failed to open log file", "error", err)
 		logger.Init(cfg.LogLevel, os.Stdout)
 	} else {
 		defer func() {
@@ -81,7 +81,7 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	log.Println("Database initialized successfully")
+	logger.Info("Database initialized successfully")
 
 	// Initialize session store
 	sessionStore := middleware.NewSessionStore([]byte(cfg.SessionSecret))
@@ -89,7 +89,7 @@ func main() {
 	// Initialize Plex auth client (needed for both normal operation and setup)
 	plexAuth := plex.NewAuthClient("https://plex.tv", "tapedeck-client-id", "TapeDeck", cfg.DevMode)
 	if cfg.DevMode {
-		log.Println("⚠️  DEV_MODE enabled: TLS verification disabled")
+		logger.Warn("DEV_MODE enabled: TLS verification disabled")
 	}
 
 	// Initialize auth handler (needed for both normal operation and setup)
@@ -119,11 +119,11 @@ func main() {
 	// The HandlersReady function (used by requireInitialized middleware) checks
 	// that all handlers are non-nil before allowing access to protected routes.
 	initializeHandlers := func() error {
-		log.Println("Initializing handlers after setup completion...")
+		logger.Info("Initializing handlers after setup completion")
 
 		// Close existing HA client if it exists
 		if haClient != nil {
-			log.Println("Closing existing Home Assistant connection...")
+			logger.Info("Closing existing Home Assistant connection")
 			haClient.Close()
 		}
 
@@ -142,7 +142,7 @@ func main() {
 			// TODO: Skip shared servers for now - they return 401 Unauthorized
 			// See README.md "Known Limitations: Shared Plex Servers"
 			if srv.Owner == "Shared" {
-				log.Printf("Skipping shared server '%s' (not currently supported)", srv.Name)
+				logger.Info("Skipping shared server (not currently supported)", "server", srv.Name)
 				continue
 			}
 
@@ -179,7 +179,7 @@ func main() {
 		// Initialize Home Assistant WebSocket client
 		haClient = ha.NewHAClient(runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token)
 		if err := haClient.Connect(); err != nil {
-			log.Printf("Warning: Failed to connect to Home Assistant: %v", err)
+			logger.Warn("Failed to connect to Home Assistant", "error", err)
 		}
 
 		// Initialize Home Assistant REST client
@@ -218,7 +218,7 @@ func main() {
 			return fmt.Errorf("handler initialization incomplete - this is a programming error")
 		}
 
-		log.Println("All handlers initialized successfully")
+		logger.Info("All handlers initialized successfully")
 		return nil
 	}
 
@@ -238,7 +238,7 @@ func main() {
 			defer haClient.Close()
 		}
 	} else {
-		log.Println("Config not ready - setup wizard will initialize handlers after completion")
+		logger.Info("Config not ready - setup wizard will initialize handlers after completion")
 	}
 
 	// Create router dependencies
@@ -291,7 +291,7 @@ func main() {
 
 	// Graceful shutdown
 	go func() {
-		log.Printf("Starting TapeDeck on port %s", cfg.Port)
+		logger.Info("Starting TapeDeck", "port", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
@@ -301,14 +301,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), constants.ServerShutdownTimeout)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		logger.Error("Server forced to shutdown", "error", err)
 	}
 
-	log.Println("Server stopped")
+	logger.Info("Server stopped")
 }

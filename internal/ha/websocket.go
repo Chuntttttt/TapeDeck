@@ -4,12 +4,12 @@ package ha
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/constants"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/gorilla/websocket"
 )
 
@@ -61,14 +61,14 @@ func (c *HAClient) Connect() error {
 	var authRequired map[string]interface{}
 	if err := conn.ReadJSON(&authRequired); err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("failed to read auth_required: %w", err)
 	}
 
 	if msgType, ok := authRequired["type"].(string); !ok || msgType != "auth_required" {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("expected auth_required, got %v", authRequired["type"])
 	}
@@ -80,7 +80,7 @@ func (c *HAClient) Connect() error {
 	}
 	if err := conn.WriteJSON(authMsg); err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("failed to send auth: %w", err)
 	}
@@ -89,7 +89,7 @@ func (c *HAClient) Connect() error {
 	var authResponse map[string]interface{}
 	if err := conn.ReadJSON(&authResponse); err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("failed to read auth response: %w", err)
 	}
@@ -97,21 +97,21 @@ func (c *HAClient) Connect() error {
 	msgType, ok := authResponse["type"].(string)
 	if !ok {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("auth response missing type field")
 	}
 
 	if msgType == "auth_invalid" {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("authentication failed: invalid token")
 	}
 
 	if msgType != "auth_ok" {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("unexpected auth response: %s", msgType)
 	}
@@ -124,7 +124,7 @@ func (c *HAClient) Connect() error {
 	}
 	if err := conn.WriteJSON(subscribeMsg); err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("failed to subscribe to events: %w", err)
 	}
@@ -133,21 +133,21 @@ func (c *HAClient) Connect() error {
 	var result map[string]interface{}
 	if err := conn.ReadJSON(&result); err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("failed to read subscription result: %w", err)
 	}
 
 	if resultType, ok := result["type"].(string); !ok || resultType != "result" {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("expected result, got %v", result["type"])
 	}
 
 	if success, ok := result["success"].(bool); !ok || !success {
 		if closeErr := conn.Close(); closeErr != nil {
-			log.Printf("Failed to close connection: %v", closeErr)
+			logger.Warn("Failed to close connection", "error", closeErr)
 		}
 		return fmt.Errorf("subscription failed")
 	}
@@ -157,7 +157,7 @@ func (c *HAClient) Connect() error {
 	c.conn = conn
 	c.mu.Unlock()
 
-	log.Println("Connected to Home Assistant WebSocket")
+	logger.Info("Connected to Home Assistant WebSocket")
 
 	// Start message handler
 	go c.handleMessages()
@@ -171,7 +171,7 @@ func (c *HAClient) handleMessages() {
 		c.mu.Lock()
 		if c.conn != nil {
 			if err := c.conn.Close(); err != nil {
-				log.Printf("Failed to close WebSocket: %v", err)
+				logger.Warn("Failed to close WebSocket", "error", err)
 			}
 		}
 		c.mu.Unlock()
@@ -193,7 +193,7 @@ func (c *HAClient) handleMessages() {
 			var msg map[string]interface{}
 			if err := conn.ReadJSON(&msg); err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					log.Printf("WebSocket error: %v", err)
+					logger.Warn("WebSocket error", "error", err)
 				}
 				return
 			}
@@ -228,7 +228,7 @@ func (c *HAClient) handleEvent(msg map[string]interface{}) {
 		return
 	}
 
-	log.Printf("Tag scanned: %s", tagID)
+	logger.Info("Tag scanned", "tag_id", tagID)
 
 	// Call callback
 	c.mu.Lock()
@@ -276,12 +276,11 @@ func (c *HAClient) Reconnect(_ context.Context, newToken string) error {
 		newTokenPreview = newToken + "..."
 	}
 
-	log.Printf("Reconnect: Old token: %s (len=%d), New token: %s (len=%d), Same=%v",
-		oldTokenPreview, len(c.token), newTokenPreview, len(newToken), c.token == newToken)
+	logger.Info("Reconnecting to Home Assistant", "old_token", oldTokenPreview, "old_token_len", len(c.token), "new_token", newTokenPreview, "new_token_len", len(newToken), "same", c.token == newToken)
 
 	if c.conn != nil {
 		if err := c.conn.Close(); err != nil {
-			log.Printf("Failed to close existing connection: %v", err)
+			logger.Warn("Failed to close existing connection", "error", err)
 		}
 		c.conn = nil
 	}
@@ -308,13 +307,13 @@ func (c *HAClient) Close() {
 
 	if c.conn != nil {
 		if err := c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(constants.HAWebSocketCloseTimeout)); err != nil {
-			log.Printf("Failed to write close message: %v", err)
+			logger.Warn("Failed to write close message", "error", err)
 		}
 		if err := c.conn.Close(); err != nil {
-			log.Printf("Failed to close WebSocket: %v", err)
+			logger.Warn("Failed to close WebSocket", "error", err)
 		}
 		c.conn = nil
 	}
 
-	log.Println("Closed Home Assistant WebSocket connection")
+	logger.Info("Closed Home Assistant WebSocket connection")
 }

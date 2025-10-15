@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/constants"
@@ -69,7 +68,7 @@ func (c *RestClient) GetEntityState(ctx context.Context, entityID string) (strin
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 
@@ -121,7 +120,7 @@ func (c *RestClient) TurnOn(ctx context.Context, entityID string) error {
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 
@@ -173,7 +172,7 @@ func (c *RestClient) PlayMedia(ctx context.Context, entityID, contentType, conte
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 
@@ -222,7 +221,7 @@ func (c *RestClient) GetStates(ctx context.Context) ([]Entity, error) {
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("Failed to close response body: %v", err)
+			logger.Warn("Failed to close response body", "error", err)
 		}
 	}()
 

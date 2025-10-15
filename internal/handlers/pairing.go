@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
@@ -133,7 +133,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 // WebSocketPairing handles WebSocket connection for pairing
 func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	logger := middleware.GetLogger(ctx)
+	reqLogger := middleware.GetLogger(ctx)
 
 	// Get user from context
 	userID, ok := middleware.GetUserIDFromContext(ctx)
@@ -145,7 +145,7 @@ func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request
 	// Upgrade connection
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		logger.Error("Failed to upgrade WebSocket", "error", err)
+		reqLogger.Error("Failed to upgrade WebSocket", "error", err)
 		return
 	}
 
@@ -162,7 +162,7 @@ func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request
 	h.clientsMu.Unlock()
 
 	middleware.IncrementWebSocketConnections()
-	log.Printf("WebSocket client connected (userID=%d)", userID)
+	logger.Info("WebSocket client connected", "user_id", userID)
 
 	// Start goroutines
 	go client.writePump()
@@ -174,16 +174,16 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 	defer func() {
 		h.unregisterClient(client)
 		if err := client.conn.Close(); err != nil {
-			log.Printf("WebSocket close error: %v", err)
+			logger.Warn("WebSocket close error", "error", err)
 		}
 	}()
 
 	if err := client.conn.SetReadDeadline(time.Now().Add(constants.WebSocketReadTimeout)); err != nil {
-		log.Printf("Failed to set read deadline: %v", err)
+		logger.Warn("Failed to set read deadline", "error", err)
 	}
 	client.conn.SetPongHandler(func(string) error {
 		if err := client.conn.SetReadDeadline(time.Now().Add(constants.WebSocketReadTimeout)); err != nil {
-			log.Printf("Failed to set read deadline in pong handler: %v", err)
+			logger.Warn("Failed to set read deadline in pong handler", "error", err)
 		}
 		return nil
 	})
@@ -192,7 +192,7 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 		var msg map[string]interface{}
 		if err := client.conn.ReadJSON(&msg); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("WebSocket error: %v", err)
+				logger.Warn("WebSocket error", "error", err)
 			}
 			break
 		}
@@ -217,8 +217,7 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 			client.plexServerID = serverID
 			client.appleTVEntity = appleTVEntity
 
-			log.Printf("Client ready for pairing (userID=%d, media=%s, server=%s, appleTV=%s)",
-				client.userID, mediaTitle, serverID, appleTVEntity)
+			logger.Info("Client ready for pairing", "user_id", client.userID, "media", mediaTitle, "server", serverID, "apple_tv", appleTVEntity)
 		}
 	}
 }
@@ -229,7 +228,7 @@ func (client *pairingClient) writePump() {
 	defer func() {
 		ticker.Stop()
 		if err := client.conn.Close(); err != nil {
-			log.Printf("WebSocket close error: %v", err)
+			logger.Warn("WebSocket close error", "error", err)
 		}
 	}()
 
@@ -237,11 +236,11 @@ func (client *pairingClient) writePump() {
 		select {
 		case message, ok := <-client.send:
 			if err := client.conn.SetWriteDeadline(time.Now().Add(constants.WebSocketWriteTimeout)); err != nil {
-				log.Printf("Failed to set write deadline: %v", err)
+				logger.Warn("Failed to set write deadline", "error", err)
 			}
 			if !ok {
 				if err := client.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					log.Printf("Failed to write close message: %v", err)
+					logger.Warn("Failed to write close message", "error", err)
 				}
 				return
 			}
@@ -252,7 +251,7 @@ func (client *pairingClient) writePump() {
 
 		case <-ticker.C:
 			if err := client.conn.SetWriteDeadline(time.Now().Add(constants.WebSocketWriteTimeout)); err != nil {
-				log.Printf("Failed to set write deadline: %v", err)
+				logger.Warn("Failed to set write deadline", "error", err)
 			}
 			if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
@@ -264,7 +263,7 @@ func (client *pairingClient) writePump() {
 // handleTagScanned is called when a tag is scanned in Home Assistant
 func (h *PairingHandler) handleTagScanned(tagID string) {
 	ctx := context.Background()
-	log.Printf("Tag scanned from HA: %s", tagID)
+	logger.Info("Tag scanned from HA", "tag_id", tagID)
 
 	h.clientsMu.Lock()
 	defer h.clientsMu.Unlock()
@@ -311,13 +310,12 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 		)
 		mappingID, err := h.db.CreateCardMapping(ctx, mapping)
 		if err != nil {
-			log.Printf("Failed to create mapping: %v", err)
+			logger.Error("Failed to create mapping", "error", err)
 			h.sendError(client, "Failed to create mapping")
 			continue
 		}
 
-		log.Printf("Created mapping ID=%d for tag=%s (server=%s, appleTV=%s)",
-			mappingID, tagID, client.plexServerID, client.appleTVEntity)
+		logger.Info("Created mapping", "mapping_id", mappingID, "tag_id", tagID, "server", client.plexServerID, "apple_tv", client.appleTVEntity)
 
 		// Send success message
 		successMsg := map[string]string{
@@ -334,7 +332,7 @@ func (h *PairingHandler) playMedia(ctx context.Context, tagID string) {
 	// Look up mapping
 	mapping, err := h.db.GetCardMappingByTagID(ctx, tagID)
 	if err != nil {
-		log.Printf("No mapping found for tag %s: %v", tagID, err)
+		logger.Warn("No mapping found for tag", "tag_id", tagID, "error", err)
 		return
 	}
 
@@ -347,29 +345,29 @@ func (h *PairingHandler) playMedia(ctx context.Context, tagID string) {
 
 	// Call Home Assistant to play media
 	if h.haRest == nil {
-		log.Printf("HA REST client not configured, cannot play media")
+		logger.Warn("HA REST client not configured, cannot play media")
 		return
 	}
 
 	// Check Apple TV state
 	state, err := h.haRest.GetEntityState(ctx, h.appleTVEntity)
 	if err != nil {
-		log.Printf("Failed to get Apple TV state: %v (continuing anyway)", err)
+		logger.Warn("Failed to get Apple TV state (continuing anyway)", "error", err)
 		// Continue with playback attempt even if state check fails
 	} else {
-		log.Printf("Apple TV state: %s", state)
+		logger.Info("Apple TV state", "state", state)
 
 		// Turn on Apple TV if it's off or in standby
 		if state == "off" || state == "standby" {
-			log.Printf("Apple TV is %s, turning on...", state)
+			logger.Info("Apple TV is off/standby, turning on", "state", state)
 			err = h.haRest.TurnOn(ctx, h.appleTVEntity)
 			if err != nil {
-				log.Printf("Failed to turn on Apple TV: %v", err)
+				logger.Error("Failed to turn on Apple TV", "error", err)
 				return
 			}
 
 			// Wait for Apple TV to wake up
-			log.Printf("Waiting for Apple TV to wake up...")
+			logger.Info("Waiting for Apple TV to wake up")
 			time.Sleep(constants.AppleTVWakeTime)
 		}
 	}
@@ -377,17 +375,17 @@ func (h *PairingHandler) playMedia(ctx context.Context, tagID string) {
 	// Play media
 	err = h.haRest.PlayMedia(ctx, h.appleTVEntity, "url", plexURL)
 	if err != nil {
-		log.Printf("Failed to play media for tag %s: %v", tagID, err)
+		logger.Error("Failed to play media", "tag_id", tagID, "error", err)
 		return
 	}
 
-	log.Printf("Playing %s on %s", mapping.MediaTitle, h.appleTVEntity)
+	logger.Info("Playing media", "media", mapping.MediaTitle, "apple_tv", h.appleTVEntity)
 
 	// Create playback log
 	playbackLog := models.NewPlaybackLog(mapping.UserID, mapping.TagID, mapping.MediaID, mapping.MediaTitle)
 	_, err = h.db.CreatePlaybackLog(ctx, playbackLog)
 	if err != nil {
-		log.Printf("Failed to create playback log: %v", err)
+		logger.Error("Failed to create playback log", "error", err)
 	}
 }
 
@@ -395,7 +393,7 @@ func (h *PairingHandler) playMedia(ctx context.Context, tagID string) {
 func (h *PairingHandler) sendJSON(client *pairingClient, data interface{}) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("Failed to marshal JSON: %v", err)
+		logger.Error("Failed to marshal JSON", "error", err)
 		return
 	}
 
@@ -404,7 +402,7 @@ func (h *PairingHandler) sendJSON(client *pairingClient, data interface{}) {
 	default:
 		h.unregisterClient(client)
 		if err := client.conn.Close(); err != nil {
-			log.Printf("WebSocket close error: %v", err)
+			logger.Warn("WebSocket close error", "error", err)
 		}
 	}
 }
@@ -427,6 +425,6 @@ func (h *PairingHandler) unregisterClient(client *pairingClient) {
 		delete(h.clients, client)
 		close(client.send)
 		middleware.DecrementWebSocketConnections()
-		log.Printf("WebSocket client disconnected (userID=%d)", client.userID)
+		logger.Info("WebSocket client disconnected", "user_id", client.userID)
 	}
 }

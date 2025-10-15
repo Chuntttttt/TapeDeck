@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
 )
 
@@ -41,7 +41,7 @@ func respondJSON(w http.ResponseWriter, message string, statusCode int) {
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode JSON error response: %v", err)
+		logger.Error("Failed to encode JSON error response", "error", err)
 	}
 }
 
@@ -51,7 +51,7 @@ func respondHTML(w http.ResponseWriter, r *http.Request, message string, statusC
 	w.WriteHeader(statusCode)
 
 	if err := pages.Error(statusCode, message).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render error template: %v", err)
+		logger.Error("Failed to render error template", "error", err)
 		// Fallback to plain text if template fails
 		http.Error(w, message, statusCode)
 	}

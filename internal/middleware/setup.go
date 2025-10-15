@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/gorilla/sessions"
 )
 
@@ -27,21 +27,21 @@ func SetupMiddleware(configPath string, sessionStore *sessions.CookieStore) func
 			// Load and validate runtime config
 			cfg, err := config.LoadRuntimeConfig(configPath)
 			if err != nil {
-				log.Printf("Failed to load config: %v, redirecting to setup", err)
+				logger.Warn("Failed to load config, redirecting to setup", "error", err)
 				redirectToSetup(w, r, sessionStore)
 				return
 			}
 
 			// Check if config is empty
 			if cfg.IsEmpty() {
-				log.Printf("Config is empty, redirecting to setup")
+				logger.Info("Config is empty, redirecting to setup")
 				redirectToSetup(w, r, sessionStore)
 				return
 			}
 
 			// Validate config
 			if err := cfg.Validate(); err != nil {
-				log.Printf("Config validation failed: %v, redirecting to setup", err)
+				logger.Warn("Config validation failed, redirecting to setup", "error", err)
 				redirectToSetup(w, r, sessionStore)
 				return
 			}
@@ -61,12 +61,12 @@ func redirectToSetup(w http.ResponseWriter, r *http.Request, sessionStore *sessi
 	// Check if user is authenticated
 	if _, ok := GetUserID(session); ok {
 		// User is authenticated, go directly to Plex server selection
-		log.Printf("User authenticated but config incomplete, redirecting to /setup/plex")
+		logger.Info("User authenticated but config incomplete, redirecting to /setup/plex")
 		http.Redirect(w, r, "/setup/plex", http.StatusSeeOther)
 		return
 	}
 
 	// User not authenticated, start at welcome page
-	log.Printf("User not authenticated and config incomplete, redirecting to /setup")
+	logger.Info("User not authenticated and config incomplete, redirecting to /setup")
 	http.Redirect(w, r, "/setup", http.StatusSeeOther)
 }

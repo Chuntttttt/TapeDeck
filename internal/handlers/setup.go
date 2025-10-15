@@ -360,6 +360,15 @@ func (h *SetupHandler) SaveHomeAssistant(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Validate URL scheme (prevent SSRF attacks)
+	validatedURL, err := ValidateHTTPURL(haURL)
+	if err != nil {
+		log.Warn("Invalid Home Assistant URL", "error", err)
+		RespondError(w, r, "Invalid Home Assistant URL: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	haURL = validatedURL
+
 	// Save to setup state
 	state, err := h.getSetupState(r)
 	if err != nil {

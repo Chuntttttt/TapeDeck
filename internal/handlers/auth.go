@@ -6,35 +6,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/gorilla/sessions"
 )
-
-var debugLog *os.File
-
-func init() {
-	var err error
-	debugLog, err = os.OpenFile("/tmp/tapedeck-auth-debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
-	if err != nil {
-		log.Printf("Failed to open debug log: %v", err)
-	}
-}
-
-func logDebug(format string, v ...interface{}) {
-	msg := fmt.Sprintf(format, v...)
-	log.Print(msg)
-	if debugLog != nil {
-		_, _ = debugLog.WriteString(time.Now().Format("2006/01/02 15:04:05") + " " + msg + "\n")
-		_ = debugLog.Sync()
-	}
-}
 
 // AuthHandler handles authentication-related requests
 type AuthHandler struct {
@@ -70,7 +51,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 				ID:   existingPinID,
 				Code: existingPinCode,
 			}
-			log.Printf("DEBUG Login: Reusing existing PIN ID=%d, Code='%s'", pin.ID, pin.Code)
+			logger.Debug("Reusing existing PIN", "pin_id", pin.ID, "pin_code", pin.Code)
 		}
 	}
 
@@ -93,7 +74,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Printf("DEBUG Login: Created NEW PIN ID=%d, Code='%s', stored in session", pin.ID, pin.Code)
+		logger.Debug("Created new PIN", "pin_id", pin.ID, "pin_code", pin.Code)
 	}
 
 	// Render login page with polling
@@ -112,14 +93,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // See: https://forums.plex.tv/t/plex-oauth-authenticate-with-plex-broken-after-plex-web-update-v4-152-0/931098
 // TODO: Switch back to forwardUrl redirect flow when Plex fixes their OAuth implementation
 func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
-	logDebug("DEBUG PollStatus: Received poll request from %s", r.RemoteAddr)
+	logger.Debug("Poll status request received", "remote_addr", r.RemoteAddr)
 
 	session := getOrCreateSession(h.sessionStore, r)
 
 	// Get PIN ID from session
 	pinIDVal, ok := session.Values["plex_pin_id"]
 	if !ok {
-		logDebug("DEBUG PollStatus: No plex_pin_id in session")
+		logger.Debug("No plex_pin_id in session")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
@@ -128,14 +109,14 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 
 	pinID, ok := pinIDVal.(int)
 	if !ok {
-		logDebug("DEBUG PollStatus: plex_pin_id type assertion failed, got type %T", pinIDVal)
+		logger.Debug("plex_pin_id type assertion failed", "type", fmt.Sprintf("%T", pinIDVal))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
 		return
 	}
 
-	logDebug("DEBUG PollStatus: Checking PIN ID=%d", pinID)
+	logger.Debug("Checking PIN status", "pin_id", pinID)
 
 	// Check PIN status to get auth token
 	check, err := h.plexAuth.CheckPIN(pinID)
@@ -159,7 +140,7 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 
 	authToken := check.AuthToken
 	if authToken == "" {
-		logDebug("DEBUG PollStatus: AuthToken still empty for PIN ID=%d, Code=%s", pinID, check.Code)
+		logger.Debug("AuthToken still empty", "pin_id", pinID, "pin_code", check.Code)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
@@ -167,7 +148,7 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Token is ready! Create/update user and set session
-	logDebug("✅ SUCCESS: Received auth token from Plex via polling! Token='%s' (len=%d)", authToken, len(authToken))
+	logger.Debug("Received auth token from Plex", "token_length", len(authToken))
 	plexUserID := "plex-user-" + authToken[:10]
 	plexUsername := "PlexUser"
 

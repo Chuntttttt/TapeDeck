@@ -15,7 +15,7 @@ This document outlines security issues found in the TapeDeck codebase and provid
 ## Not Applicable / Infrastructure Layer
 
 - **CRIT-5**: Rate Limiting - Self-hosted local app; handle at firewall/reverse proxy if exposed publicly
-- **HIGH-2**: Session Duration - Keeping 30 days for convenience (single-user self-hosted app)
+- **HIGH-2**: Session Duration - Set to 10 years (effectively forever) for single-user convenience. Plex tokens don't expire, so forced re-auth is pointless.
 - **HIGH-3**: Unauthenticated Metrics - Intentionally public for Prometheus scraping
 
 ## Remaining Recommendations

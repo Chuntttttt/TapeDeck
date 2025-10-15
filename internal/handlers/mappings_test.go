@@ -25,7 +25,12 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -112,7 +117,12 @@ func TestMappingsHandler_Dashboard_Empty(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -174,7 +184,12 @@ func TestMappingsHandler_NewMappingForm(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -239,7 +254,12 @@ func TestMappingsHandler_CreateMapping(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -328,7 +348,12 @@ func TestMappingsHandler_EditMappingForm(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -405,7 +430,12 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -493,7 +523,12 @@ func TestMappingsHandler_DeleteMapping(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -591,7 +626,12 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}

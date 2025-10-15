@@ -90,7 +90,12 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -226,7 +231,12 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -343,7 +353,12 @@ func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -422,7 +437,12 @@ func TestPairingHandler_WebSocketPairing_MissingFields(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -623,7 +643,12 @@ func TestPairingHandler_Playback_Success(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -691,7 +716,12 @@ func TestPairingHandler_Playback_NoMapping(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -729,7 +759,12 @@ func TestPairingHandler_Playback_RestClientError(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -786,7 +821,12 @@ func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -835,7 +875,12 @@ func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}

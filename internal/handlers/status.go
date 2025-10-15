@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 )
 
@@ -19,13 +19,15 @@ type HAStatusInterface interface {
 type StatusHandler struct {
 	haClient   HAStatusInterface
 	configPath string
+	db         *db.DB
 }
 
 // NewStatusHandler creates a new status handler
-func NewStatusHandler(haClient HAStatusInterface, configPath string) *StatusHandler {
+func NewStatusHandler(haClient HAStatusInterface, configPath string, database *db.DB) *StatusHandler {
 	return &StatusHandler{
 		haClient:   haClient,
 		configPath: configPath,
+		db:         database,
 	}
 }
 
@@ -71,20 +73,20 @@ func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reload runtime configuration from config.yml to get updated HA token
-	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
+	// Load HA token from database (encrypted)
+	settings, err := h.db.GetSettings(ctx)
 	if err != nil {
-		log.Error("Failed to reload runtime config", "error", err)
+		log.Error("Failed to load HA token from database", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"message": "Failed to reload configuration",
+			"message": "Failed to load Home Assistant token",
 		})
 		return
 	}
 
-	haToken := runtimeCfg.HomeAssistant.Token
+	haToken := settings.HAToken
 
 	// Log token info (first 8 chars for verification without exposing full token)
 	tokenPreview := "empty"

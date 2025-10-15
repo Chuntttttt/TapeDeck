@@ -39,7 +39,12 @@ func TestMediaHandler_Libraries(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -127,7 +132,12 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -219,7 +229,12 @@ func TestMediaHandler_Search(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -291,7 +306,12 @@ func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
 	}
 
 	// Create test database and user
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}

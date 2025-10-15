@@ -31,8 +31,8 @@ type Connection struct {
 
 // HAConfig represents Home Assistant configuration
 type HAConfig struct {
-	URL   string `yaml:"url"`
-	Token string `yaml:"token"`
+	URL string `yaml:"url"`
+	// Token is stored encrypted in the database (settings table)
 }
 
 // AppleTV represents an Apple TV media player
@@ -89,7 +89,7 @@ func (c *RuntimeConfig) Save(path string) error {
 
 // IsEmpty returns true if the configuration has no servers or HA configured
 func (c *RuntimeConfig) IsEmpty() bool {
-	return len(c.PlexServers) == 0 || c.HomeAssistant.URL == "" || c.HomeAssistant.Token == ""
+	return len(c.PlexServers) == 0 || c.HomeAssistant.URL == ""
 }
 
 // Validate checks if the configuration is valid
@@ -120,9 +120,7 @@ func (c *RuntimeConfig) Validate() error {
 	if c.HomeAssistant.URL == "" {
 		return fmt.Errorf("Home Assistant URL not configured") //nolint:staticcheck // ST1005: Home Assistant is a proper noun
 	}
-	if c.HomeAssistant.Token == "" {
-		return fmt.Errorf("Home Assistant token not configured") //nolint:staticcheck // ST1005: Home Assistant is a proper noun
-	}
+	// HA Token is validated separately (stored encrypted in database)
 
 	// Apple TVs are optional, but validate if present
 	for i, tv := range c.AppleTVs {

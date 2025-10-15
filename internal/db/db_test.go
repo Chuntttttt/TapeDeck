@@ -12,7 +12,13 @@ import (
 func TestNew(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 
-	db, err := New(dbPath)
+	// Create test encryption key
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+
+	db, err := New(dbPath, testKey)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -26,7 +32,13 @@ func TestNew(t *testing.T) {
 func TestRunMigrations(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 
-	db, err := New(dbPath)
+	// Create test encryption key
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+
+	db, err := New(dbPath, testKey)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -377,7 +389,13 @@ func setupTestDB(t *testing.T) *DB {
 
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 
-	db, err := New(dbPath)
+	// Create test encryption key
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+
+	db, err := New(dbPath, testKey)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}

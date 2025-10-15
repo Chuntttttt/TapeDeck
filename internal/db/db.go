@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/Chuntttttt/tapedeck/internal/crypto"
 	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/golang-migrate/migrate/v4"
@@ -16,11 +17,12 @@ import (
 
 // DB wraps the database connection and provides data access methods
 type DB struct {
-	conn *sql.DB
+	conn          *sql.DB
+	encryptionKey []byte // AES-256 key for encrypting sensitive data
 }
 
 // New creates a new database connection to the SQLite database at the given path
-func New(dbPath string) (*DB, error) {
+func New(dbPath string, encryptionKey []byte) (*DB, error) {
 	conn, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -34,7 +36,7 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
-	return &DB{conn: conn}, nil
+	return &DB{conn: conn, encryptionKey: encryptionKey}, nil
 }
 
 // Close closes the database connection
@@ -71,12 +73,18 @@ func (db *DB) CreateUser(ctx context.Context, user *models.User) (int64, error) 
 		return 0, fmt.Errorf("invalid user: %w", err)
 	}
 
+	// Encrypt Plex auth token before storage
+	encryptedToken, err := crypto.Encrypt(user.PlexAuthToken, db.encryptionKey)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encrypt plex auth token: %w", err)
+	}
+
 	result, err := db.conn.ExecContext(ctx,
 		`INSERT INTO users (plex_username, plex_user_id, plex_auth_token, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?)`,
 		user.PlexUsername,
 		user.PlexUserID,
-		user.PlexAuthToken,
+		encryptedToken,
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
@@ -95,6 +103,7 @@ func (db *DB) CreateUser(ctx context.Context, user *models.User) (int64, error) 
 // GetUserByID retrieves a user by their ID
 func (db *DB) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
 	user := &models.User{}
+	var encryptedToken string
 	err := db.conn.QueryRowContext(ctx,
 		`SELECT id, plex_username, plex_user_id, plex_auth_token, created_at, updated_at
 		FROM users WHERE id = ?`,
@@ -103,7 +112,7 @@ func (db *DB) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
 		&user.ID,
 		&user.PlexUsername,
 		&user.PlexUserID,
-		&user.PlexAuthToken,
+		&encryptedToken,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -114,12 +123,20 @@ func (db *DB) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
 		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
 
+	// Decrypt Plex auth token after retrieval
+	decryptedToken, err := crypto.Decrypt(encryptedToken, db.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt plex auth token: %w", err)
+	}
+	user.PlexAuthToken = decryptedToken
+
 	return user, nil
 }
 
 // GetUserByPlexUserID retrieves a user by their Plex user ID
 func (db *DB) GetUserByPlexUserID(ctx context.Context, plexUserID string) (*models.User, error) {
 	user := &models.User{}
+	var encryptedToken string
 	err := db.conn.QueryRowContext(ctx,
 		`SELECT id, plex_username, plex_user_id, plex_auth_token, created_at, updated_at
 		FROM users WHERE plex_user_id = ?`,
@@ -128,7 +145,7 @@ func (db *DB) GetUserByPlexUserID(ctx context.Context, plexUserID string) (*mode
 		&user.ID,
 		&user.PlexUsername,
 		&user.PlexUserID,
-		&user.PlexAuthToken,
+		&encryptedToken,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -138,6 +155,13 @@ func (db *DB) GetUserByPlexUserID(ctx context.Context, plexUserID string) (*mode
 		}
 		return nil, fmt.Errorf("failed to query user: %w", err)
 	}
+
+	// Decrypt Plex auth token after retrieval
+	decryptedToken, err := crypto.Decrypt(encryptedToken, db.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt plex auth token: %w", err)
+	}
+	user.PlexAuthToken = decryptedToken
 
 	return user, nil
 }
@@ -148,11 +172,17 @@ func (db *DB) UpdateUser(ctx context.Context, user *models.User) error {
 		return fmt.Errorf("invalid user: %w", err)
 	}
 
-	_, err := db.conn.ExecContext(ctx,
+	// Encrypt Plex auth token before storage
+	encryptedToken, err := crypto.Encrypt(user.PlexAuthToken, db.encryptionKey)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt plex auth token: %w", err)
+	}
+
+	_, err = db.conn.ExecContext(ctx,
 		`UPDATE users SET plex_username = ?, plex_auth_token = ?, updated_at = ?
 		WHERE id = ?`,
 		user.PlexUsername,
-		user.PlexAuthToken,
+		encryptedToken,
 		user.UpdatedAt,
 		user.ID,
 	)
@@ -367,4 +397,65 @@ func (db *DB) CreatePlaybackLog(ctx context.Context, log *models.PlaybackLog) (i
 	}
 
 	return id, nil
+}
+
+// SaveSettings upserts application settings (singleton with id=1)
+func (db *DB) SaveSettings(ctx context.Context, settings *models.Settings) error {
+	if err := settings.Validate(); err != nil {
+		return fmt.Errorf("invalid settings: %w", err)
+	}
+
+	// Encrypt HA token before storage
+	encryptedToken, err := crypto.Encrypt(settings.HAToken, db.encryptionKey)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt ha token: %w", err)
+	}
+
+	// Use INSERT OR REPLACE for upsert behavior
+	_, err = db.conn.ExecContext(ctx,
+		`INSERT OR REPLACE INTO settings (id, ha_token, created_at, updated_at)
+		VALUES (
+			1,
+			?,
+			COALESCE((SELECT created_at FROM settings WHERE id = 1), ?),
+			?
+		)`,
+		encryptedToken,
+		settings.CreatedAt,
+		settings.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to save settings: %w", err)
+	}
+
+	return nil
+}
+
+// GetSettings retrieves application settings
+func (db *DB) GetSettings(ctx context.Context) (*models.Settings, error) {
+	settings := &models.Settings{}
+	var encryptedToken string
+	err := db.conn.QueryRowContext(ctx,
+		`SELECT id, ha_token, created_at, updated_at FROM settings WHERE id = 1`,
+	).Scan(
+		&settings.ID,
+		&encryptedToken,
+		&settings.CreatedAt,
+		&settings.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("settings not found")
+		}
+		return nil, fmt.Errorf("failed to query settings: %w", err)
+	}
+
+	// Decrypt HA token after retrieval
+	decryptedToken, err := crypto.Decrypt(encryptedToken, db.encryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt ha token: %w", err)
+	}
+	settings.HAToken = decryptedToken
+
+	return settings, nil
 }

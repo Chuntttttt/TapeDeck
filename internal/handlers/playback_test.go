@@ -15,7 +15,12 @@ import (
 
 func TestPlaybackHandler_Play_ValidTagID(t *testing.T) {
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -94,7 +99,12 @@ func TestPlaybackHandler_Play_ValidTagID(t *testing.T) {
 
 func TestPlaybackHandler_Play_InvalidTagID(t *testing.T) {
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -133,7 +143,12 @@ func TestPlaybackHandler_Play_InvalidTagID(t *testing.T) {
 }
 
 func TestPlaybackHandler_Play_MissingTagID(t *testing.T) {
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -167,7 +182,12 @@ func TestPlaybackHandler_Play_MissingTagID(t *testing.T) {
 }
 
 func TestPlaybackHandler_Play_EmptyTagID(t *testing.T) {
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -201,7 +221,12 @@ func TestPlaybackHandler_Play_EmptyTagID(t *testing.T) {
 }
 
 func TestPlaybackHandler_Play_MalformedJSON(t *testing.T) {
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -236,7 +261,12 @@ func TestPlaybackHandler_Play_MalformedJSON(t *testing.T) {
 
 func TestPlaybackHandler_Play_CreatesPlaybackLog(t *testing.T) {
 	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -281,7 +311,12 @@ func TestPlaybackHandler_Play_CreatesPlaybackLog(t *testing.T) {
 }
 
 func TestPlaybackHandler_Play_WrongHTTPMethod(t *testing.T) {
-	testDB, err := db.New(":memory:")
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}

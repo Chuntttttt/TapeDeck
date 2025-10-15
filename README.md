@@ -201,12 +201,16 @@ Application settings can be configured via environment variables (`.env` file). 
 | `DATABASE_PATH` | SQLite database location | `./data/tapedeck.db` | `./data/tapedeck.db` |
 | `LOG_LEVEL` | Logging level | `info` | `info`, `debug`, `warn`, `error` |
 | `DEV_MODE` | Skip TLS verification (dev only) | `false` | `true` |
+| `REQUIRE_TLS` | Require HTTPS for session cookies | `false` | `true` |
 
-**Session Security**: The session encryption key is automatically generated on first run and stored in `.session_secret` (gitignored). This file persists sessions across restarts.
+**Security**: Sensitive data is protected through encryption:
+- **Session Security**: Session encryption key auto-generated on first run, stored in `.session_secret` (gitignored)
+- **Token Encryption**: AES-256-GCM encryption key auto-generated on first run, stored in `.encryption_key` (gitignored)
+- **Encrypted Data**: Plex auth tokens and Home Assistant token are encrypted at rest in the database
 
 ### Runtime Configuration (config.yml)
 
-Plex servers, Home Assistant, and Apple TVs are configured through the **setup wizard**, which creates a `config.yml` file:
+Plex servers, Home Assistant URL, and Apple TVs are configured through the **setup wizard**, which creates a `config.yml` file:
 
 ```yaml
 version: 1
@@ -219,7 +223,7 @@ plex_servers:
         local: true
 home_assistant:
   url: "http://192.168.1.101:8123"
-  token: "your-long-lived-access-token"
+  # Note: Token is stored encrypted in database, not in this file
 apple_tvs:
   - entity: "media_player.living_room_apple_tv"
     name: "Living Room"
@@ -228,6 +232,8 @@ apple_tvs:
     name: "Bedroom"
     default: false
 ```
+
+**Token Storage**: The Home Assistant long-lived access token is stored encrypted in the database (using AES-256-GCM), not in `config.yml`. This keeps the configuration file human-editable and prevents accidental exposure of credentials.
 
 **Multiple Server Support**: You can connect to multiple Plex servers. When pairing cards, you'll select which server the media comes from.
 

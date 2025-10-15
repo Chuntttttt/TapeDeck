@@ -22,6 +22,7 @@ go install github.com/air-verse/air@latest
 # Optional: Create .env to customize settings (all have defaults)
 # cp .env.example .env
 # SESSION_SECRET is auto-generated and stored in .session_secret on first run
+# ENCRYPTION_KEY is auto-generated and stored in .encryption_key on first run
 ```
 
 ### Running the Application
@@ -91,9 +92,11 @@ docker-compose logs -f tapedeck
 - Handlers are nil at startup if config.yml is missing; initialized after setup wizard completes via `initializeHandlers()` callback
 
 ### Configuration System
-- Environment variables (`.env`): Optional overrides for basic settings (PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE). All have sensible defaults.
+- Environment variables (`.env`): Optional overrides for basic settings (PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE, REQUIRE_TLS). All have sensible defaults.
 - Session secret (`.session_secret`): Auto-generated on first run, persists across restarts (gitignored, 0600 permissions)
-- Runtime config (`config.yml`): Plex servers, Home Assistant URL/token, Apple TVs (created by setup wizard)
+- Encryption key (`.encryption_key`): AES-256 key auto-generated on first run for encrypting sensitive data (gitignored, 0600 permissions)
+- Runtime config (`config.yml`): Plex servers, Home Assistant URL, Apple TVs (created by setup wizard)
+- **Security**: Plex auth tokens and Home Assistant token are encrypted at rest using AES-256-GCM (stored in database, not config.yml)
 - Setup wizard creates config.yml and triggers handler initialization
 - `internal/config/`: Loads both env-based config and runtime config from config.yml
 
@@ -123,8 +126,10 @@ docker-compose logs -f tapedeck
 **Database** (`internal/db/`, `internal/models/`):
 - SQLite with pure Go driver (no CGO)
 - Migrations in `migrations/*.sql` (up/down pairs)
-- Models: User, CardMapping (card_uid → plex_key, server_id, apple_tv_entity), PlaybackLog
-- `db.go`: Connection management, migration runner
+- Models: User, CardMapping (card_uid → plex_key, server_id, apple_tv_entity), PlaybackLog, Settings
+- `db.go`: Connection management, migration runner, encryption/decryption of sensitive fields
+- **Encryption**: Database layer automatically encrypts/decrypts Plex auth tokens (User model) and Home Assistant token (Settings model) using AES-256-GCM
+- Encryption key passed to `db.New()` constructor and stored in DB struct
 
 **Templates** (`templates/`):
 - Templ templates (type-safe Go templates)
@@ -137,7 +142,7 @@ docker-compose logs -f tapedeck
 **Setup Wizard Flow**:
 1. User visits /setup, redirected if config.yml missing
 2. Step 2: Plex OAuth → Fetch servers from Plex.tv → User selects servers → Saved to config.yml
-3. Step 3: HA URL/token input → Test connection → Fetch media players → User selects Apple TVs → Saved to config.yml
+3. Step 3: HA URL/token input → Test connection → Fetch media players → User selects Apple TVs → HA URL saved to config.yml, **HA token encrypted and saved to database**
 4. Step 5: Complete → Calls initializeHandlers() → Initializes all handlers with new config
 
 **NFC Pairing Flow**:

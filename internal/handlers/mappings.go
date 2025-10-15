@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
@@ -324,7 +326,12 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 
 			for _, url := range srv.URLs {
 				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
-				items, lastErr = plexClient.Search(ctx, query)
+
+				// Add timeout for external API call
+				apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+				items, lastErr = plexClient.Search(apiCtx, query)
+				cancel()
+
 				if lastErr == nil {
 					// Success! Use these results
 					break

@@ -37,4 +37,9 @@ const (
 	PlexClientTimeout = 30 * time.Second
 	// HARestTimeout is the HTTP client timeout for Home Assistant REST API requests.
 	HARestTimeout = 30 * time.Second
+
+	// PlexAPITimeout is the context timeout for Plex API operations.
+	PlexAPITimeout = 30 * time.Second
+	// HAAPITimeout is the context timeout for Home Assistant API operations.
+	HAAPITimeout = 30 * time.Second
 )

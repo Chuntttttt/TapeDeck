@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/ha"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
@@ -138,8 +141,17 @@ func (h *SetupHandler) Step2Plex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// User is authenticated, fetch servers
-	servers, err := h.plexAuth.GetServers(ctx, user.PlexAuthToken)
+	// Add timeout for external API call
+	apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+	servers, err := h.plexAuth.GetServers(apiCtx, user.PlexAuthToken)
+	cancel()
+
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("Plex API call timed out")
+			h.renderPlexError(w, r, "Plex server request timed out. Please try again.")
+			return
+		}
 		log.Error("Failed to get Plex servers", "error", err)
 		h.renderPlexError(w, r, "Failed to fetch Plex servers. Please try again.")
 		return
@@ -210,8 +222,17 @@ func (h *SetupHandler) SavePlexServers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get all servers
-	allServers, err := h.plexAuth.GetServers(ctx, user.PlexAuthToken)
+	// Add timeout for external API call
+	apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+	allServers, err := h.plexAuth.GetServers(apiCtx, user.PlexAuthToken)
+	cancel()
+
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("Plex API call timed out")
+			RespondError(w, r, "Plex server request timed out", http.StatusGatewayTimeout)
+			return
+		}
 		log.Error("Failed to get servers", "error", err)
 		RespondError(w, r, "Failed to fetch servers", http.StatusInternalServerError)
 		return
@@ -297,11 +318,19 @@ func (h *SetupHandler) TestHomeAssistant(w http.ResponseWriter, r *http.Request)
 	haClient := ha.NewRestClient(req.HAURL, req.HAToken, h.devMode)
 
 	// Test connection by getting states
-	_, err := haClient.GetStates(ctx)
+	// Add timeout for external API call
+	apiCtx, cancel := context.WithTimeout(ctx, constants.HAAPITimeout)
+	_, err := haClient.GetStates(apiCtx)
+	cancel()
+
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprintf(w, `{"success":false,"error":"Connection failed: %s"}`, html.EscapeString(err.Error()))
+		if errors.Is(err, context.DeadlineExceeded) {
+			_, _ = fmt.Fprint(w, `{"success":false,"error":"Connection timed out"}`)
+		} else {
+			_, _ = fmt.Fprintf(w, `{"success":false,"error":"Connection failed: %s"}`, html.EscapeString(err.Error()))
+		}
 		return
 	}
 
@@ -365,9 +394,18 @@ func (h *SetupHandler) Step4AppleTVs(w http.ResponseWriter, r *http.Request) {
 
 	// Get media players from HA
 	haClient := ha.NewRestClient(state.HAConfig.URL, state.HAConfig.Token, h.devMode)
-	mediaPlayers, err := haClient.GetMediaPlayers(ctx)
+
+	// Add timeout for external API call
+	apiCtx, cancel := context.WithTimeout(ctx, constants.HAAPITimeout)
+	mediaPlayers, err := haClient.GetMediaPlayers(apiCtx)
+	cancel()
 
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("Home Assistant API call timed out")
+			h.renderAppleTVError(w, r, "Home Assistant request timed out. Please try again.")
+			return
+		}
 		log.Error("Failed to get media players", "error", err)
 		h.renderAppleTVError(w, r, "Failed to fetch media players from Home Assistant")
 		return
@@ -433,8 +471,18 @@ func (h *SetupHandler) SaveAppleTVs(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch media players again to get friendly names
 	haClient := ha.NewRestClient(state.HAConfig.URL, state.HAConfig.Token, h.devMode)
-	mediaPlayers, err := haClient.GetMediaPlayers(ctx)
+
+	// Add timeout for external API call
+	apiCtx, cancel := context.WithTimeout(ctx, constants.HAAPITimeout)
+	mediaPlayers, err := haClient.GetMediaPlayers(apiCtx)
+	cancel()
+
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("Home Assistant API call timed out")
+			RespondError(w, r, "Home Assistant request timed out", http.StatusGatewayTimeout)
+			return
+		}
 		log.Error("Failed to get media players", "error", err)
 		RespondError(w, r, "Failed to fetch media players", http.StatusInternalServerError)
 		return

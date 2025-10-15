@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
@@ -102,7 +104,12 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 
 	for _, url := range selectedServer.URLs {
 		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
-		libraries, lastErr = plexClient.GetLibraries(ctx)
+
+		// Add timeout for external API call
+		apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+		libraries, lastErr = plexClient.GetLibraries(apiCtx)
+		cancel()
+
 		if lastErr == nil {
 			// Success! Use these results
 			break
@@ -111,6 +118,11 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lastErr != nil {
+		if errors.Is(lastErr, context.DeadlineExceeded) {
+			log.Warn("Plex API call timed out", "server", selectedServer.Name)
+			RespondError(w, r, "Plex server timed out", http.StatusGatewayTimeout)
+			return
+		}
 		log.Error("Failed to get libraries from server", "server", selectedServer.Name, "urls_tried", len(selectedServer.URLs), "error", lastErr)
 		RespondError(w, r, "Failed to get libraries", http.StatusInternalServerError)
 		return
@@ -187,7 +199,12 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 
 	for _, url := range selectedServer.URLs {
 		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
-		items, lastErr = plexClient.GetLibraryContents(ctx, libraryKey)
+
+		// Add timeout for external API call
+		apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+		items, lastErr = plexClient.GetLibraryContents(apiCtx, libraryKey)
+		cancel()
+
 		if lastErr == nil {
 			// Success! Use these results
 			break
@@ -196,6 +213,11 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lastErr != nil {
+		if errors.Is(lastErr, context.DeadlineExceeded) {
+			log.Warn("Plex API call timed out", "server", selectedServer.Name)
+			RespondError(w, r, "Plex server timed out", http.StatusGatewayTimeout)
+			return
+		}
 		log.Error("Failed to get library contents from server", "server", selectedServer.Name, "urls_tried", len(selectedServer.URLs), "error", lastErr)
 		RespondError(w, r, "Failed to get library contents", http.StatusInternalServerError)
 		return
@@ -259,7 +281,12 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 			for _, url := range srv.URLs {
 				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
-				items, lastErr = plexClient.Search(ctx, query)
+
+				// Add timeout for external API call
+				apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+				items, lastErr = plexClient.Search(apiCtx, query)
+				cancel()
+
 				if lastErr == nil {
 					// Success! Use these results
 					break

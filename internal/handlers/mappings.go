@@ -127,6 +127,11 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle, plexServerID, appleTVEntity)
 	mappingID, err := h.db.CreateCardMapping(ctx, mapping)
 	if err != nil {
+		if db.IsDuplicateTagError(err) {
+			log.Warn("Attempted to create duplicate tag mapping", "tag_id", tagID)
+			RespondError(w, r, "This NFC tag is already mapped to media. Please use a different card or delete the existing mapping first.", http.StatusConflict)
+			return
+		}
 		log.Error("Failed to create card mapping", "error", err)
 		RespondError(w, r, "Failed to create card mapping: "+err.Error(), http.StatusInternalServerError)
 		return

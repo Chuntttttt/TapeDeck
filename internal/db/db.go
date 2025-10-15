@@ -4,7 +4,9 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Chuntttttt/tapedeck/internal/crypto"
 	"github.com/Chuntttttt/tapedeck/internal/logger"
@@ -14,6 +16,30 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file" // Register file source driver
 	_ "modernc.org/sqlite"                               // Register SQLite driver
 )
+
+// DuplicateTagError is returned when attempting to create a mapping for a tag that already exists
+type DuplicateTagError struct {
+	TagID string
+}
+
+func (e *DuplicateTagError) Error() string {
+	return fmt.Sprintf("tag %s is already mapped to media", e.TagID)
+}
+
+// IsDuplicateTagError checks if an error is a DuplicateTagError
+func IsDuplicateTagError(err error) bool {
+	var dupErr *DuplicateTagError
+	return errors.As(err, &dupErr)
+}
+
+// isUniqueConstraintError checks if the error is a UNIQUE constraint violation from SQLite
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// SQLite UNIQUE constraint error message contains "UNIQUE constraint failed"
+	return strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
 
 // DB wraps the database connection and provides data access methods
 type DB struct {
@@ -213,6 +239,10 @@ func (db *DB) CreateCardMapping(ctx context.Context, mapping *models.CardMapping
 		mapping.UpdatedAt,
 	)
 	if err != nil {
+		// Check for UNIQUE constraint violation
+		if isUniqueConstraintError(err) {
+			return 0, &DuplicateTagError{TagID: mapping.TagID}
+		}
 		return 0, fmt.Errorf("failed to insert card mapping: %w", err)
 	}
 

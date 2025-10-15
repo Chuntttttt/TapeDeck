@@ -42,17 +42,17 @@ go build -o tapedeck .
 
 ### Code Quality
 ```bash
-# Format code (ALWAYS run after changes - required by CI)
-go fmt ./...
+# IMPORTANT: Run checks.sh before every commit
+# This runs go fmt, golangci-lint, and tests
+./checks.sh
+
+# Individual commands (checks.sh runs all of these):
+go fmt ./...                        # Format code
+golangci-lint run --timeout=5m     # Lint
+go test -v -race ./...             # Test with race detector
 
 # Generate templ files (Air does this automatically)
 templ generate
-
-# Run linter
-golangci-lint run --timeout=5m
-
-# Check without building
-go check
 ```
 
 ### Testing
@@ -155,6 +155,17 @@ docker-compose logs -f tapedeck
 4. For TV shows: Find next unwatched episode
 5. Server calls HA REST API to play media on specified Apple TV entity
 6. Server logs playback to PlaybackLog table
+
+## Development Workflow
+
+### Before Committing Code Changes
+
+**ALWAYS run `./checks.sh` after making code changes and before telling the user you're done.** This script runs:
+1. `go fmt ./...` - Format all Go files
+2. `golangci-lint run --timeout=5m` - Lint for code quality issues
+3. `go test -v -race ./...` - Run all tests with race detector
+
+This ensures all code changes pass the same checks that run in CI, preventing build failures.
 
 ## Development Notes
 

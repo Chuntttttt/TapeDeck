@@ -266,11 +266,20 @@ func main() {
 
 	// Wrap with middleware chain
 	// 1. Metrics middleware (tracks request metrics)
-	// 2. Request logging middleware (logs all requests)
-	// 3. Setup middleware (checks config for all non-exempted routes)
+	// 2. Request ID middleware (generates unique request ID)
+	// 3. User ID middleware (extracts user ID from session)
+	// 4. Request logger middleware (creates scoped logger with request metadata)
+	// 5. Request logging middleware (logs all requests)
+	// 6. Setup middleware (checks config for all non-exempted routes)
 	handler := middleware.MetricsMiddleware()(
-		middleware.RequestLogger()(
-			middleware.SetupMiddleware("./config.yml", sessionStore)(r),
+		middleware.WithRequestID()(
+			middleware.WithUserID(sessionStore)(
+				middleware.WithRequestLogger()(
+					middleware.RequestLogger()(
+						middleware.SetupMiddleware("./config.yml", sessionStore)(r),
+					),
+				),
+			),
 		),
 	)
 

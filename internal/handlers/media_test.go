@@ -18,7 +18,7 @@ func TestMediaHandler_Libraries(t *testing.T) {
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{
-		getLibrariesFunc: func() ([]plex.Library, error) {
+		getLibrariesFunc: func(_ context.Context) ([]plex.Library, error) {
 			return []plex.Library{
 				{Key: "1", Type: "movie", Title: "Movies"},
 				{Key: "2", Type: "show", Title: "TV Shows"},
@@ -51,9 +51,10 @@ func TestMediaHandler_Libraries(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -73,9 +74,12 @@ func TestMediaHandler_Libraries(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Libraries))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.Libraries(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -99,7 +103,7 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{
-		getLibraryContentsFunc: func(libraryKey string) ([]plex.MediaItem, error) {
+		getLibraryContentsFunc: func(_ context.Context, libraryKey string) ([]plex.MediaItem, error) {
 			if libraryKey != "1" {
 				return nil, nil
 			}
@@ -135,9 +139,10 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -157,12 +162,17 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request with chi URL context
-	w = httptest.NewRecorder()
+	// Add chi URL context
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("libraryKey", "1")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	handler.LibraryContents(w, req)
+
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.LibraryContents))
+
+	// Make request
+	w = httptest.NewRecorder()
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -186,7 +196,7 @@ func TestMediaHandler_Search(t *testing.T) {
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{
-		searchFunc: func(query string) ([]plex.MediaItem, error) {
+		searchFunc: func(_ context.Context, query string) ([]plex.MediaItem, error) {
 			if query == "matrix" {
 				return []plex.MediaItem{
 					{RatingKey: "100", Title: "The Matrix", Type: "movie", Year: 1999},
@@ -221,9 +231,10 @@ func TestMediaHandler_Search(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -243,9 +254,12 @@ func TestMediaHandler_Search(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Search))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.Search(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -289,9 +303,10 @@ func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -311,9 +326,12 @@ func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Search))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.Search(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -334,28 +352,28 @@ func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
 
 // Mock Plex client for testing
 type mockPlexClient struct {
-	getLibrariesFunc       func() ([]plex.Library, error)
-	getLibraryContentsFunc func(libraryKey string) ([]plex.MediaItem, error)
-	searchFunc             func(query string) ([]plex.MediaItem, error)
+	getLibrariesFunc       func(context.Context) ([]plex.Library, error)
+	getLibraryContentsFunc func(context.Context, string) ([]plex.MediaItem, error)
+	searchFunc             func(context.Context, string) ([]plex.MediaItem, error)
 }
 
-func (m *mockPlexClient) GetLibraries() ([]plex.Library, error) {
+func (m *mockPlexClient) GetLibraries(ctx context.Context) ([]plex.Library, error) {
 	if m.getLibrariesFunc != nil {
-		return m.getLibrariesFunc()
+		return m.getLibrariesFunc(ctx)
 	}
 	return nil, nil
 }
 
-func (m *mockPlexClient) GetLibraryContents(libraryKey string) ([]plex.MediaItem, error) {
+func (m *mockPlexClient) GetLibraryContents(ctx context.Context, libraryKey string) ([]plex.MediaItem, error) {
 	if m.getLibraryContentsFunc != nil {
-		return m.getLibraryContentsFunc(libraryKey)
+		return m.getLibraryContentsFunc(ctx, libraryKey)
 	}
 	return nil, nil
 }
 
-func (m *mockPlexClient) Search(query string) ([]plex.MediaItem, error) {
+func (m *mockPlexClient) Search(ctx context.Context, query string) ([]plex.MediaItem, error) {
 	if m.searchFunc != nil {
-		return m.searchFunc(query)
+		return m.searchFunc(ctx, query)
 	}
 	return nil, nil
 }

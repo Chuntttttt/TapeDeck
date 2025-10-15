@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"log"
+	"context"
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/db"
@@ -14,9 +14,9 @@ import (
 
 // PlexClientInterface defines the methods needed from the Plex client
 type PlexClientInterface interface {
-	GetLibraries() ([]plex.Library, error)
-	GetLibraryContents(libraryKey string) ([]plex.MediaItem, error)
-	Search(query string) ([]plex.MediaItem, error)
+	GetLibraries(ctx context.Context) ([]plex.Library, error)
+	GetLibraryContents(ctx context.Context, libraryKey string) ([]plex.MediaItem, error)
+	Search(ctx context.Context, query string) ([]plex.MediaItem, error)
 }
 
 // PlexClientFactory creates a new Plex client
@@ -53,18 +53,20 @@ func NewMediaHandler(store *sessions.CookieStore, database *db.DB, servers []Ser
 
 // Libraries handles GET /libraries
 func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(userID)
+	user, err := h.db.GetUserByID(ctx, userID)
 	if err != nil {
-		log.Printf("Failed to get user: %v", err)
+		log.Error("Failed to get user", "error", err)
 		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
@@ -100,7 +102,7 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 
 	for _, url := range selectedServer.URLs {
 		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
-		libraries, lastErr = plexClient.GetLibraries()
+		libraries, lastErr = plexClient.GetLibraries(ctx)
 		if lastErr == nil {
 			// Success! Use these results
 			break
@@ -109,7 +111,7 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lastErr != nil {
-		log.Printf("Failed to get libraries from server %s (tried %d URLs): %v", selectedServer.Name, len(selectedServer.URLs), lastErr)
+		log.Error("Failed to get libraries from server", "server", selectedServer.Name, "urls_tried", len(selectedServer.URLs), "error", lastErr)
 		RespondError(w, r, "Failed to get libraries", http.StatusInternalServerError)
 		return
 	}
@@ -122,32 +124,34 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	pageSelectedServer := pages.ServerInfo{ID: selectedServer.ID, Name: selectedServer.Name}
 
 	// Render using templ template
-	if err := pages.MediaLibraries(pageServers, pageSelectedServer, libraries, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.MediaLibraries(pageServers, pageSelectedServer, libraries, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // LibraryContents handles GET /libraries/{libraryKey}
 func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	libraryKey := chi.URLParam(r, "libraryKey")
 	if libraryKey == "" {
 		RespondError(w, r, "Library key required", http.StatusBadRequest)
 		return
 	}
 
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(userID)
+	user, err := h.db.GetUserByID(ctx, userID)
 	if err != nil {
-		log.Printf("Failed to get user: %v", err)
+		log.Error("Failed to get user", "error", err)
 		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
@@ -183,7 +187,7 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 
 	for _, url := range selectedServer.URLs {
 		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
-		items, lastErr = plexClient.GetLibraryContents(libraryKey)
+		items, lastErr = plexClient.GetLibraryContents(ctx, libraryKey)
 		if lastErr == nil {
 			// Success! Use these results
 			break
@@ -192,23 +196,25 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lastErr != nil {
-		log.Printf("Failed to get library contents from server %s (tried %d URLs): %v", selectedServer.Name, len(selectedServer.URLs), lastErr)
+		log.Error("Failed to get library contents from server", "server", selectedServer.Name, "urls_tried", len(selectedServer.URLs), "error", lastErr)
 		RespondError(w, r, "Failed to get library contents", http.StatusInternalServerError)
 		return
 	}
 
 	// Render using templ template
-	if err := pages.MediaLibraryContents(items, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.MediaLibraryContents(items, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // Search handles GET /search
 func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -219,17 +225,17 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	// If no query, show empty search page
 	if query == "" {
-		if err := pages.MediaSearchEmpty(NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-			log.Printf("Failed to render template: %v", err)
+		if err := pages.MediaSearchEmpty(NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+			log.Error("Failed to render template", "error", err)
 			RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 		}
 		return
 	}
 
 	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(userID)
+	user, err := h.db.GetUserByID(ctx, userID)
 	if err != nil {
-		log.Printf("Failed to get user: %v", err)
+		log.Error("Failed to get user", "error", err)
 		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
@@ -253,7 +259,7 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 			for _, url := range srv.URLs {
 				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
-				items, lastErr = plexClient.Search(query)
+				items, lastErr = plexClient.Search(ctx, query)
 				if lastErr == nil {
 					// Success! Use these results
 					break
@@ -277,7 +283,7 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < len(h.servers); i++ {
 		result := <-resultChan
 		if result.err != nil {
-			log.Printf("Failed to search server %s: %v", result.serverName, result.err)
+			log.Warn("Failed to search server", "server", result.serverName, "error", result.err)
 			searchErrors = append(searchErrors, result.err)
 			continue
 		}
@@ -293,14 +299,14 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	// If all servers failed, return error
 	if len(searchErrors) == len(h.servers) {
-		log.Printf("All servers failed to search")
+		log.Error("All servers failed to search")
 		RespondError(w, r, "Failed to search all servers", http.StatusInternalServerError)
 		return
 	}
 
 	// Render using templ template
-	if err := pages.MediaSearchResults(query, items, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.MediaSearchResults(query, items, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }

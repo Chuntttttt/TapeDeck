@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 )
 
@@ -49,6 +50,9 @@ type PlayErrorResponse struct {
 
 // Play handles POST /api/play requests from Home Assistant
 func (h *PlaybackHandler) Play(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	// Only allow POST requests
 	if r.Method != http.MethodPost {
 		w.Header().Set("Content-Type", "application/json")
@@ -63,6 +67,7 @@ func (h *PlaybackHandler) Play(w http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	var req PlayRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Error("Failed to parse request body", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(PlayErrorResponse{
@@ -74,6 +79,7 @@ func (h *PlaybackHandler) Play(w http.ResponseWriter, r *http.Request) {
 
 	// Validate tag_id is present
 	if req.TagID == "" {
+		log.Warn("Request missing tag_id")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(PlayErrorResponse{
@@ -84,8 +90,9 @@ func (h *PlaybackHandler) Play(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Look up card mapping by tag_id
-	mapping, err := h.db.GetCardMappingByTagID(req.TagID)
+	mapping, err := h.db.GetCardMappingByTagID(ctx, req.TagID)
 	if err != nil {
+		log.Info("Tag not found", "tag_id", req.TagID, "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(w).Encode(PlayErrorResponse{
@@ -96,12 +103,10 @@ func (h *PlaybackHandler) Play(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create playback log
-	log := models.NewPlaybackLog(mapping.UserID, mapping.TagID, mapping.MediaID, mapping.MediaTitle)
-	_, err = h.db.CreatePlaybackLog(log)
+	playbackLog := models.NewPlaybackLog(mapping.UserID, mapping.TagID, mapping.MediaID, mapping.MediaTitle)
+	_, err = h.db.CreatePlaybackLog(ctx, playbackLog)
 	if err != nil {
-		// Log error but don't fail the request
-		// In production, you might want to use a proper logger here
-		fmt.Printf("Warning: Failed to create playback log: %v\n", err)
+		log.Warn("Failed to create playback log", "error", err)
 	}
 
 	// Build Plex key from media_id (rating key)

@@ -1,17 +1,18 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/middleware"
 )
 
 // HAStatusInterface defines the interface for checking Home Assistant connection
 type HAStatusInterface interface {
 	IsConnected() bool
-	Reconnect(newToken string) error
+	Reconnect(ctx context.Context, newToken string) error
 }
 
 // StatusHandler handles status check requests
@@ -52,6 +53,9 @@ func (h *StatusHandler) HAStatus(w http.ResponseWriter, r *http.Request) {
 
 // HAReconnect handles POST /api/status/ha/reconnect
 func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	if r.Method != http.MethodPost {
 		RespondError(w, r, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -70,7 +74,7 @@ func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
 	// Reload runtime configuration from config.yml to get updated HA token
 	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
-		log.Printf("Failed to reload runtime config: %v", err)
+		log.Error("Failed to reload runtime config", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -89,12 +93,12 @@ func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
 	} else if len(haToken) > 0 {
 		tokenPreview = haToken + "..."
 	}
-	log.Printf("Attempting reconnection with token: %s (length: %d)", tokenPreview, len(haToken))
+	log.Info("Attempting reconnection", "token_preview", tokenPreview, "token_length", len(haToken))
 
 	// Attempt reconnection with new token
-	err = h.haClient.Reconnect(haToken)
+	err = h.haClient.Reconnect(ctx, haToken)
 	if err != nil {
-		log.Printf("Failed to reconnect to Home Assistant: %v", err)
+		log.Error("Failed to reconnect to Home Assistant", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -104,7 +108,7 @@ func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Successfully reconnected to Home Assistant")
+	log.Info("Successfully reconnected to Home Assistant")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{

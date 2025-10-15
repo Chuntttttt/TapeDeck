@@ -37,22 +37,23 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create some test mappings
 	mapping1 := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(mapping1)
+	_, err = testDB.CreateCardMapping(ctx, mapping1)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
 
 	mapping2 := models.NewCardMapping(userID, "nfc-789", "show", "rating-101", "Breaking Bad", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(mapping2)
+	_, err = testDB.CreateCardMapping(ctx, mapping2)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
@@ -72,9 +73,12 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Dashboard))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.Dashboard(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -120,9 +124,10 @@ func TestMappingsHandler_Dashboard_Empty(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -142,9 +147,12 @@ func TestMappingsHandler_Dashboard_Empty(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Dashboard))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.Dashboard(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -178,9 +186,10 @@ func TestMappingsHandler_NewMappingForm(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -200,9 +209,12 @@ func TestMappingsHandler_NewMappingForm(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.NewMappingForm))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.NewMappingForm(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -239,9 +251,10 @@ func TestMappingsHandler_CreateMapping(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -271,9 +284,12 @@ func TestMappingsHandler_CreateMapping(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.CreateMapping))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.CreateMapping(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusFound {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusFound)
@@ -286,7 +302,7 @@ func TestMappingsHandler_CreateMapping(t *testing.T) {
 	}
 
 	// Verify mapping was created
-	mappings, err := testDB.GetCardMappingsByUserID(userID)
+	mappings, err := testDB.GetCardMappingsByUserID(ctx, userID)
 	if err != nil {
 		t.Fatalf("Failed to get mappings: %v", err)
 	}
@@ -324,16 +340,17 @@ func TestMappingsHandler_EditMappingForm(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create a mapping
 	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	mappingID, err := testDB.CreateCardMapping(mapping)
+	mappingID, err := testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
@@ -353,12 +370,17 @@ func TestMappingsHandler_EditMappingForm(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request with chi URL context
-	w = httptest.NewRecorder()
+	// Add chi URL context
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprintf("%d", mappingID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	handler.EditMappingForm(w, req)
+
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.EditMappingForm))
+
+	// Make request
+	w = httptest.NewRecorder()
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -395,16 +417,17 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create a mapping
 	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	mappingID, err := testDB.CreateCardMapping(mapping)
+	mappingID, err := testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
@@ -434,19 +457,24 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request with chi URL context
-	w = httptest.NewRecorder()
+	// Add chi URL context
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprintf("%d", mappingID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	handler.UpdateMapping(w, req)
+
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.UpdateMapping))
+
+	// Make request
+	w = httptest.NewRecorder()
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusFound {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusFound)
 	}
 
 	// Verify mapping was updated
-	updated, err := testDB.GetCardMappingByID(mappingID)
+	updated, err := testDB.GetCardMappingByID(ctx, mappingID)
 	if err != nil {
 		t.Fatalf("Failed to get updated mapping: %v", err)
 	}
@@ -477,16 +505,17 @@ func TestMappingsHandler_DeleteMapping(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create a mapping
 	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	mappingID, err := testDB.CreateCardMapping(mapping)
+	mappingID, err := testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
@@ -506,19 +535,24 @@ func TestMappingsHandler_DeleteMapping(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Make request with chi URL context
-	w = httptest.NewRecorder()
+	// Add chi URL context
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprintf("%d", mappingID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	handler.DeleteMapping(w, req)
+
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.DeleteMapping))
+
+	// Make request
+	w = httptest.NewRecorder()
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusFound {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusFound)
 	}
 
 	// Verify mapping was deleted
-	_, err = testDB.GetCardMappingByID(mappingID)
+	_, err = testDB.GetCardMappingByID(ctx, mappingID)
 	if err == nil {
 		t.Error("Expected error when getting deleted mapping, got nil")
 	}
@@ -529,7 +563,7 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{
-		searchFunc: func(query string) ([]plex.MediaItem, error) {
+		searchFunc: func(_ context.Context, query string) ([]plex.MediaItem, error) {
 			if query == "matrix" {
 				return []plex.MediaItem{
 					{RatingKey: "100", Title: "The Matrix", Type: "movie", Year: 1999},
@@ -569,9 +603,10 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 
 	handler.db = testDB
 
+	ctx := context.Background()
 	// Create a test user
 	user := models.NewUser("testuser", "plex-user-123", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -591,9 +626,12 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.SearchJSON))
+
 	// Make request
 	w = httptest.NewRecorder()
-	handler.SearchJSON(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)

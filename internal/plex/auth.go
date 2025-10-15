@@ -2,6 +2,7 @@
 package plex
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -15,8 +16,8 @@ import (
 
 // AuthClientInterface defines the methods required for Plex authentication
 type AuthClientInterface interface {
-	RequestPIN() (*PINResponse, error)
-	CheckPIN(pinID int) (*PINCheckResponse, error)
+	RequestPIN(ctx context.Context) (*PINResponse, error)
+	CheckPIN(ctx context.Context, pinID int) (*PINCheckResponse, error)
 }
 
 // AuthClient handles Plex authentication operations
@@ -68,12 +69,12 @@ func NewAuthClient(baseURL, clientID, productName string, devMode bool) *AuthCli
 }
 
 // RequestPIN requests a new authentication PIN from Plex
-func (c *AuthClient) RequestPIN() (*PINResponse, error) {
+func (c *AuthClient) RequestPIN(ctx context.Context) (*PINResponse, error) {
 	if c.clientID == "" {
 		return nil, fmt.Errorf("client ID is required")
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/v2/pins", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v2/pins", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -110,10 +111,10 @@ func (c *AuthClient) RequestPIN() (*PINResponse, error) {
 }
 
 // CheckPIN checks the status of a PIN to see if it has been authorized
-func (c *AuthClient) CheckPIN(pinID int) (*PINCheckResponse, error) {
+func (c *AuthClient) CheckPIN(ctx context.Context, pinID int) (*PINCheckResponse, error) {
 	url := fmt.Sprintf("%s/api/v2/pins/%d", c.baseURL, pinID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

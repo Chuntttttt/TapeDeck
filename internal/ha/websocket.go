@@ -2,6 +2,7 @@
 package ha
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -258,7 +259,7 @@ func (c *HAClient) IsConnected() bool {
 }
 
 // Reconnect attempts to reconnect to Home Assistant with a new token
-func (c *HAClient) Reconnect(newToken string) error {
+func (c *HAClient) Reconnect(_ context.Context, newToken string) error {
 	// Close existing connection if any
 	c.mu.Lock()
 	oldTokenPreview := "empty"

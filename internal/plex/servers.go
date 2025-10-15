@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -39,10 +40,10 @@ type Connection struct {
 }
 
 // GetServers fetches all Plex servers the user has access to
-func (c *AuthClient) GetServers(authToken string) ([]config.PlexServer, error) {
+func (c *AuthClient) GetServers(ctx context.Context, authToken string) ([]config.PlexServer, error) {
 	// Build request
 	url := fmt.Sprintf("%s/api/v2/resources?includeHttps=1&includeRelay=1", c.baseURL)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

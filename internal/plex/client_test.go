@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -105,7 +106,8 @@ func TestGetLibraries(t *testing.T) {
 			defer server.Close()
 
 			client := NewClient(server.URL, "test-server-id", "test-token", false)
-			libraries, err := client.GetLibraries()
+			ctx := context.Background()
+			libraries, err := client.GetLibraries(ctx)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetLibraries() error = %v, wantErr %v", err, tt.wantErr)
@@ -197,7 +199,8 @@ func TestGetLibraryContents(t *testing.T) {
 			defer server.Close()
 
 			client := NewClient(server.URL, "test-server-id", "test-token", false)
-			items, err := client.GetLibraryContents(tt.libraryKey)
+			ctx := context.Background()
+			items, err := client.GetLibraryContents(ctx, tt.libraryKey)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetLibraryContents() error = %v, wantErr %v", err, tt.wantErr)
@@ -289,7 +292,8 @@ func TestSearch(t *testing.T) {
 			defer server.Close()
 
 			client := NewClient(server.URL, "test-server-id", "test-token", false)
-			results, err := client.Search(tt.query)
+			ctx := context.Background()
+			results, err := client.Search(ctx, tt.query)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Search() error = %v, wantErr %v", err, tt.wantErr)

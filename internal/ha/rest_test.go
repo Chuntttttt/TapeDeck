@@ -1,6 +1,7 @@
 package ha
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -83,8 +84,10 @@ func TestPlayMedia_Success(t *testing.T) {
 	// Create client
 	client := NewRestClient(server.URL, "test-token", false)
 
+	ctx := context.Background()
 	// Call PlayMedia
 	err := client.PlayMedia(
+		ctx,
 		"media_player.apple_tv",
 		"url",
 		"plex://play/?metadataKey=/library/metadata/12345&server=abc123",
@@ -106,8 +109,9 @@ func TestPlayMedia_Unauthorized(t *testing.T) {
 	// Create client
 	client := NewRestClient(server.URL, "invalid-token", false)
 
+	ctx := context.Background()
 	// Call PlayMedia
-	err := client.PlayMedia("media_player.apple_tv", "url", "test-url")
+	err := client.PlayMedia(ctx, "media_player.apple_tv", "url", "test-url")
 
 	if err == nil {
 		t.Error("PlayMedia() succeeded, want error")
@@ -129,8 +133,10 @@ func TestPlayMedia_NotFound(t *testing.T) {
 	// Create client
 	client := NewRestClient(server.URL, "test-token", false)
 
+	ctx := context.Background()
 	// Call PlayMedia
-	err := client.PlayMedia("media_player.invalid", "url", "test-url")
+	err := client.PlayMedia(
+		ctx, "media_player.invalid", "url", "test-url")
 
 	if err == nil {
 		t.Error("PlayMedia() succeeded, want error")
@@ -152,8 +158,10 @@ func TestPlayMedia_BadGateway(t *testing.T) {
 	// Create client
 	client := NewRestClient(server.URL, "test-token", false)
 
+	ctx := context.Background()
 	// Call PlayMedia
-	err := client.PlayMedia("media_player.apple_tv", "url", "test-url")
+	err := client.PlayMedia(
+		ctx, "media_player.apple_tv", "url", "test-url")
 
 	if err == nil {
 		t.Error("PlayMedia() succeeded, want error")
@@ -168,8 +176,9 @@ func TestPlayMedia_InvalidURL(t *testing.T) {
 	// Create client with invalid URL
 	client := NewRestClient("http://invalid-host-that-does-not-exist-12345.local", "test-token", false)
 
+	ctx := context.Background()
 	// Call PlayMedia
-	err := client.PlayMedia("media_player.apple_tv", "url", "test-url")
+	err := client.PlayMedia(ctx, "media_player.apple_tv", "url", "test-url")
 
 	if err == nil {
 		t.Error("PlayMedia() succeeded, want error")
@@ -200,8 +209,9 @@ func TestPlayMedia_EmptyFields(t *testing.T) {
 	// Create client
 	client := NewRestClient(server.URL, "test-token", false)
 
+	ctx := context.Background()
 	// Call PlayMedia with empty fields
-	err := client.PlayMedia("", "", "")
+	err := client.PlayMedia(ctx, "", "", "")
 
 	if err != nil {
 		t.Errorf("PlayMedia() failed: %v", err)
@@ -255,8 +265,9 @@ func TestPlayMedia_MultipleContentTypes(t *testing.T) {
 			// Create client
 			client := NewRestClient(server.URL, "test-token", false)
 
+			ctx := context.Background()
 			// Call PlayMedia
-			err := client.PlayMedia("media_player.test", tt.contentType, tt.contentID)
+			err := client.PlayMedia(ctx, "media_player.test", tt.contentType, tt.contentID)
 
 			if err != nil {
 				t.Errorf("PlayMedia() failed: %v", err)

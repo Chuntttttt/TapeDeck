@@ -3,6 +3,7 @@ package ha
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -48,14 +49,14 @@ type EntityState struct {
 }
 
 // GetEntityState retrieves the current state of an entity
-func (c *RestClient) GetEntityState(entityID string) (string, error) {
+func (c *RestClient) GetEntityState(ctx context.Context, entityID string) (string, error) {
 	url := fmt.Sprintf("%s/api/states/%s", c.baseURL, entityID)
 
 	if c.devMode {
 		logger.Debug("Getting entity state", "url", url, "entity_id", entityID)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -90,7 +91,7 @@ func (c *RestClient) GetEntityState(entityID string) (string, error) {
 }
 
 // TurnOn calls the media_player.turn_on service
-func (c *RestClient) TurnOn(entityID string) error {
+func (c *RestClient) TurnOn(ctx context.Context, entityID string) error {
 	url := fmt.Sprintf("%s/api/services/media_player/turn_on", c.baseURL)
 
 	payload := map[string]interface{}{
@@ -106,7 +107,7 @@ func (c *RestClient) TurnOn(entityID string) error {
 		logger.Debug("Calling turn_on service", "url", url, "entity_id", entityID)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -137,7 +138,7 @@ func (c *RestClient) TurnOn(entityID string) error {
 }
 
 // PlayMedia calls the media_player.play_media service in Home Assistant
-func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
+func (c *RestClient) PlayMedia(ctx context.Context, entityID, contentType, contentID string) error {
 	url := fmt.Sprintf("%s/api/services/media_player/play_media", c.baseURL)
 
 	// Build request body
@@ -153,7 +154,7 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -201,14 +202,14 @@ type Entity struct {
 }
 
 // GetStates retrieves all entity states from Home Assistant
-func (c *RestClient) GetStates() ([]Entity, error) {
+func (c *RestClient) GetStates(ctx context.Context) ([]Entity, error) {
 	url := fmt.Sprintf("%s/api/states", c.baseURL)
 
 	if c.devMode {
 		logger.Debug("Getting all entity states", "url", url)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -243,9 +244,9 @@ func (c *RestClient) GetStates() ([]Entity, error) {
 }
 
 // GetMediaPlayers retrieves all media_player entities from Home Assistant
-func (c *RestClient) GetMediaPlayers() ([]Entity, error) {
+func (c *RestClient) GetMediaPlayers(ctx context.Context) ([]Entity, error) {
 	// Get all states
-	allEntities, err := c.GetStates()
+	allEntities, err := c.GetStates(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -25,16 +26,17 @@ func TestPlaybackHandler_Play_ValidTagID(t *testing.T) {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
+	ctx := context.Background()
 	// Create test user
 	user := models.NewUser("testuser", "123456", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create test card mapping
 	mapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "12345", "Toy Story", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(mapping)
+	_, err = testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create card mapping: %v", err)
 	}
@@ -245,16 +247,17 @@ func TestPlaybackHandler_Play_CreatesPlaybackLog(t *testing.T) {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
+	ctx := context.Background()
 	// Create test user
 	user := models.NewUser("testuser", "123456", "test-auth-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create test card mapping
 	mapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "12345", "Toy Story", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(mapping)
+	_, err = testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create card mapping: %v", err)
 	}

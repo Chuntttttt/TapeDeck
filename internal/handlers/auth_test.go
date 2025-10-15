@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -191,7 +192,7 @@ func TestAuthHandler_PollStatus_RateLimited(t *testing.T) {
 
 	// Create mock Plex client that returns rate limit error
 	mockPlex := &mockPlexAuthClient{
-		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
+		checkPINFunc: func(_ context.Context, _ int) (*plex.PINCheckResponse, error) {
 			return nil, &httpError{code: 429, message: "unexpected status code: 429"}
 		},
 	}
@@ -234,7 +235,7 @@ func TestAuthHandler_PollStatus_NotYetAuthorized(t *testing.T) {
 
 	// Create mock Plex client that returns empty auth token
 	mockPlex := &mockPlexAuthClient{
-		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
+		checkPINFunc: func(_ context.Context, _ int) (*plex.PINCheckResponse, error) {
 			return &plex.PINCheckResponse{
 				ID:        12345,
 				Code:      "ABC123",
@@ -281,7 +282,7 @@ func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
 
 	// Create mock Plex client that returns auth token
 	mockPlex := &mockPlexAuthClient{
-		checkPINFunc: func(_ int) (*plex.PINCheckResponse, error) {
+		checkPINFunc: func(_ context.Context, _ int) (*plex.PINCheckResponse, error) {
 			return &plex.PINCheckResponse{
 				ID:        12345,
 				Code:      "ABC123",
@@ -360,20 +361,20 @@ func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
 
 // Mock Plex auth client for testing
 type mockPlexAuthClient struct {
-	requestPINFunc func() (*plex.PINResponse, error)
-	checkPINFunc   func(_ int) (*plex.PINCheckResponse, error)
+	requestPINFunc func(context.Context) (*plex.PINResponse, error)
+	checkPINFunc   func(context.Context, int) (*plex.PINCheckResponse, error)
 }
 
-func (m *mockPlexAuthClient) RequestPIN() (*plex.PINResponse, error) {
+func (m *mockPlexAuthClient) RequestPIN(ctx context.Context) (*plex.PINResponse, error) {
 	if m.requestPINFunc != nil {
-		return m.requestPINFunc()
+		return m.requestPINFunc(ctx)
 	}
 	return nil, nil
 }
 
-func (m *mockPlexAuthClient) CheckPIN(pinID int) (*plex.PINCheckResponse, error) {
+func (m *mockPlexAuthClient) CheckPIN(ctx context.Context, pinID int) (*plex.PINCheckResponse, error) {
 	if m.checkPINFunc != nil {
-		return m.checkPINFunc(pinID)
+		return m.checkPINFunc(ctx, pinID)
 	}
 	return nil, nil
 }

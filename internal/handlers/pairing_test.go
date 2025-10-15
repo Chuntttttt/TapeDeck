@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -49,8 +50,11 @@ func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.PairForm))
+
 	w = httptest.NewRecorder()
-	handler.PairForm(w, req)
+	wrappedHandler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Status = %d, want %d", w.Code, http.StatusOK)
@@ -97,8 +101,9 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -181,7 +186,7 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 	}
 
 	// Verify mapping was created in database
-	mapping, err := testDB.GetCardMappingByTagID("04-16-5C-D4-2E-61-80")
+	mapping, err := testDB.GetCardMappingByTagID(ctx, "04-16-5C-D4-2E-61-80")
 	if err != nil {
 		t.Fatalf("Failed to get mapping: %v", err)
 	}
@@ -215,15 +220,16 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create existing mapping with same tag
 	existingMapping := models.NewCardMapping(userID, "04-16-5C-D4-2E-61-80", "movie", "99999", "Existing Movie", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(existingMapping)
+	_, err = testDB.CreateCardMapping(ctx, existingMapping)
 	if err != nil {
 		t.Fatalf("Failed to create existing mapping: %v", err)
 	}
@@ -314,8 +320,9 @@ func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -375,8 +382,9 @@ func TestPairingHandler_WebSocketPairing_MissingFields(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -518,7 +526,7 @@ type playMediaCall struct {
 	contentID   string
 }
 
-func (m *mockHARestClient) GetEntityState(_ string) (string, error) {
+func (m *mockHARestClient) GetEntityState(_ context.Context, _ string) (string, error) {
 	if m.getStateError != nil {
 		return "", m.getStateError
 	}
@@ -528,12 +536,12 @@ func (m *mockHARestClient) GetEntityState(_ string) (string, error) {
 	return m.entityState, nil
 }
 
-func (m *mockHARestClient) TurnOn(entityID string) error {
+func (m *mockHARestClient) TurnOn(_ context.Context, entityID string) error {
 	m.turnOnCalls = append(m.turnOnCalls, entityID)
 	return m.turnOnError
 }
 
-func (m *mockHARestClient) PlayMedia(entityID, contentType, contentID string) error {
+func (m *mockHARestClient) PlayMedia(_ context.Context, entityID, contentType, contentID string) error {
 	m.playMediaCalls = append(m.playMediaCalls, playMediaCall{
 		entityID:    entityID,
 		contentType: contentType,
@@ -558,15 +566,16 @@ func TestPairingHandler_Playback_Success(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create mapping
 	mapping := models.NewCardMapping(userID, "test-tag-123", "movie", "12345", "Toy Story", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(mapping)
+	_, err = testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
@@ -656,15 +665,16 @@ func TestPairingHandler_Playback_RestClientError(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create mapping
 	mapping := models.NewCardMapping(userID, "test-tag-456", "movie", "67890", "Finding Nemo", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(mapping)
+	_, err = testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
@@ -709,15 +719,16 @@ func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Create mapping
 	mapping := models.NewCardMapping(userID, "test-tag-789", "movie", "11111", "The Incredibles", "test-server-id", "media_player.test")
-	_, err = testDB.CreateCardMapping(mapping)
+	_, err = testDB.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("Failed to create mapping: %v", err)
 	}
@@ -754,8 +765,9 @@ func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
 	}
 
 	// Create test user
+	ctx := context.Background()
 	user := models.NewUser("testuser", "plex-user-123", "test-token")
-	userID, err := testDB.CreateUser(user)
+	userID, err := testDB.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -832,7 +844,7 @@ func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
 	}
 
 	// Verify mapping was created
-	mapping, err := testDB.GetCardMappingByTagID("pairing-tag-123")
+	mapping, err := testDB.GetCardMappingByTagID(ctx, "pairing-tag-123")
 	if err != nil {
 		t.Fatalf("Failed to get mapping: %v", err)
 	}

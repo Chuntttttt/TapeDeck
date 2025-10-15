@@ -3,7 +3,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -33,6 +32,9 @@ func NewAuthHandler(store *sessions.CookieStore, plexAuth plex.AuthClientInterfa
 
 // Login handles the GET /auth/login endpoint
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	// Check if already authenticated
 	session := getOrCreateSession(h.sessionStore, r)
 	if _, ok := middleware.GetUserID(session); ok {
@@ -55,9 +57,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// If no existing PIN, request a new one from Plex
 	if pin == nil {
 		var err error
-		pin, err = h.plexAuth.RequestPIN()
+		pin, err = h.plexAuth.RequestPIN(ctx)
 		if err != nil {
-			log.Printf("Failed to request PIN: %v", err)
+			log.Error("Failed to request PIN", "error", err)
 			RespondError(w, r, "Failed to initiate Plex authentication", http.StatusInternalServerError)
 			return
 		}
@@ -66,15 +68,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		session.Values["plex_pin_id"] = pin.ID
 		session.Values["plex_pin_code"] = pin.Code
 		if err := session.Save(r, w); err != nil {
-			log.Printf("Failed to save session: %v", err)
+			log.Error("Failed to save session", "error", err)
 			RespondError(w, r, "Session error", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	// Render login page with polling
-	if err := pages.AuthLogin(pin.Code).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.AuthLogin(pin.Code).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
@@ -88,6 +90,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // See: https://forums.plex.tv/t/plex-oauth-authenticate-with-plex-broken-after-plex-web-update-v4-152-0/931098
 // TODO: Switch back to forwardUrl redirect flow when Plex fixes their OAuth implementation
 func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	session := getOrCreateSession(h.sessionStore, r)
 
 	// Get PIN ID from session
@@ -108,11 +113,11 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check PIN status to get auth token
-	check, err := h.plexAuth.CheckPIN(pinID)
+	check, err := h.plexAuth.CheckPIN(ctx, pinID)
 	if err != nil {
 		// Don't log 429 rate limit errors - they're expected with polling
 		if err.Error() != "unexpected status code: 429" {
-			log.Printf("Failed to check PIN: %v", err)
+			log.Warn("Failed to check PIN", "error", err)
 		}
 		// Return 429 status so client can back off
 		if err.Error() == "unexpected status code: 429" {
@@ -139,13 +144,13 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 	plexUserID := "plex-user-" + authToken[:10]
 	plexUsername := "PlexUser"
 
-	user, err := h.db.GetUserByPlexUserID(plexUserID)
+	user, err := h.db.GetUserByPlexUserID(ctx, plexUserID)
 	if err != nil {
 		// User doesn't exist, create new one
 		user = models.NewUser(plexUsername, plexUserID, authToken)
-		userID, err := h.db.CreateUser(user)
+		userID, err := h.db.CreateUser(ctx, user)
 		if err != nil {
-			log.Printf("Failed to create user: %v", err)
+			log.Error("Failed to create user", "error", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
@@ -156,8 +161,8 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 		// Update existing user's token
 		user.PlexAuthToken = authToken
 		user.UpdatedAt = time.Now()
-		if err := h.db.UpdateUser(user); err != nil {
-			log.Printf("Failed to update user: %v", err)
+		if err := h.db.UpdateUser(ctx, user); err != nil {
+			log.Warn("Failed to update user", "error", err)
 		}
 	}
 
@@ -167,14 +172,14 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 	delete(session.Values, "plex_pin_code")
 
 	if err := session.Save(r, w); err != nil {
-		log.Printf("Failed to save session: %v", err)
+		log.Error("Failed to save session", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
 		return
 	}
 
-	log.Printf("User authenticated successfully via polling")
+	log.Info("User authenticated successfully via polling")
 
 	// Return success
 	w.Header().Set("Content-Type", "application/json")
@@ -184,12 +189,15 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 
 // Logout handles the POST /auth/logout endpoint
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	session := getOrCreateSession(h.sessionStore, r)
 
 	middleware.ClearSession(session)
 
 	if err := session.Save(r, w); err != nil {
-		log.Printf("Failed to save session: %v", err)
+		log.Error("Failed to save session", "error", err)
 	}
 
 	// Check for redirect parameter

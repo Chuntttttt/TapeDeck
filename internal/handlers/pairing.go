@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -27,9 +28,9 @@ type HAClientInterface interface {
 
 // HARestInterface defines the interface for Home Assistant REST client
 type HARestInterface interface {
-	GetEntityState(entityID string) (string, error)
-	TurnOn(entityID string) error
-	PlayMedia(entityID, contentType, contentID string) error
+	GetEntityState(ctx context.Context, entityID string) (string, error)
+	TurnOn(ctx context.Context, entityID string) error
+	PlayMedia(ctx context.Context, entityID, contentType, contentID string) error
 }
 
 // PairingHandler handles NFC pairing requests
@@ -94,9 +95,11 @@ func NewPairingHandler(
 
 // PairForm handles GET /mappings/pair
 func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	_, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	logger := middleware.GetLogger(ctx)
+
+	// Get user from context
+	_, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -105,6 +108,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 	// Load runtime config to get Apple TVs
 	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
+		logger.Error("Failed to load configuration", "error", err)
 		RespondError(w, r, "Failed to load configuration", http.StatusInternalServerError)
 		return
 	}
@@ -120,17 +124,19 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render using templ template
-	if err := pages.PairingForm(appleTVOptions, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.PairingForm(appleTVOptions, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		logger.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // WebSocketPairing handles WebSocket connection for pairing
 func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	logger := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -139,7 +145,7 @@ func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request
 	// Upgrade connection
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade WebSocket: %v", err)
+		logger.Error("Failed to upgrade WebSocket", "error", err)
 		return
 	}
 
@@ -257,6 +263,7 @@ func (client *pairingClient) writePump() {
 
 // handleTagScanned is called when a tag is scanned in Home Assistant
 func (h *PairingHandler) handleTagScanned(tagID string) {
+	ctx := context.Background()
 	log.Printf("Tag scanned from HA: %s", tagID)
 
 	h.clientsMu.Lock()
@@ -265,7 +272,7 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 	// Check if any pairing clients are active
 	if len(h.clients) == 0 {
 		// NO PAIRING CLIENTS: Look up mapping and play media
-		h.playMedia(tagID)
+		h.playMedia(ctx, tagID)
 		return
 	}
 
@@ -284,7 +291,7 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 		}
 
 		// Check if tag already exists
-		existing, err := h.db.GetCardMappingByTagID(tagID)
+		existing, err := h.db.GetCardMappingByTagID(ctx, tagID)
 		if err == nil && existing != nil {
 			// Tag already mapped
 			errorMsg := fmt.Sprintf("Tag already mapped to '%s'", html.EscapeString(existing.MediaTitle))
@@ -302,7 +309,7 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 			client.plexServerID,
 			client.appleTVEntity,
 		)
-		mappingID, err := h.db.CreateCardMapping(mapping)
+		mappingID, err := h.db.CreateCardMapping(ctx, mapping)
 		if err != nil {
 			log.Printf("Failed to create mapping: %v", err)
 			h.sendError(client, "Failed to create mapping")
@@ -323,9 +330,9 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 }
 
 // playMedia looks up a mapping and triggers playback via Home Assistant
-func (h *PairingHandler) playMedia(tagID string) {
+func (h *PairingHandler) playMedia(ctx context.Context, tagID string) {
 	// Look up mapping
-	mapping, err := h.db.GetCardMappingByTagID(tagID)
+	mapping, err := h.db.GetCardMappingByTagID(ctx, tagID)
 	if err != nil {
 		log.Printf("No mapping found for tag %s: %v", tagID, err)
 		return
@@ -345,7 +352,7 @@ func (h *PairingHandler) playMedia(tagID string) {
 	}
 
 	// Check Apple TV state
-	state, err := h.haRest.GetEntityState(h.appleTVEntity)
+	state, err := h.haRest.GetEntityState(ctx, h.appleTVEntity)
 	if err != nil {
 		log.Printf("Failed to get Apple TV state: %v (continuing anyway)", err)
 		// Continue with playback attempt even if state check fails
@@ -355,7 +362,7 @@ func (h *PairingHandler) playMedia(tagID string) {
 		// Turn on Apple TV if it's off or in standby
 		if state == "off" || state == "standby" {
 			log.Printf("Apple TV is %s, turning on...", state)
-			err = h.haRest.TurnOn(h.appleTVEntity)
+			err = h.haRest.TurnOn(ctx, h.appleTVEntity)
 			if err != nil {
 				log.Printf("Failed to turn on Apple TV: %v", err)
 				return
@@ -368,7 +375,7 @@ func (h *PairingHandler) playMedia(tagID string) {
 	}
 
 	// Play media
-	err = h.haRest.PlayMedia(h.appleTVEntity, "url", plexURL)
+	err = h.haRest.PlayMedia(ctx, h.appleTVEntity, "url", plexURL)
 	if err != nil {
 		log.Printf("Failed to play media for tag %s: %v", tagID, err)
 		return
@@ -378,7 +385,7 @@ func (h *PairingHandler) playMedia(tagID string) {
 
 	// Create playback log
 	playbackLog := models.NewPlaybackLog(mapping.UserID, mapping.TagID, mapping.MediaID, mapping.MediaTitle)
-	_, err = h.db.CreatePlaybackLog(playbackLog)
+	_, err = h.db.CreatePlaybackLog(ctx, playbackLog)
 	if err != nil {
 		log.Printf("Failed to create playback log: %v", err)
 	}

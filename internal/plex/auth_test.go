@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -73,7 +74,8 @@ func TestRequestPIN(t *testing.T) {
 
 			// Create client and make request
 			client := NewAuthClient(server.URL, tt.clientID, tt.productName, false)
-			pin, err := client.RequestPIN()
+			ctx := context.Background()
+			pin, err := client.RequestPIN(ctx)
 
 			// Check results
 			if (err != nil) != tt.wantErr {
@@ -167,7 +169,8 @@ func TestCheckPIN(t *testing.T) {
 			defer server.Close()
 
 			client := NewAuthClient(server.URL, "test-client", "TapeDeck", false)
-			response, err := client.CheckPIN(tt.pinID)
+			ctx := context.Background()
+			response, err := client.CheckPIN(ctx, tt.pinID)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CheckPIN() error = %v, wantErr %v", err, tt.wantErr)

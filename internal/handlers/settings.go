@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
@@ -28,9 +27,11 @@ func NewSettingsHandler(store *sessions.CookieStore, configPath string, reloadHa
 
 // Settings handles GET /settings
 func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	_, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	_, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -39,22 +40,25 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
 	// Load current config
 	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
+		log.Error("Failed to load configuration", "error", err)
 		RespondError(w, r, "Failed to load configuration", http.StatusInternalServerError)
 		return
 	}
 
 	// Render using templ template
-	if err := pages.Settings(runtimeCfg.PlexServers, runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token, runtimeCfg.AppleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.Settings(runtimeCfg.PlexServers, runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token, runtimeCfg.AppleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // SaveSettings handles POST /settings/servers
 func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	_, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	_, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -76,6 +80,7 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	// Load current config
 	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
+		log.Error("Failed to load configuration", "error", err)
 		RespondError(w, r, "Failed to load configuration", http.StatusInternalServerError)
 		return
 	}
@@ -89,7 +94,7 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 			runtimeCfg.HomeAssistant.URL = haURL
 			runtimeCfg.HomeAssistant.Token = haToken
 			haChanged = true
-			log.Printf("Updated Home Assistant settings: %s", haURL)
+			log.Info("Updated Home Assistant settings", "url", haURL)
 		}
 	}
 
@@ -100,7 +105,7 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 		if selectedMap[srv.ID] {
 			filteredServers = append(filteredServers, srv)
 		} else {
-			log.Printf("Removing server '%s' from configuration", srv.Name)
+			log.Info("Removing server from configuration", "server", srv.Name)
 			serversChanged = true
 		}
 	}
@@ -109,18 +114,18 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 
 	// Save updated config
 	if err := runtimeCfg.Save(h.configPath); err != nil {
-		log.Printf("Failed to save configuration: %v", err)
+		log.Error("Failed to save configuration", "error", err)
 		RespondError(w, r, "Failed to save configuration", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Configuration updated: %d server(s) enabled", len(filteredServers))
+	log.Info("Configuration updated", "servers_enabled", len(filteredServers))
 
 	// Reload handlers if HA settings or servers changed
 	if (haChanged || serversChanged) && h.reloadHandlers != nil {
-		log.Println("Reloading handlers with new configuration...")
+		log.Info("Reloading handlers with new configuration")
 		if err := h.reloadHandlers(); err != nil {
-			log.Printf("Warning: Failed to reload handlers: %v", err)
+			log.Warn("Failed to reload handlers", "error", err)
 			// Don't fail the request - config was saved successfully
 		}
 	}

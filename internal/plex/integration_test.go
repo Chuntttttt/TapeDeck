@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -26,7 +27,8 @@ func TestIntegration_PlexAuth(t *testing.T) {
 
 	// Step 1: Request a PIN
 	t.Log("Requesting PIN from Plex...")
-	pin, err := authClient.RequestPIN()
+	ctx := context.Background()
+	pin, err := authClient.RequestPIN(ctx)
 	if err != nil {
 		t.Fatalf("Failed to request PIN: %v", err)
 	}
@@ -44,7 +46,7 @@ func TestIntegration_PlexAuth(t *testing.T) {
 	for i := 0; i < maxAttempts; i++ {
 		time.Sleep(5 * time.Second)
 
-		check, err := authClient.CheckPIN(pin.ID)
+		check, err := authClient.CheckPIN(ctx, pin.ID)
 		if err != nil {
 			t.Logf("Check attempt %d failed: %v", i+1, err)
 			continue
@@ -92,9 +94,10 @@ func TestIntegration_PlexLibraries(t *testing.T) {
 
 	client := NewClient(serverURL, serverID, authToken, false)
 
+	ctx := context.Background()
 	// Test 1: Get Libraries
 	t.Log("\n--- Testing GetLibraries ---")
-	libraries, err := client.GetLibraries()
+	libraries, err := client.GetLibraries(ctx)
 	if err != nil {
 		t.Fatalf("GetLibraries() failed: %v", err)
 	}
@@ -112,7 +115,7 @@ func TestIntegration_PlexLibraries(t *testing.T) {
 	// Test 2: Get Library Contents (first library)
 	firstLib := libraries[0]
 	t.Logf("\n--- Testing GetLibraryContents for '%s' ---", firstLib.Title)
-	items, err := client.GetLibraryContents(firstLib.Key)
+	items, err := client.GetLibraryContents(ctx, firstLib.Key)
 	if err != nil {
 		t.Fatalf("GetLibraryContents() failed: %v", err)
 	}
@@ -139,7 +142,7 @@ func TestIntegration_PlexLibraries(t *testing.T) {
 		}
 
 		t.Logf("\n--- Testing Search with query: '%s' ---", searchTerm)
-		results, err := client.Search(searchTerm)
+		results, err := client.Search(ctx, searchTerm)
 		if err != nil {
 			t.Fatalf("Search() failed: %v", err)
 		}

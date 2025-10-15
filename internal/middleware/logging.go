@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"bufio"
-	"log"
 	"net"
 	"net/http"
 	"time"
@@ -38,7 +37,7 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return hijacker.Hijack()
 }
 
-// RequestLogger logs HTTP request details
+// RequestLogger logs HTTP request details using the context logger
 func RequestLogger() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,12 +56,10 @@ func RequestLogger() func(http.Handler) http.Handler {
 			// Log request details (skip health checks to reduce noise)
 			if r.URL.Path != "/health" {
 				duration := time.Since(start)
-				log.Printf(
-					"HTTP %s %s %d %v",
-					r.Method,
-					r.URL.Path,
-					wrapped.statusCode,
-					duration,
+				logger := GetLogger(r.Context())
+				logger.Info("HTTP request completed",
+					"status", wrapped.statusCode,
+					"duration_ms", duration.Milliseconds(),
 				)
 			}
 		})

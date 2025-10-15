@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -41,60 +40,66 @@ func NewMappingsHandler(store *sessions.CookieStore, database *db.DB, servers []
 
 // Dashboard handles GET /mappings
 func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Get all mappings for the user
-	mappings, err := h.db.GetCardMappingsByUserID(userID)
+	mappings, err := h.db.GetCardMappingsByUserID(ctx, userID)
 	if err != nil {
-		log.Printf("Failed to get card mappings: %v", err)
+		log.Error("Failed to get card mappings", "error", err)
 		RespondError(w, r, "Failed to get card mappings", http.StatusInternalServerError)
 		return
 	}
 
 	// Render using templ template
-	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // NewMappingForm handles GET /mappings/new
 func (h *MappingsHandler) NewMappingForm(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	_, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	_, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Render using templ template
-	if err := pages.MappingsNewForm(NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.MappingsNewForm(NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // CreateMapping handles POST /mappings
 func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
-		log.Printf("CreateMapping: User not authenticated")
+		log.Warn("User not authenticated")
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Parse form
 	if err := r.ParseForm(); err != nil {
-		log.Printf("CreateMapping: Failed to parse form: %v", err)
+		log.Error("Failed to parse form", "error", err)
 		RespondError(w, r, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
@@ -106,27 +111,25 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	plexServerID := r.FormValue("plex_server_id")
 	appleTVEntity := r.FormValue("apple_tv_entity")
 
-	log.Printf("CreateMapping: Received form data - tagID=%s, mediaType=%s, mediaID=%s, mediaTitle=%s, userID=%d, plexServerID=%s, appleTVEntity=%s",
-		tagID, mediaType, mediaID, mediaTitle, userID, plexServerID, appleTVEntity)
+	log.Info("Received form data", "tag_id", tagID, "media_type", mediaType, "media_id", mediaID, "media_title", mediaTitle, "plex_server_id", plexServerID, "apple_tv_entity", appleTVEntity)
 
 	// Validate required fields
 	if tagID == "" || mediaType == "" || mediaID == "" || mediaTitle == "" {
-		log.Printf("CreateMapping: Missing required fields - tagID=%s, mediaType=%s, mediaID=%s, mediaTitle=%s",
-			tagID, mediaType, mediaID, mediaTitle)
+		log.Warn("Missing required fields", "tag_id", tagID, "media_type", mediaType, "media_id", mediaID, "media_title", mediaTitle)
 		RespondError(w, r, "Missing required fields", http.StatusBadRequest)
 		return
 	}
 
 	// Create mapping
 	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle, plexServerID, appleTVEntity)
-	mappingID, err := h.db.CreateCardMapping(mapping)
+	mappingID, err := h.db.CreateCardMapping(ctx, mapping)
 	if err != nil {
-		log.Printf("CreateMapping: Failed to create card mapping: %v", err)
+		log.Error("Failed to create card mapping", "error", err)
 		RespondError(w, r, "Failed to create card mapping: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("CreateMapping: Successfully created mapping with ID=%d", mappingID)
+	log.Info("Successfully created mapping", "mapping_id", mappingID)
 
 	// Redirect to dashboard
 	http.Redirect(w, r, "/mappings", http.StatusFound)
@@ -134,6 +137,9 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 
 // EditMappingForm handles GET /mappings/{id}/edit
 func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	idStr := chi.URLParam(r, "id")
 	mappingID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -141,18 +147,17 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Get mapping
-	mapping, err := h.db.GetCardMappingByID(mappingID)
+	mapping, err := h.db.GetCardMappingByID(ctx, mappingID)
 	if err != nil {
-		log.Printf("Failed to get card mapping: %v", err)
+		log.Error("Failed to get card mapping", "error", err, "mapping_id", mappingID)
 		RespondError(w, r, "Card mapping not found", http.StatusNotFound)
 		return
 	}
@@ -164,14 +169,17 @@ func (h *MappingsHandler) EditMappingForm(w http.ResponseWriter, r *http.Request
 	}
 
 	// Render using templ template
-	if err := pages.MappingsEditForm(mapping, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
-		log.Printf("Failed to render template: %v", err)
+	if err := pages.MappingsEditForm(mapping, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // UpdateMapping handles POST /mappings/{id}
 func (h *MappingsHandler) UpdateMapping(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	idStr := chi.URLParam(r, "id")
 	mappingID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -179,18 +187,17 @@ func (h *MappingsHandler) UpdateMapping(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Get mapping
-	mapping, err := h.db.GetCardMappingByID(mappingID)
+	mapping, err := h.db.GetCardMappingByID(ctx, mappingID)
 	if err != nil {
-		log.Printf("Failed to get card mapping: %v", err)
+		log.Error("Failed to get card mapping", "error", err, "mapping_id", mappingID)
 		RespondError(w, r, "Card mapping not found", http.StatusNotFound)
 		return
 	}
@@ -215,8 +222,8 @@ func (h *MappingsHandler) UpdateMapping(w http.ResponseWriter, r *http.Request) 
 	mapping.UpdatedAt = time.Now()
 
 	// Update in database
-	if err := h.db.UpdateCardMapping(mapping); err != nil {
-		log.Printf("Failed to update card mapping: %v", err)
+	if err := h.db.UpdateCardMapping(ctx, mapping); err != nil {
+		log.Error("Failed to update card mapping", "error", err)
 		RespondError(w, r, "Failed to update card mapping", http.StatusInternalServerError)
 		return
 	}
@@ -227,6 +234,9 @@ func (h *MappingsHandler) UpdateMapping(w http.ResponseWriter, r *http.Request) 
 
 // DeleteMapping handles POST /mappings/{id}/delete
 func (h *MappingsHandler) DeleteMapping(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
 	idStr := chi.URLParam(r, "id")
 	mappingID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -234,18 +244,17 @@ func (h *MappingsHandler) DeleteMapping(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Get mapping to verify ownership
-	mapping, err := h.db.GetCardMappingByID(mappingID)
+	mapping, err := h.db.GetCardMappingByID(ctx, mappingID)
 	if err != nil {
-		log.Printf("Failed to get card mapping: %v", err)
+		log.Error("Failed to get card mapping", "error", err, "mapping_id", mappingID)
 		RespondError(w, r, "Card mapping not found", http.StatusNotFound)
 		return
 	}
@@ -257,8 +266,8 @@ func (h *MappingsHandler) DeleteMapping(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Delete mapping
-	if err := h.db.DeleteCardMapping(mappingID); err != nil {
-		log.Printf("Failed to delete card mapping: %v", err)
+	if err := h.db.DeleteCardMapping(ctx, mappingID); err != nil {
+		log.Error("Failed to delete card mapping", "error", err)
 		RespondError(w, r, "Failed to delete card mapping", http.StatusInternalServerError)
 		return
 	}
@@ -269,9 +278,11 @@ func (h *MappingsHandler) DeleteMapping(w http.ResponseWriter, r *http.Request) 
 
 // SearchJSON handles GET /api/search?q=query and returns JSON for autocomplete
 func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
-	// Get user from session
-	session, _ := h.sessionStore.Get(r, middleware.SessionName)
-	userID, ok := middleware.GetUserID(session)
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -287,9 +298,9 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(userID)
+	user, err := h.db.GetUserByID(ctx, userID)
 	if err != nil {
-		log.Printf("Failed to get user: %v", err)
+		log.Error("Failed to get user", "error", err)
 		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
@@ -313,7 +324,7 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 
 			for _, url := range srv.URLs {
 				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
-				items, lastErr = plexClient.Search(query)
+				items, lastErr = plexClient.Search(ctx, query)
 				if lastErr == nil {
 					// Success! Use these results
 					break
@@ -337,7 +348,7 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < len(h.servers); i++ {
 		result := <-resultChan
 		if result.err != nil {
-			log.Printf("Failed to search server %s: %v", result.serverName, result.err)
+			log.Warn("Failed to search server", "server", result.serverName, "error", result.err)
 			searchErrors = append(searchErrors, result.err)
 			continue
 		}
@@ -353,7 +364,7 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 
 	// If all servers failed, return error
 	if len(searchErrors) == len(h.servers) && len(h.servers) > 0 {
-		log.Printf("All servers failed to search")
+		log.Error("All servers failed to search")
 		RespondError(w, r, "Failed to search all servers", http.StatusInternalServerError)
 		return
 	}

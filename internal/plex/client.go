@@ -1,6 +1,7 @@
 package plex
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -84,8 +85,8 @@ func NewClient(serverURL, serverID, authToken string, devMode bool) *Client {
 }
 
 // GetLibraries retrieves all library sections from the Plex server
-func (c *Client) GetLibraries() ([]Library, error) {
-	req, err := http.NewRequest(http.MethodGet, c.serverURL+"/library/sections", nil)
+func (c *Client) GetLibraries(ctx context.Context) ([]Library, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.serverURL+"/library/sections", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -116,10 +117,10 @@ func (c *Client) GetLibraries() ([]Library, error) {
 }
 
 // GetLibraryContents retrieves all items from a specific library
-func (c *Client) GetLibraryContents(libraryKey string) ([]MediaItem, error) {
+func (c *Client) GetLibraryContents(ctx context.Context, libraryKey string) ([]MediaItem, error) {
 	url := fmt.Sprintf("%s/library/sections/%s/all", c.serverURL, libraryKey)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -153,10 +154,10 @@ func (c *Client) GetLibraryContents(libraryKey string) ([]MediaItem, error) {
 // TODO: Shared servers may return 401 Unauthorized when accessed via direct .plex.direct URLs
 // even with a valid auth token. This appears to be a Plex permission limitation for shared content.
 // Consider investigating alternative access methods or documenting this as a known limitation.
-func (c *Client) Search(query string) ([]MediaItem, error) {
+func (c *Client) Search(ctx context.Context, query string) ([]MediaItem, error) {
 	searchURL := fmt.Sprintf("%s/search", c.serverURL)
 
-	req, err := http.NewRequest(http.MethodGet, searchURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

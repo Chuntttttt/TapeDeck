@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -51,9 +52,10 @@ func TestCreateUser(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	user := models.NewUser("testuser", "12345", "test-token")
 
-	id, err := db.CreateUser(user)
+	id, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
@@ -66,15 +68,16 @@ func TestGetUserByPlexUserID(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create a user first
 	user := models.NewUser("testuser", "12345", "test-token")
-	_, err := db.CreateUser(user)
+	_, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
 
 	// Retrieve the user
-	retrieved, err := db.GetUserByPlexUserID("12345")
+	retrieved, err := db.GetUserByPlexUserID(ctx, "12345")
 	if err != nil {
 		t.Fatalf("GetUserByPlexUserID() failed: %v", err)
 	}
@@ -94,7 +97,8 @@ func TestGetUserByPlexUserID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
-	_, err := db.GetUserByPlexUserID("nonexistent")
+	ctx := context.Background()
+	_, err := db.GetUserByPlexUserID(ctx, "nonexistent")
 	if err == nil {
 		t.Fatal("GetUserByPlexUserID() succeeded for nonexistent user, want error")
 	}
@@ -104,27 +108,28 @@ func TestUpdateUser(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create a user
 	user := models.NewUser("testuser", "12345", "test-token")
-	id, err := db.CreateUser(user)
+	id, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
 
 	// Update the user
-	retrieved, err := db.GetUserByPlexUserID("12345")
+	retrieved, err := db.GetUserByPlexUserID(ctx, "12345")
 	if err != nil {
 		t.Fatalf("GetUserByPlexUserID() failed: %v", err)
 	}
 
 	retrieved.PlexAuthToken = "new-token"
-	err = db.UpdateUser(retrieved)
+	err = db.UpdateUser(ctx, retrieved)
 	if err != nil {
 		t.Fatalf("UpdateUser() failed: %v", err)
 	}
 
 	// Verify update
-	updated, err := db.GetUserByPlexUserID("12345")
+	updated, err := db.GetUserByPlexUserID(ctx, "12345")
 	if err != nil {
 		t.Fatalf("GetUserByPlexUserID() after update failed: %v", err)
 	}
@@ -141,16 +146,17 @@ func TestCreateCardMapping(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create a user first
 	user := models.NewUser("testuser", "12345", "test-token")
-	userID, err := db.CreateUser(user)
+	userID, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
 
 	// Create a card mapping
 	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	id, err := db.CreateCardMapping(mapping)
+	id, err := db.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
 	}
@@ -163,28 +169,29 @@ func TestGetCardMappingsByUserID(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create a user
 	user := models.NewUser("testuser", "12345", "test-token")
-	userID, err := db.CreateUser(user)
+	userID, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
 
 	// Create multiple mappings
 	mapping1 := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	_, err = db.CreateCardMapping(mapping1)
+	_, err = db.CreateCardMapping(ctx, mapping1)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
 	}
 
 	mapping2 := models.NewCardMapping(userID, "nfc-456", "show", "rating-789", "Breaking Bad", "test-server-id", "media_player.test")
-	_, err = db.CreateCardMapping(mapping2)
+	_, err = db.CreateCardMapping(ctx, mapping2)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
 	}
 
 	// Retrieve mappings
-	mappings, err := db.GetCardMappingsByUserID(userID)
+	mappings, err := db.GetCardMappingsByUserID(ctx, userID)
 	if err != nil {
 		t.Fatalf("GetCardMappingsByUserID() failed: %v", err)
 	}
@@ -203,22 +210,23 @@ func TestGetCardMappingByID(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create a user
 	user := models.NewUser("testuser", "12345", "test-token")
-	userID, err := db.CreateUser(user)
+	userID, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
 
 	// Create a mapping
 	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	id, err := db.CreateCardMapping(mapping)
+	id, err := db.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
 	}
 
 	// Retrieve the mapping
-	retrieved, err := db.GetCardMappingByID(id)
+	retrieved, err := db.GetCardMappingByID(ctx, id)
 	if err != nil {
 		t.Fatalf("GetCardMappingByID() failed: %v", err)
 	}
@@ -241,7 +249,8 @@ func TestGetCardMappingByID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
-	_, err := db.GetCardMappingByID(9999)
+	ctx := context.Background()
+	_, err := db.GetCardMappingByID(ctx, 9999)
 	if err == nil {
 		t.Fatal("GetCardMappingByID() succeeded for nonexistent mapping, want error")
 	}
@@ -251,35 +260,36 @@ func TestUpdateCardMapping(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create a user
 	user := models.NewUser("testuser", "12345", "test-token")
-	userID, err := db.CreateUser(user)
+	userID, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
 
 	// Create a mapping
 	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	id, err := db.CreateCardMapping(mapping)
+	id, err := db.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
 	}
 
 	// Retrieve and update the mapping
-	retrieved, err := db.GetCardMappingByID(id)
+	retrieved, err := db.GetCardMappingByID(ctx, id)
 	if err != nil {
 		t.Fatalf("GetCardMappingByID() failed: %v", err)
 	}
 
 	retrieved.MediaTitle = "The Matrix Reloaded"
 	retrieved.MediaID = "rating-789"
-	err = db.UpdateCardMapping(retrieved)
+	err = db.UpdateCardMapping(ctx, retrieved)
 	if err != nil {
 		t.Fatalf("UpdateCardMapping() failed: %v", err)
 	}
 
 	// Verify update
-	updated, err := db.GetCardMappingByID(id)
+	updated, err := db.GetCardMappingByID(ctx, id)
 	if err != nil {
 		t.Fatalf("GetCardMappingByID() after update failed: %v", err)
 	}
@@ -296,28 +306,29 @@ func TestDeleteCardMapping(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create a user
 	user := models.NewUser("testuser", "12345", "test-token")
-	userID, err := db.CreateUser(user)
+	userID, err := db.CreateUser(ctx, user)
 	if err != nil {
 		t.Fatalf("CreateUser() failed: %v", err)
 	}
 
 	// Create a mapping
 	mapping := models.NewCardMapping(userID, "nfc-123", "movie", "rating-456", "The Matrix", "test-server-id", "media_player.test")
-	id, err := db.CreateCardMapping(mapping)
+	id, err := db.CreateCardMapping(ctx, mapping)
 	if err != nil {
 		t.Fatalf("CreateCardMapping() failed: %v", err)
 	}
 
 	// Delete the mapping
-	err = db.DeleteCardMapping(id)
+	err = db.DeleteCardMapping(ctx, id)
 	if err != nil {
 		t.Fatalf("DeleteCardMapping() failed: %v", err)
 	}
 
 	// Verify deletion
-	_, err = db.GetCardMappingByID(id)
+	_, err = db.GetCardMappingByID(ctx, id)
 	if err == nil {
 		t.Fatal("GetCardMappingByID() succeeded after deletion, want error")
 	}
@@ -327,7 +338,8 @@ func TestDeleteCardMapping_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
-	err := db.DeleteCardMapping(9999)
+	ctx := context.Background()
+	err := db.DeleteCardMapping(ctx, 9999)
 	if err == nil {
 		t.Fatal("DeleteCardMapping() succeeded for nonexistent mapping, want error")
 	}
@@ -337,16 +349,17 @@ func TestSingleUserConstraint(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() { _ = db.Close() }()
 
+	ctx := context.Background()
 	// Create first user - should succeed
 	user1 := models.NewUser("user1", "plex-id-1", "token-1")
-	_, err := db.CreateUser(user1)
+	_, err := db.CreateUser(ctx, user1)
 	if err != nil {
 		t.Fatalf("CreateUser() for first user failed: %v", err)
 	}
 
 	// Try to create second user - should fail due to trigger
 	user2 := models.NewUser("user2", "plex-id-2", "token-2")
-	_, err = db.CreateUser(user2)
+	_, err = db.CreateUser(ctx, user2)
 	if err == nil {
 		t.Fatal("CreateUser() succeeded for second user, want error due to single-user constraint")
 	}

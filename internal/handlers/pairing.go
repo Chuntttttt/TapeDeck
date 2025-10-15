@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -41,6 +43,7 @@ type PairingHandler struct {
 	haClient        HAClientInterface
 	playbackService *services.PlaybackService
 	configPath      string // Path to runtime config
+	devMode         bool   // Enable development mode origin checking
 	upgrader        websocket.Upgrader
 	clients         map[*pairingClient]bool
 	clientsMu       sync.Mutex
@@ -65,6 +68,7 @@ func NewPairingHandler(
 	haClient HAClientInterface,
 	playbackService *services.PlaybackService,
 	configPath string,
+	devMode bool,
 ) *PairingHandler {
 	handler := &PairingHandler{
 		sessionStore:    store,
@@ -72,12 +76,13 @@ func NewPairingHandler(
 		haClient:        haClient,
 		playbackService: playbackService,
 		configPath:      configPath,
-		upgrader: websocket.Upgrader{
-			CheckOrigin: func(_ *http.Request) bool {
-				return true // Allow all origins for now (same-origin in production)
-			},
-		},
-		clients: make(map[*pairingClient]bool),
+		devMode:         devMode,
+		clients:         make(map[*pairingClient]bool),
+	}
+
+	// Configure WebSocket upgrader with origin checking
+	handler.upgrader = websocket.Upgrader{
+		CheckOrigin: handler.checkWebSocketOrigin,
 	}
 
 	// Register HA tag callback
@@ -86,6 +91,50 @@ func NewPairingHandler(
 	}
 
 	return handler
+}
+
+// checkWebSocketOrigin validates WebSocket connection origins to prevent CSRF attacks
+func (h *PairingHandler) checkWebSocketOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// Allow connections without Origin header (non-browser clients, testing tools)
+		return true
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil {
+		logger.Warn("Invalid Origin header", "origin", origin, "error", err)
+		return false
+	}
+
+	// Development mode: Allow localhost on any port (for Air proxy)
+	if h.devMode {
+		hostname, _, _ := net.SplitHostPort(originURL.Host)
+		// Handle case where port is not specified
+		if hostname == "" {
+			hostname = originURL.Host
+		}
+		if hostname == "localhost" || hostname == "127.0.0.1" {
+			logger.Debug("WebSocket origin allowed (dev mode)", "origin", origin)
+			return true
+		}
+	}
+
+	// Production: Strict same-origin check
+	expectedOrigin := "http://" + r.Host
+	if r.TLS != nil {
+		expectedOrigin = "https://" + r.Host
+	}
+
+	allowed := origin == expectedOrigin
+	if !allowed {
+		logger.Warn("WebSocket origin check failed",
+			"origin", origin,
+			"expected", expectedOrigin,
+			"remote_addr", r.RemoteAddr)
+	}
+
+	return allowed
 }
 
 // PairForm handles GET /mappings/pair

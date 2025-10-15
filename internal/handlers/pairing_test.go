@@ -20,7 +20,7 @@ import (
 func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil, nil, "")
+	handler := NewPairingHandler(store, nil, nil, nil, "", false)
 
 	req := httptest.NewRequest(http.MethodGet, "/mappings/pair", nil)
 	w := httptest.NewRecorder()
@@ -35,7 +35,7 @@ func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
 func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil, nil, "")
+	handler := NewPairingHandler(store, nil, nil, nil, "", false)
 
 	req := httptest.NewRequest(http.MethodGet, "/mappings/pair", nil)
 	w := httptest.NewRecorder()
@@ -74,7 +74,7 @@ func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 func TestPairingHandler_WebSocketUpgrade_NotAuthenticated(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
 
-	handler := NewPairingHandler(store, nil, nil, nil, "")
+	handler := NewPairingHandler(store, nil, nil, nil, "", false)
 
 	req := httptest.NewRequest(http.MethodGet, "/ws/pairing", nil)
 	w := httptest.NewRecorder()
@@ -117,7 +117,7 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 	// Create playback service (nil HA REST client for pairing-only test)
 	playbackService := services.NewPlaybackService(testDB, nil)
 
-	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Create authenticated session for requests
 	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
@@ -260,7 +260,7 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 	// Create playback service (nil HA REST client for pairing-only test)
 	playbackService := services.NewPlaybackService(testDB, nil)
 
-	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Create authenticated session for requests
 	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
@@ -369,7 +369,7 @@ func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
 	// Create playback service (nil HA REST client for pairing-only test)
 	playbackService := services.NewPlaybackService(testDB, nil)
 
-	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Create authenticated session for requests
 	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
@@ -448,7 +448,7 @@ func TestPairingHandler_WebSocketPairing_MissingFields(t *testing.T) {
 	// Create playback service (nil HA REST client for pairing-only test)
 	playbackService := services.NewPlaybackService(testDB, nil)
 
-	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Create authenticated session for requests
 	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
@@ -658,7 +658,7 @@ func TestPairingHandler_Playback_Success(t *testing.T) {
 	// Create playback service with mock REST client
 	playbackService := services.NewPlaybackService(testDB, mockRest)
 
-	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Simulate tag scan (no pairing clients active)
 	mockHA.simulateTagScan("test-tag-123")
@@ -711,7 +711,7 @@ func TestPairingHandler_Playback_NoMapping(t *testing.T) {
 	// Create playback service with mock REST client
 	playbackService := services.NewPlaybackService(testDB, mockRest)
 
-	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Simulate tag scan with unmapped tag
 	mockHA.simulateTagScan("unmapped-tag")
@@ -766,7 +766,7 @@ func TestPairingHandler_Playback_RestClientError(t *testing.T) {
 	// Create playback service with mock REST client
 	playbackService := services.NewPlaybackService(testDB, mockRest)
 
-	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Simulate tag scan
 	mockHA.simulateTagScan("test-tag-456")
@@ -820,7 +820,7 @@ func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
 	// Create playback service with nil REST client (should handle gracefully)
 	playbackService := services.NewPlaybackService(testDB, nil)
 
-	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	_ = NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Simulate tag scan
 	mockHA.simulateTagScan("test-tag-789")
@@ -863,7 +863,7 @@ func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
 	// Create playback service with mock REST client
 	playbackService := services.NewPlaybackService(testDB, mockRest)
 
-	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
+	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "", false)
 
 	// Create authenticated session for requests
 	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {

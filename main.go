@@ -208,6 +208,7 @@ func main() {
 			haClient,
 			playbackService,
 			"./config.yml",
+			cfg.DevMode,
 		)
 
 		// Initialize status handler

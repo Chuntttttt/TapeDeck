@@ -38,8 +38,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Check if already authenticated
 	session := getOrCreateSession(h.sessionStore, r)
 	if _, ok := middleware.GetUserID(session); ok {
-		http.Redirect(w, r, "/", http.StatusFound)
+		// Use redirect parameter if provided, otherwise go to /
+		redirectTo := r.URL.Query().Get("redirect")
+		if redirectTo == "" {
+			redirectTo = "/"
+		}
+		http.Redirect(w, r, redirectTo, http.StatusFound)
 		return
+	}
+
+	// Store redirect URL in session if provided
+	redirectTo := r.URL.Query().Get("redirect")
+	if redirectTo != "" {
+		session.Values["auth_redirect"] = redirectTo
 	}
 
 	// Check if we already have a PIN in the session (avoid generating multiple PINs)
@@ -166,10 +177,17 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get redirect URL from session (if set)
+	redirectTo := "/"
+	if redirect, ok := session.Values["auth_redirect"].(string); ok && redirect != "" {
+		redirectTo = redirect
+	}
+
 	// Store user ID in session
 	middleware.SetUserID(session, user.ID)
 	delete(session.Values, "plex_pin_id")
 	delete(session.Values, "plex_pin_code")
+	delete(session.Values, "auth_redirect")
 
 	if err := session.Save(r, w); err != nil {
 		log.Error("Failed to save session", "error", err)
@@ -181,10 +199,13 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 
 	log.Info("User authenticated successfully via polling")
 
-	// Return success
+	// Return success with redirect URL
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": true})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"authorized": true,
+		"redirect":   redirectTo,
+	})
 }
 
 // Logout handles the POST /auth/logout endpoint

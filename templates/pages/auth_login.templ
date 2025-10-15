@@ -85,11 +85,12 @@ templ authLoginContent(pinCode string) {
 					const data = await response.json();
 					console.log('[TapeDeck] Poll response data:', data);
 					if (data.authorized) {
-						console.log('[TapeDeck] ✅ AUTHORIZED! Redirecting to home...');
+						const redirectTo = data.redirect || '/';
+						console.log('[TapeDeck] ✅ AUTHORIZED! Redirecting to', redirectTo);
 						polling = false;
 						document.getElementById('status').textContent = 'Success! Redirecting...';
 						document.getElementById('status').className = 'success';
-						window.location.href = '/';
+						window.location.href = redirectTo;
 						return;
 					} else {
 						console.log('[TapeDeck] Not authorized yet, will poll again in', pollInterval, 'ms');

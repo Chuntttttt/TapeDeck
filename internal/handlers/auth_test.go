@@ -42,8 +42,12 @@ func TestAuthHandler_Callback_Success(t *testing.T) {
 	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	authClient := plex.NewAuthClient("https://plex.tv", "test-client", "TapeDeck", false)
 
-	// Create temporary test database
-	testDB, err := db.New(":memory:")
+	// Create temporary test database with test encryption key
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -291,8 +295,12 @@ func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
 		},
 	}
 
-	// Create test database
-	testDB, err := db.New(":memory:")
+	// Create test database with test encryption key
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	testDB, err := db.New(":memory:", testKey)
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -331,8 +339,12 @@ func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
 	}
 
 	body := strings.TrimSpace(w.Body.String())
-	if body != `{"authorized":true}` {
-		t.Errorf("Body = %s, want {\"authorized\":true}", body)
+	// Response should contain both authorized and redirect fields
+	if !strings.Contains(body, `"authorized":true`) {
+		t.Errorf("Body = %s, should contain \"authorized\":true", body)
+	}
+	if !strings.Contains(body, `"redirect":`) {
+		t.Errorf("Body = %s, should contain \"redirect\" field", body)
 	}
 
 	// Verify session was updated

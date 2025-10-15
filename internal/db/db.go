@@ -310,13 +310,14 @@ func (db *DB) DeleteCardMapping(id int64) error {
 	return nil
 }
 
-// GetCardMappingByTagID retrieves a card mapping by its tag ID
-// If multiple users have the same tag_id, returns the most recently created mapping
+// GetCardMappingByTagID retrieves a card mapping by its tag ID.
+// Since TapeDeck enforces single-user operation and tag_id is unique per user,
+// each tag_id is guaranteed to be globally unique.
 func (db *DB) GetCardMappingByTagID(tagID string) (*models.CardMapping, error) {
 	mapping := &models.CardMapping{}
 	err := db.conn.QueryRow(
 		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at
-		FROM card_mappings WHERE tag_id = ? ORDER BY created_at DESC LIMIT 1`,
+		FROM card_mappings WHERE tag_id = ?`,
 		tagID,
 	).Scan(
 		&mapping.ID,

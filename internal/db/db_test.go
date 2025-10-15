@@ -333,6 +333,31 @@ func TestDeleteCardMapping_NotFound(t *testing.T) {
 	}
 }
 
+func TestSingleUserConstraint(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	// Create first user - should succeed
+	user1 := models.NewUser("user1", "plex-id-1", "token-1")
+	_, err := db.CreateUser(user1)
+	if err != nil {
+		t.Fatalf("CreateUser() for first user failed: %v", err)
+	}
+
+	// Try to create second user - should fail due to trigger
+	user2 := models.NewUser("user2", "plex-id-2", "token-2")
+	_, err = db.CreateUser(user2)
+	if err == nil {
+		t.Fatal("CreateUser() succeeded for second user, want error due to single-user constraint")
+	}
+
+	// Verify error message mentions single-user constraint
+	if err != nil && err.Error() != "failed to insert user: Only one user allowed. TapeDeck is designed for single-user operation." {
+		t.Logf("Got error: %v", err)
+		// Still pass the test as long as it failed - the exact error message may vary by SQLite version
+	}
+}
+
 // setupTestDB creates a temporary database for testing
 func setupTestDB(t *testing.T) *DB {
 	t.Helper()

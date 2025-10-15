@@ -20,6 +20,7 @@ type HAClient struct { //nolint:revive // HAClient name is intentional for clari
 	conn           *websocket.Conn
 	done           chan struct{}
 	mu             sync.Mutex
+	reconnectMu    sync.Mutex // Ensures only one Reconnect operation at a time
 	tagCallback    func(tagID string)
 	reconnectDelay time.Duration
 }
@@ -260,6 +261,12 @@ func (c *HAClient) IsConnected() bool {
 
 // Reconnect attempts to reconnect to Home Assistant with a new token
 func (c *HAClient) Reconnect(_ context.Context, newToken string) error {
+	// Ensure only one reconnect operation at a time to prevent:
+	// - Multiple concurrent Connect() calls creating orphaned connections
+	// - Multiple handleMessages() goroutines leaking resources
+	c.reconnectMu.Lock()
+	defer c.reconnectMu.Unlock()
+
 	// Close existing connection if any
 	c.mu.Lock()
 	oldTokenPreview := "empty"

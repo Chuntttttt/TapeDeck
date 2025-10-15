@@ -7,9 +7,9 @@ This document contains the step-by-step plan for addressing code quality issues 
 - ✅ Issue #2: Handler Initialization Pattern is Fragile
 - ✅ Issue #3: Dual Configuration Systems Create Confusion
 - ✅ Issue #4: WebSocket Security - Allow All Origins (CSRF Vulnerability)
+- ✅ Issue #5: Race Condition in HA Reconnect
 
-**Remaining:**
-- Issue #5: Race Condition in HA Reconnect (planning in progress)
+**All refactoring tasks completed!**
 
 ---
 
@@ -573,6 +573,64 @@ This is more complex but works if origin checking has issues.
 
 ---
 
-## Issue #5: Race Condition in HA Reconnect
+## Issue #5: ~~Race Condition in HA Reconnect~~ ✅ COMPLETED
 
-(Planning in progress...)
+### Problem Identified
+
+**Location**: `internal/ha/websocket.go:262-293` (Reconnect method)
+
+**Race Condition**:
+If two HTTP requests hit `/api/status/ha/reconnect` simultaneously:
+1. Both calls enter `Reconnect()`, lock `mu`, close connection, update token, unlock `mu`
+2. Both call `Connect()` without any synchronization between them
+3. Two connections are established to Home Assistant
+4. Two `handleMessages()` goroutines start reading from those connections
+5. Only the last connection is stored in `c.conn`, the first becomes orphaned
+6. **Result**: Resource leak (goroutine + WebSocket connection never cleaned up)
+
+### Solution
+
+**Add separate mutex for reconnect operations**:
+
+```go
+type HAClient struct {
+    // ... existing fields ...
+    reconnectMu sync.Mutex  // Ensures only one Reconnect operation at a time
+}
+
+func (c *HAClient) Reconnect(_ context.Context, newToken string) error {
+    // Ensure only one reconnect operation at a time to prevent:
+    // - Multiple concurrent Connect() calls creating orphaned connections
+    // - Multiple handleMessages() goroutines leaking resources
+    c.reconnectMu.Lock()
+    defer c.reconnectMu.Unlock()
+
+    // ... rest of implementation ...
+}
+```
+
+### Implementation
+
+**Files Modified**:
+1. `internal/ha/websocket.go` - Added `reconnectMu sync.Mutex` field and locking in Reconnect()
+2. `internal/ha/websocket_reconnect_test.go` - Created comprehensive test suite
+
+**Tests Added**:
+- `TestReconnect_SingleCall` - Verifies basic reconnect functionality
+- `TestReconnect_ConcurrentCalls` - **Critical test**: Launches 5 concurrent reconnect calls and verifies they are serialized (exactly 6 connections total, not more)
+- `TestReconnect_UpdatesToken` - Verifies token is updated correctly
+- `TestReconnect_ClosesOldConnection` - Verifies old connection is closed before new one is established
+
+### Verification
+
+Ran `./checks.sh` (go fmt, golangci-lint, go test with race detector):
+- All tests pass ✅
+- No race conditions detected ✅
+- Concurrent test shows proper serialization: 5 simultaneous reconnects result in exactly 6 total connections (1 initial + 5 reconnects), proving no orphaned connections
+
+### Impact
+
+- **Risk**: Low - only adds mutex protection without changing logic
+- **Breaking changes**: None
+- **Performance**: Minimal - reconnects are rare operations (only when HA token changes)
+- **Reliability**: High improvement - prevents resource leaks from concurrent reconnect attempts

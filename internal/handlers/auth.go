@@ -235,3 +235,26 @@ func getOrCreateSession(store *sessions.CookieStore, r *http.Request) *sessions.
 	session, _ := store.Get(r, middleware.SessionName)
 	return session
 }
+
+// handlePlexUnauthorized checks if the error is a 401 Unauthorized from Plex
+// and redirects to login if the token has been revoked. Returns true if handled.
+func handlePlexUnauthorized(w http.ResponseWriter, r *http.Request, err error, sessionStore *sessions.CookieStore) bool {
+	if !plex.IsUnauthorized(err) {
+		return false
+	}
+
+	log := middleware.GetLogger(r.Context())
+	log.Warn("Plex token unauthorized - clearing session and redirecting to login")
+
+	// Clear the session
+	session := getOrCreateSession(sessionStore, r)
+	middleware.ClearSession(session)
+	if saveErr := session.Save(r, w); saveErr != nil {
+		log.Error("Failed to save session during logout", "error", saveErr)
+	}
+
+	// Redirect to login with redirect back to current page
+	redirectURL := "/auth/login?redirect=" + r.URL.Path
+	http.Redirect(w, r, redirectURL, http.StatusFound)
+	return true
+}

@@ -118,6 +118,10 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lastErr != nil {
+		// Check if token was revoked (401 Unauthorized)
+		if handlePlexUnauthorized(w, r, lastErr, h.sessionStore) {
+			return
+		}
 		if errors.Is(lastErr, context.DeadlineExceeded) {
 			log.Warn("Plex API call timed out", "server", selectedServer.Name)
 			RespondError(w, r, "Plex server timed out", http.StatusGatewayTimeout)
@@ -213,6 +217,10 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lastErr != nil {
+		// Check if token was revoked (401 Unauthorized)
+		if handlePlexUnauthorized(w, r, lastErr, h.sessionStore) {
+			return
+		}
 		if errors.Is(lastErr, context.DeadlineExceeded) {
 			log.Warn("Plex API call timed out", "server", selectedServer.Name)
 			RespondError(w, r, "Plex server timed out", http.StatusGatewayTimeout)
@@ -322,6 +330,13 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 
 		items = append(items, result.items...)
+	}
+
+	// Check if any server returned 401 Unauthorized (token revoked)
+	for _, err := range searchErrors {
+		if handlePlexUnauthorized(w, r, err, h.sessionStore) {
+			return
+		}
 	}
 
 	// If all servers failed, return error

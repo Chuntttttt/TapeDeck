@@ -370,6 +370,13 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 		allItems = append(allItems, result.items...)
 	}
 
+	// Check if any server returned 401 Unauthorized (token revoked)
+	for _, err := range searchErrors {
+		if handlePlexUnauthorized(w, r, err, h.sessionStore) {
+			return
+		}
+	}
+
 	// If all servers failed, return error
 	if len(searchErrors) == len(h.servers) && len(h.servers) > 0 {
 		log.Error("All servers failed to search")

@@ -4,12 +4,32 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/logger"
 )
+
+// APIError represents an error response from the Plex API
+type APIError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("plex API error (status %d): %s", e.StatusCode, e.Message)
+}
+
+// IsUnauthorized checks if an error is a 401 Unauthorized from Plex
+func IsUnauthorized(err error) bool {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode == http.StatusUnauthorized
+	}
+	return false
+}
 
 // Client handles Plex Media Server API operations
 type Client struct {
@@ -105,7 +125,10 @@ func (c *Client) GetLibraries(ctx context.Context) ([]Library, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "failed to get libraries",
+		}
 	}
 
 	var libResp LibrariesResponse
@@ -139,7 +162,10 @@ func (c *Client) GetLibraryContents(ctx context.Context, libraryKey string) ([]M
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "failed to get library contents",
+		}
 	}
 
 	var contentsResp LibraryContentsResponse
@@ -181,7 +207,10 @@ func (c *Client) Search(ctx context.Context, query string) ([]MediaItem, error) 
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Message:    "failed to search",
+		}
 	}
 
 	var searchResp SearchResponse

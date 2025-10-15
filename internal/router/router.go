@@ -46,7 +46,21 @@ func New(deps *RouterDependencies, configPath string) *chi.Mux {
 		r.Post("/servers", deps.SettingsHandler.SaveSettings)
 	})
 
-	// Routes that require handlers to be initialized
+	// Application routes that require initialized handlers
+	//
+	// These routes are protected by both SetupMiddleware (in main.go) and requireInitialized
+	// middleware (below). This provides defense-in-depth:
+	//
+	// 1. SetupMiddleware redirects to /setup if config.yml is missing/invalid
+	// 2. requireInitialized checks that handlers have been initialized
+	// 3. Handlers are initialized synchronously in main.go's initializeHandlers()
+	//
+	// This means handlers are guaranteed to be non-nil when these routes are accessed:
+	// - On startup: config exists → initializeHandlers() called → handlers ready
+	// - After setup: setup wizard completes → initializeHandlers() called → handlers ready
+	// - After settings update: settings saved → initializeHandlers() called → handlers ready
+	//
+	// Therefore, individual route handlers do not need to check for nil handlers.
 	r.Group(func(r chi.Router) {
 		r.Use(requireInitialized(deps.HandlersReady))
 

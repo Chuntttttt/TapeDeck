@@ -105,6 +105,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(sessionStore, plexAuth, database)
 
 	// Declare handler variables that will be initialized either at startup or after setup
+	// These start as nil and are populated by initializeHandlers() below.
 	var mediaHandler *handlers.MediaHandler
 	var mappingsHandler *handlers.MappingsHandler
 	var playbackHandler *handlers.PlaybackHandler
@@ -113,7 +114,19 @@ func main() {
 	var settingsHandler *handlers.SettingsHandler
 	var haClient *ha.HAClient
 
-	// Define handler initialization callback for setup wizard and settings
+	// initializeHandlers sets up all runtime handlers from config.yml
+	//
+	// This function is called in three scenarios:
+	// 1. At startup if config.yml exists and is valid
+	// 2. After setup wizard completion (via callback)
+	// 3. After settings update (via callback)
+	//
+	// Handler initialization is synchronous and atomic - either all handlers are
+	// initialized or the function returns an error. This ensures that routes
+	// protected by requireInitialized middleware always have valid handlers.
+	//
+	// The HandlersReady function (used by requireInitialized middleware) checks
+	// that all handlers are non-nil before allowing access to protected routes.
 	initializeHandlers := func() error {
 		log.Println("Initializing handlers after setup completion...")
 
@@ -207,6 +220,13 @@ func main() {
 		// Initialize status handler
 		statusHandler = handlers.NewStatusHandler(haClient)
 
+		// Sanity check: ensure all handlers were initialized
+		// This should never fail unless there's a programming error above
+		if mediaHandler == nil || mappingsHandler == nil || playbackHandler == nil ||
+			pairingHandler == nil || statusHandler == nil {
+			return fmt.Errorf("handler initialization incomplete - this is a programming error")
+		}
+
 		log.Println("All handlers initialized successfully")
 		return nil
 	}
@@ -241,6 +261,9 @@ func main() {
 		PlaybackHandler: playbackHandler,
 		StatusHandler:   statusHandler,
 		AuthMiddleware:  middleware.RequireAuth(sessionStore),
+		// HandlersReady is used by requireInitialized middleware to check if
+		// handlers have been initialized. Returns true only if all runtime
+		// handlers are non-nil (i.e., initializeHandlers() has been called).
 		HandlersReady: func() bool {
 			return mediaHandler != nil && mappingsHandler != nil && pairingHandler != nil &&
 				playbackHandler != nil && statusHandler != nil

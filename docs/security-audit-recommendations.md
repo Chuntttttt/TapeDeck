@@ -11,6 +11,7 @@ This document outlines security issues found in the TapeDeck codebase and provid
 - **CRIT-3**: Default Session Secret - Auto-generated and persisted in `.session_secret`
 - **CRIT-4**: CSRF Protection - Implemented with gorilla/csrf middleware
 - **HIGH-1**: Token Encryption - AES-256-GCM encryption for Plex and HA tokens
+- **Token Revocation Handling** - Automatic re-authentication when Plex token is revoked (detects 401 errors, clears session, redirects to login)
 
 ## Not Applicable / Infrastructure Layer
 

@@ -2,9 +2,15 @@
 
 Small improvements that can be done quickly with high impact.
 
+**Completed Tasks:**
+- ✅ #1: Remove Debug Log Hack
+- ✅ #2: Fix Silent Error Handling
+- ✅ #3: Magic Numbers to Constants
+- ✅ #4: WebSocket CSRF Security (from REFACTORING_PLAN.md Issue #4)
+
 ---
 
-## 1. Remove Debug Log Hack
+## 1. ~~Remove Debug Log Hack~~ ✅ COMPLETED
 
 **Files**: `internal/handlers/auth.go:20-37`
 
@@ -51,7 +57,7 @@ func logDebug(format string, v ...interface{}) {
 
 ---
 
-## 2. Fix Silent Error Handling
+## 2. ~~Fix Silent Error Handling~~ ✅ COMPLETED
 
 **Current Pattern** (appears ~10 times):
 ```go
@@ -92,7 +98,7 @@ defer func() {
 
 ---
 
-## 3. Magic Numbers to Constants
+## 3. ~~Magic Numbers to Constants~~ ✅ COMPLETED
 
 **Current**:
 ```go

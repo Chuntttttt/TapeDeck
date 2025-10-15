@@ -16,13 +16,15 @@ type HAStatusInterface interface {
 
 // StatusHandler handles status check requests
 type StatusHandler struct {
-	haClient HAStatusInterface
+	haClient   HAStatusInterface
+	configPath string
 }
 
 // NewStatusHandler creates a new status handler
-func NewStatusHandler(haClient HAStatusInterface) *StatusHandler {
+func NewStatusHandler(haClient HAStatusInterface, configPath string) *StatusHandler {
 	return &StatusHandler{
-		haClient: haClient,
+		haClient:   haClient,
+		configPath: configPath,
 	}
 }
 
@@ -65,10 +67,10 @@ func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reload configuration to get updated HA token
-	cfg, err := config.Load()
+	// Reload runtime configuration from config.yml to get updated HA token
+	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
-		log.Printf("Failed to reload config: %v", err)
+		log.Printf("Failed to reload runtime config: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -78,17 +80,19 @@ func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	haToken := runtimeCfg.HomeAssistant.Token
+
 	// Log token info (first 8 chars for verification without exposing full token)
 	tokenPreview := "empty"
-	if len(cfg.HAToken) > 8 {
-		tokenPreview = cfg.HAToken[:8] + "..."
-	} else if len(cfg.HAToken) > 0 {
-		tokenPreview = cfg.HAToken[:len(cfg.HAToken)] + "..."
+	if len(haToken) > 8 {
+		tokenPreview = haToken[:8] + "..."
+	} else if len(haToken) > 0 {
+		tokenPreview = haToken + "..."
 	}
-	log.Printf("Attempting reconnection with token: %s (length: %d)", tokenPreview, len(cfg.HAToken))
+	log.Printf("Attempting reconnection with token: %s (length: %d)", tokenPreview, len(haToken))
 
 	// Attempt reconnection with new token
-	err = h.haClient.Reconnect(cfg.HAToken)
+	err = h.haClient.Reconnect(haToken)
 	if err != nil {
 		log.Printf("Failed to reconnect to Home Assistant: %v", err)
 		w.Header().Set("Content-Type", "application/json")

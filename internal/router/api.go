@@ -1,3 +1,4 @@
+// Package router provides HTTP routing configuration for TapeDeck.
 package router
 
 import (
@@ -10,7 +11,6 @@ import (
 // apiRouter sets up API and WebSocket routes
 func apiRouter(
 	mappingsH *handlers.MappingsHandler,
-	pairingH *handlers.PairingHandler,
 	playbackH *handlers.PlaybackHandler,
 	statusH *handlers.StatusHandler,
 	auth func(http.Handler) http.Handler,

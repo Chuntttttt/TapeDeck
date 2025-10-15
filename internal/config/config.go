@@ -8,13 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config holds all application configuration
+// Config holds application-level configuration from environment variables.
+// User data (Plex servers, Home Assistant, Apple TVs) is stored in config.yml
+// and loaded via LoadRuntimeConfig().
 type Config struct {
-	PlexURL       string
-	PlexServerID  string
-	HAURL         string
-	HAToken       string
-	AppleTVEntity string
 	Port          string
 	DatabasePath  string
 	LogLevel      string
@@ -24,17 +21,12 @@ type Config struct {
 
 // Load reads configuration from environment variables and validates required fields.
 // It attempts to load from a .env file if present, then reads from the environment.
-// Returns an error if any required field is missing.
+// Returns an error if SESSION_SECRET is missing.
 func Load() (*Config, error) {
 	// Try to load .env file (ignore error if it doesn't exist)
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		PlexURL:       os.Getenv("PLEX_URL"),
-		PlexServerID:  os.Getenv("PLEX_SERVER_ID"),
-		HAURL:         os.Getenv("HA_URL"),
-		HAToken:       os.Getenv("HA_TOKEN"),
-		AppleTVEntity: os.Getenv("APPLE_TV_ENTITY"),
 		Port:          getEnvOrDefault("PORT", "3001"),
 		DatabasePath:  getEnvOrDefault("DATABASE_PATH", "./data/tapedeck.db"),
 		LogLevel:      getEnvOrDefault("LOG_LEVEL", "info"),
@@ -42,20 +34,9 @@ func Load() (*Config, error) {
 		DevMode:       os.Getenv("DEV_MODE") == "true",
 	}
 
-	// Validate required fields
-	required := map[string]string{
-		"PLEX_URL":        cfg.PlexURL,
-		"PLEX_SERVER_ID":  cfg.PlexServerID,
-		"HA_URL":          cfg.HAURL,
-		"HA_TOKEN":        cfg.HAToken,
-		"APPLE_TV_ENTITY": cfg.AppleTVEntity,
-		"SESSION_SECRET":  cfg.SessionSecret,
-	}
-
-	for name, value := range required {
-		if value == "" {
-			return nil, fmt.Errorf("required environment variable %s is not set", name)
-		}
+	// Validate SESSION_SECRET is set (critical for session security)
+	if cfg.SessionSecret == "" {
+		return nil, fmt.Errorf("required environment variable SESSION_SECRET is not set")
 	}
 
 	return cfg, nil

@@ -8,15 +8,11 @@ import (
 func TestLoad_Success(t *testing.T) {
 	// Set all required environment variables
 	setTestEnv(t, map[string]string{
-		"PLEX_URL":        "http://localhost:32400",
-		"PLEX_SERVER_ID":  "test-server-id",
-		"HA_URL":          "http://localhost:8123",
-		"HA_TOKEN":        "test-token",
-		"APPLE_TV_ENTITY": "media_player.apple_tv",
-		"PORT":            "3001",
-		"DATABASE_PATH":   "./test.db",
-		"LOG_LEVEL":       "info",
-		"SESSION_SECRET":  "test-secret-key",
+		"PORT":           "3001",
+		"DATABASE_PATH":  "./test.db",
+		"LOG_LEVEL":      "info",
+		"SESSION_SECRET": "test-secret-key",
+		"DEV_MODE":       "true",
 	})
 
 	cfg, err := Load()
@@ -24,21 +20,6 @@ func TestLoad_Success(t *testing.T) {
 		t.Fatalf("Load() failed: %v", err)
 	}
 
-	if cfg.PlexURL != "http://localhost:32400" {
-		t.Errorf("PlexURL = %q, want %q", cfg.PlexURL, "http://localhost:32400")
-	}
-	if cfg.PlexServerID != "test-server-id" {
-		t.Errorf("PlexServerID = %q, want %q", cfg.PlexServerID, "test-server-id")
-	}
-	if cfg.HAURL != "http://localhost:8123" {
-		t.Errorf("HAURL = %q, want %q", cfg.HAURL, "http://localhost:8123")
-	}
-	if cfg.HAToken != "test-token" {
-		t.Errorf("HAToken = %q, want %q", cfg.HAToken, "test-token")
-	}
-	if cfg.AppleTVEntity != "media_player.apple_tv" {
-		t.Errorf("AppleTVEntity = %q, want %q", cfg.AppleTVEntity, "media_player.apple_tv")
-	}
 	if cfg.Port != "3001" {
 		t.Errorf("Port = %q, want %q", cfg.Port, "3001")
 	}
@@ -51,6 +32,9 @@ func TestLoad_Success(t *testing.T) {
 	if cfg.SessionSecret != "test-secret-key" {
 		t.Errorf("SessionSecret = %q, want %q", cfg.SessionSecret, "test-secret-key")
 	}
+	if !cfg.DevMode {
+		t.Errorf("DevMode = %v, want %v", cfg.DevMode, true)
+	}
 }
 
 func TestLoad_MissingRequired(t *testing.T) {
@@ -60,69 +44,10 @@ func TestLoad_MissingRequired(t *testing.T) {
 		envVars map[string]string
 	}{
 		{
-			name:    "missing PLEX_URL",
-			missing: "PLEX_URL",
-			envVars: map[string]string{
-				"PLEX_SERVER_ID":  "test-server-id",
-				"HA_URL":          "http://localhost:8123",
-				"HA_TOKEN":        "test-token",
-				"APPLE_TV_ENTITY": "media_player.apple_tv",
-				"SESSION_SECRET":  "test-secret",
-			},
-		},
-		{
-			name:    "missing PLEX_SERVER_ID",
-			missing: "PLEX_SERVER_ID",
-			envVars: map[string]string{
-				"PLEX_URL":        "http://localhost:32400",
-				"HA_URL":          "http://localhost:8123",
-				"HA_TOKEN":        "test-token",
-				"APPLE_TV_ENTITY": "media_player.apple_tv",
-				"SESSION_SECRET":  "test-secret",
-			},
-		},
-		{
-			name:    "missing HA_URL",
-			missing: "HA_URL",
-			envVars: map[string]string{
-				"PLEX_URL":        "http://localhost:32400",
-				"PLEX_SERVER_ID":  "test-server-id",
-				"HA_TOKEN":        "test-token",
-				"APPLE_TV_ENTITY": "media_player.apple_tv",
-				"SESSION_SECRET":  "test-secret",
-			},
-		},
-		{
-			name:    "missing HA_TOKEN",
-			missing: "HA_TOKEN",
-			envVars: map[string]string{
-				"PLEX_URL":        "http://localhost:32400",
-				"PLEX_SERVER_ID":  "test-server-id",
-				"HA_URL":          "http://localhost:8123",
-				"APPLE_TV_ENTITY": "media_player.apple_tv",
-				"SESSION_SECRET":  "test-secret",
-			},
-		},
-		{
-			name:    "missing APPLE_TV_ENTITY",
-			missing: "APPLE_TV_ENTITY",
-			envVars: map[string]string{
-				"PLEX_URL":       "http://localhost:32400",
-				"PLEX_SERVER_ID": "test-server-id",
-				"HA_URL":         "http://localhost:8123",
-				"HA_TOKEN":       "test-token",
-				"SESSION_SECRET": "test-secret",
-			},
-		},
-		{
 			name:    "missing SESSION_SECRET",
 			missing: "SESSION_SECRET",
 			envVars: map[string]string{
-				"PLEX_URL":        "http://localhost:32400",
-				"PLEX_SERVER_ID":  "test-server-id",
-				"HA_URL":          "http://localhost:8123",
-				"HA_TOKEN":        "test-token",
-				"APPLE_TV_ENTITY": "media_player.apple_tv",
+				// SESSION_SECRET is the only required field
 			},
 		},
 	}
@@ -141,13 +66,8 @@ func TestLoad_MissingRequired(t *testing.T) {
 
 func TestLoad_OptionalDefaults(t *testing.T) {
 	setTestEnv(t, map[string]string{
-		"PLEX_URL":        "http://localhost:32400",
-		"PLEX_SERVER_ID":  "test-server-id",
-		"HA_URL":          "http://localhost:8123",
-		"HA_TOKEN":        "test-token",
-		"APPLE_TV_ENTITY": "media_player.apple_tv",
-		"SESSION_SECRET":  "test-secret",
-		// Omit PORT, DATABASE_PATH, LOG_LEVEL to test defaults
+		"SESSION_SECRET": "test-secret",
+		// Omit PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE to test defaults
 	})
 
 	cfg, err := Load()
@@ -164,6 +84,9 @@ func TestLoad_OptionalDefaults(t *testing.T) {
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel default = %q, want %q", cfg.LogLevel, "info")
 	}
+	if cfg.DevMode != false {
+		t.Errorf("DevMode default = %v, want %v", cfg.DevMode, false)
+	}
 }
 
 // setTestEnv sets environment variables for testing and cleans them up
@@ -172,8 +95,7 @@ func setTestEnv(t *testing.T, envVars map[string]string) {
 
 	// Clear all relevant env vars first
 	allKeys := []string{
-		"PLEX_URL", "PLEX_SERVER_ID", "HA_URL", "HA_TOKEN",
-		"APPLE_TV_ENTITY", "PORT", "DATABASE_PATH", "LOG_LEVEL", "SESSION_SECRET",
+		"PORT", "DATABASE_PATH", "LOG_LEVEL", "SESSION_SECRET", "DEV_MODE",
 	}
 	for _, key := range allKeys {
 		_ = os.Unsetenv(key)

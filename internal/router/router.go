@@ -9,8 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// RouterDependencies contains all handler dependencies needed by the router
-type RouterDependencies struct {
+// Dependencies contains all handler dependencies needed by the router
+type Dependencies struct {
 	AuthHandler     *handlers.AuthHandler
 	SetupHandler    *handlers.SetupHandler
 	SettingsHandler *handlers.SettingsHandler
@@ -25,7 +25,7 @@ type RouterDependencies struct {
 }
 
 // New creates the main application router
-func New(deps *RouterDependencies, configPath string) *chi.Mux {
+func New(deps *Dependencies) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Global middleware
@@ -77,7 +77,6 @@ func New(deps *RouterDependencies, configPath string) *chi.Mux {
 		// API routes
 		r.Mount("/api", apiRouter(
 			deps.MappingsHandler,
-			deps.PairingHandler,
 			deps.PlaybackHandler,
 			deps.StatusHandler,
 			deps.AuthMiddleware,
@@ -95,7 +94,7 @@ func New(deps *RouterDependencies, configPath string) *chi.Mux {
 	r.Handle("/metrics", promhttp.Handler())
 
 	// Health check (unprotected, no setup middleware)
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))

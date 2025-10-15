@@ -37,19 +37,11 @@ func main() {
 		needsSetup = true
 	}
 
-	// Load legacy env-based config for backward compatibility
-	// (will be deprecated once all config is in config.yml)
+	// Load application configuration from environment variables
 	cfg, err := config.Load()
 	if err != nil {
-		log.Printf("Warning: Failed to load env config: %v", err)
-		// Use defaults for basic settings
-		cfg = &config.Config{
-			Port:          "8080",
-			DatabasePath:  "./tapedeck.db",
-			SessionSecret: "change-me-in-production",
-			LogLevel:      "info",
-			DevMode:       false,
-		}
+		// SESSION_SECRET is required for session security
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	// Set up structured logging to both stdout and file
@@ -218,7 +210,7 @@ func main() {
 		)
 
 		// Initialize status handler
-		statusHandler = handlers.NewStatusHandler(haClient)
+		statusHandler = handlers.NewStatusHandler(haClient, "./config.yml")
 
 		// Sanity check: ensure all handlers were initialized
 		// This should never fail unless there's a programming error above
@@ -251,7 +243,7 @@ func main() {
 	}
 
 	// Create router dependencies
-	deps := &router.RouterDependencies{
+	deps := &router.Dependencies{
 		AuthHandler:     authHandler,
 		SetupHandler:    setupHandler,
 		SettingsHandler: settingsHandler,
@@ -271,7 +263,7 @@ func main() {
 	}
 
 	// Create router
-	r := router.New(deps, "./config.yml")
+	r := router.New(deps)
 
 	// Wrap with middleware chain
 	// 1. Metrics middleware (tracks request metrics)

@@ -11,11 +11,11 @@ This document outlines security issues found in the TapeDeck codebase and provid
 - **CRIT-3**: Default Session Secret - Auto-generated and persisted in `.session_secret`
 - **CRIT-4**: CSRF Protection - Implemented with gorilla/csrf middleware
 - **HIGH-1**: Token Encryption - AES-256-GCM encryption for Plex and HA tokens
-- **HIGH-2**: Session Duration - Reduced from 30 days to 7 days
 
 ## Not Applicable / Infrastructure Layer
 
 - **CRIT-5**: Rate Limiting - Self-hosted local app; handle at firewall/reverse proxy if exposed publicly
+- **HIGH-2**: Session Duration - Keeping 30 days for convenience (single-user self-hosted app)
 - **HIGH-3**: Unauthenticated Metrics - Intentionally public for Prometheus scraping
 
 ## Remaining Recommendations

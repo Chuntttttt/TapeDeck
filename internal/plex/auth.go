@@ -89,7 +89,11 @@ func (c *AuthClient) RequestPIN() (*PINResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -126,7 +130,11 @@ func (c *AuthClient) CheckPIN(pinID int) (*PINCheckResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)

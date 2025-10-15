@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -65,7 +66,11 @@ func (c *RestClient) GetEntityState(entityID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -113,7 +118,11 @@ func (c *RestClient) TurnOn(entityID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if c.devMode {
 		logger.Debug("Turn_on response received", "status_code", resp.StatusCode)
@@ -161,7 +170,11 @@ func (c *RestClient) PlayMedia(entityID, contentType, contentID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if c.devMode {
 		body, _ := io.ReadAll(resp.Body)
@@ -206,7 +219,11 @@ func (c *RestClient) GetStates() ([]Entity, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

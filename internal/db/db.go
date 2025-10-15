@@ -4,6 +4,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/golang-migrate/migrate/v4"
@@ -26,7 +27,9 @@ func New(dbPath string) (*DB, error) {
 
 	// Enable foreign keys
 	if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		_ = conn.Close() // Ignore close error since we're already returning an error
+		if closeErr := conn.Close(); closeErr != nil {
+			fmt.Printf("Failed to close connection during error: %v\n", closeErr)
+		}
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
@@ -200,7 +203,11 @@ func (db *DB) GetCardMappingsByUserID(userID int64) ([]*models.CardMapping, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to query card mappings: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Failed to close rows: %v", err)
+		}
+	}()
 
 	var mappings []*models.CardMapping
 	for rows.Next() {

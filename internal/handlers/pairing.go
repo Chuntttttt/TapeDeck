@@ -166,12 +166,18 @@ func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request
 func (h *PairingHandler) readPump(client *pairingClient) {
 	defer func() {
 		h.unregisterClient(client)
-		_ = client.conn.Close()
+		if err := client.conn.Close(); err != nil {
+			log.Printf("WebSocket close error: %v", err)
+		}
 	}()
 
-	_ = client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err := client.conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		log.Printf("Failed to set read deadline: %v", err)
+	}
 	client.conn.SetPongHandler(func(string) error {
-		_ = client.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if err := client.conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+			log.Printf("Failed to set read deadline in pong handler: %v", err)
+		}
 		return nil
 	})
 
@@ -215,15 +221,21 @@ func (client *pairingClient) writePump() {
 	ticker := time.NewTicker(54 * time.Second)
 	defer func() {
 		ticker.Stop()
-		_ = client.conn.Close()
+		if err := client.conn.Close(); err != nil {
+			log.Printf("WebSocket close error: %v", err)
+		}
 	}()
 
 	for {
 		select {
 		case message, ok := <-client.send:
-			_ = client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+				log.Printf("Failed to set write deadline: %v", err)
+			}
 			if !ok {
-				_ = client.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err := client.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+					log.Printf("Failed to write close message: %v", err)
+				}
 				return
 			}
 
@@ -232,7 +244,9 @@ func (client *pairingClient) writePump() {
 			}
 
 		case <-ticker.C:
-			_ = client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+				log.Printf("Failed to set write deadline: %v", err)
+			}
 			if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -371,14 +385,19 @@ func (h *PairingHandler) playMedia(tagID string) {
 
 // sendJSON sends a JSON message to a client
 func (h *PairingHandler) sendJSON(client *pairingClient, data interface{}) {
-	// Marshal to JSON (ignore error - will be caught in write)
-	jsonData, _ := json.Marshal(data)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Failed to marshal JSON: %v", err)
+		return
+	}
 
 	select {
 	case client.send <- jsonData:
 	default:
 		h.unregisterClient(client)
-		_ = client.conn.Close()
+		if err := client.conn.Close(); err != nil {
+			log.Printf("WebSocket close error: %v", err)
+		}
 	}
 }
 

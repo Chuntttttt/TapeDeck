@@ -58,12 +58,16 @@ func (c *HAClient) Connect() error {
 	// Read auth_required message
 	var authRequired map[string]interface{}
 	if err := conn.ReadJSON(&authRequired); err != nil {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("failed to read auth_required: %w", err)
 	}
 
 	if msgType, ok := authRequired["type"].(string); !ok || msgType != "auth_required" {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("expected auth_required, got %v", authRequired["type"])
 	}
 
@@ -73,30 +77,40 @@ func (c *HAClient) Connect() error {
 		"access_token": c.token,
 	}
 	if err := conn.WriteJSON(authMsg); err != nil {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("failed to send auth: %w", err)
 	}
 
 	// Read auth response
 	var authResponse map[string]interface{}
 	if err := conn.ReadJSON(&authResponse); err != nil {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("failed to read auth response: %w", err)
 	}
 
 	msgType, ok := authResponse["type"].(string)
 	if !ok {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("auth response missing type field")
 	}
 
 	if msgType == "auth_invalid" {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("authentication failed: invalid token")
 	}
 
 	if msgType != "auth_ok" {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("unexpected auth response: %s", msgType)
 	}
 
@@ -107,24 +121,32 @@ func (c *HAClient) Connect() error {
 		"event_type": "tag_scanned",
 	}
 	if err := conn.WriteJSON(subscribeMsg); err != nil {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("failed to subscribe to events: %w", err)
 	}
 
 	// Read subscription result
 	var result map[string]interface{}
 	if err := conn.ReadJSON(&result); err != nil {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("failed to read subscription result: %w", err)
 	}
 
 	if resultType, ok := result["type"].(string); !ok || resultType != "result" {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("expected result, got %v", result["type"])
 	}
 
 	if success, ok := result["success"].(bool); !ok || !success {
-		_ = conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Failed to close connection: %v", closeErr)
+		}
 		return fmt.Errorf("subscription failed")
 	}
 
@@ -146,7 +168,9 @@ func (c *HAClient) handleMessages() {
 	defer func() {
 		c.mu.Lock()
 		if c.conn != nil {
-			_ = c.conn.Close()
+			if err := c.conn.Close(); err != nil {
+				log.Printf("Failed to close WebSocket: %v", err)
+			}
 		}
 		c.mu.Unlock()
 	}()
@@ -254,7 +278,9 @@ func (c *HAClient) Reconnect(newToken string) error {
 		oldTokenPreview, len(c.token), newTokenPreview, len(newToken), c.token == newToken)
 
 	if c.conn != nil {
-		_ = c.conn.Close()
+		if err := c.conn.Close(); err != nil {
+			log.Printf("Failed to close existing connection: %v", err)
+		}
 		c.conn = nil
 	}
 	// Update token
@@ -279,8 +305,12 @@ func (c *HAClient) Close() {
 	defer c.mu.Unlock()
 
 	if c.conn != nil {
-		_ = c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
-		_ = c.conn.Close()
+		if err := c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second)); err != nil {
+			log.Printf("Failed to write close message: %v", err)
+		}
+		if err := c.conn.Close(); err != nil {
+			log.Printf("Failed to close WebSocket: %v", err)
+		}
 		c.conn = nil
 	}
 

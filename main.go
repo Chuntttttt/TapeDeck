@@ -58,7 +58,11 @@ func main() {
 		log.Printf("Warning: Failed to open log file: %v", err)
 		logger.Init(cfg.LogLevel, os.Stdout)
 	} else {
-		defer func() { _ = logFile.Close() }()
+		defer func() {
+			if err := logFile.Close(); err != nil {
+				logger.Warn("Failed to close log file", "error", err)
+			}
+		}()
 		logger.Init(cfg.LogLevel, os.Stdout, logFile)
 	}
 
@@ -76,7 +80,9 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err) //nolint:gocritic // exitAfterDefer: acceptable for fatal errors
 	}
 	defer func() {
-		_ = database.Close()
+		if err := database.Close(); err != nil {
+			logger.Warn("Failed to close database", "error", err)
+		}
 	}()
 
 	// Run migrations

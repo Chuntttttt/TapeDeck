@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
@@ -145,7 +146,7 @@ func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request
 	// Create client
 	client := &pairingClient{
 		conn:   conn,
-		send:   make(chan []byte, 256),
+		send:   make(chan []byte, constants.WebSocketSendBufferSize),
 		userID: userID,
 	}
 
@@ -171,11 +172,11 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 		}
 	}()
 
-	if err := client.conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+	if err := client.conn.SetReadDeadline(time.Now().Add(constants.WebSocketReadTimeout)); err != nil {
 		log.Printf("Failed to set read deadline: %v", err)
 	}
 	client.conn.SetPongHandler(func(string) error {
-		if err := client.conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		if err := client.conn.SetReadDeadline(time.Now().Add(constants.WebSocketReadTimeout)); err != nil {
 			log.Printf("Failed to set read deadline in pong handler: %v", err)
 		}
 		return nil
@@ -218,7 +219,7 @@ func (h *PairingHandler) readPump(client *pairingClient) {
 
 // writePump handles outgoing messages to browser client
 func (client *pairingClient) writePump() {
-	ticker := time.NewTicker(54 * time.Second)
+	ticker := time.NewTicker(constants.WebSocketPingInterval)
 	defer func() {
 		ticker.Stop()
 		if err := client.conn.Close(); err != nil {
@@ -229,7 +230,7 @@ func (client *pairingClient) writePump() {
 	for {
 		select {
 		case message, ok := <-client.send:
-			if err := client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			if err := client.conn.SetWriteDeadline(time.Now().Add(constants.WebSocketWriteTimeout)); err != nil {
 				log.Printf("Failed to set write deadline: %v", err)
 			}
 			if !ok {
@@ -244,7 +245,7 @@ func (client *pairingClient) writePump() {
 			}
 
 		case <-ticker.C:
-			if err := client.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			if err := client.conn.SetWriteDeadline(time.Now().Add(constants.WebSocketWriteTimeout)); err != nil {
 				log.Printf("Failed to set write deadline: %v", err)
 			}
 			if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -360,9 +361,9 @@ func (h *PairingHandler) playMedia(tagID string) {
 				return
 			}
 
-			// Wait for Apple TV to wake up (5 seconds should be enough)
-			log.Printf("Waiting 5 seconds for Apple TV to wake up...")
-			time.Sleep(5 * time.Second)
+			// Wait for Apple TV to wake up
+			log.Printf("Waiting for Apple TV to wake up...")
+			time.Sleep(constants.AppleTVWakeTime)
 		}
 	}
 

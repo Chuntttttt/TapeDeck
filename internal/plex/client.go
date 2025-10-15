@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
+
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 )
 
 // Client handles Plex Media Server API operations
@@ -65,7 +66,7 @@ type SearchResponse struct {
 
 // NewClient creates a new Plex API client
 func NewClient(serverURL, serverID, authToken string, devMode bool) *Client {
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: constants.PlexClientTimeout}
 
 	// In dev mode, skip TLS verification (useful for macOS certificate issues)
 	if devMode {

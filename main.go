@@ -11,9 +11,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/ha"
 	"github.com/Chuntttttt/tapedeck/internal/handlers"
@@ -277,7 +277,7 @@ func main() {
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           handler,
-		ReadHeaderTimeout: 10 * time.Second,
+		ReadHeaderTimeout: constants.ServerReadHeaderTimeout,
 	}
 
 	// Graceful shutdown
@@ -294,7 +294,7 @@ func main() {
 
 	log.Println("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.ServerShutdownTimeout)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {

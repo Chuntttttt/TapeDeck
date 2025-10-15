@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 )
 
 // AuthClientInterface defines the methods required for Plex authentication
@@ -45,7 +47,7 @@ type PINCheckResponse struct {
 
 // NewAuthClient creates a new Plex authentication client
 func NewAuthClient(baseURL, clientID, productName string, devMode bool) *AuthClient {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: constants.PlexAuthTimeout}
 
 	// In dev mode, skip TLS verification (useful for macOS certificate issues)
 	if devMode {

@@ -9,8 +9,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"time"
 
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/logger"
 )
 
@@ -24,7 +24,7 @@ type RestClient struct {
 
 // NewRestClient creates a new Home Assistant REST API client
 func NewRestClient(haURL, token string, devMode bool) *RestClient {
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: constants.HARestTimeout}
 
 	// In dev mode, skip TLS verification (useful for self-signed certificates)
 	if devMode {

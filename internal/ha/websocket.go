@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/gorilla/websocket"
 )
 
@@ -33,7 +34,7 @@ func NewHAClient(haURL, token string) *HAClient {
 		url:            wsURL,
 		token:          token,
 		done:           make(chan struct{}),
-		reconnectDelay: 5 * time.Second,
+		reconnectDelay: constants.HAWebSocketReconnectDelay,
 	}
 }
 
@@ -48,7 +49,7 @@ func (c *HAClient) OnTagScanned(callback func(tagID string)) {
 func (c *HAClient) Connect() error {
 	// Dial WebSocket
 	dialer := websocket.DefaultDialer
-	dialer.HandshakeTimeout = 10 * time.Second
+	dialer.HandshakeTimeout = constants.HAWebSocketHandshakeTimeout
 
 	conn, _, err := dialer.Dial(c.url, nil)
 	if err != nil {
@@ -305,7 +306,7 @@ func (c *HAClient) Close() {
 	defer c.mu.Unlock()
 
 	if c.conn != nil {
-		if err := c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second)); err != nil {
+		if err := c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(constants.HAWebSocketCloseTimeout)); err != nil {
 			log.Printf("Failed to write close message: %v", err)
 		}
 		if err := c.conn.Close(); err != nil {

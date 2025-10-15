@@ -3,13 +3,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/db"
-	"github.com/Chuntttttt/tapedeck/internal/logger"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
@@ -51,7 +49,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 				ID:   existingPinID,
 				Code: existingPinCode,
 			}
-			logger.Debug("Reusing existing PIN", "pin_id", pin.ID, "pin_code", pin.Code)
 		}
 	}
 
@@ -73,8 +70,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Session error", http.StatusInternalServerError)
 			return
 		}
-
-		logger.Debug("Created new PIN", "pin_id", pin.ID, "pin_code", pin.Code)
 	}
 
 	// Render login page with polling
@@ -93,14 +88,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // See: https://forums.plex.tv/t/plex-oauth-authenticate-with-plex-broken-after-plex-web-update-v4-152-0/931098
 // TODO: Switch back to forwardUrl redirect flow when Plex fixes their OAuth implementation
 func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
-	logger.Debug("Poll status request received", "remote_addr", r.RemoteAddr)
-
 	session := getOrCreateSession(h.sessionStore, r)
 
 	// Get PIN ID from session
 	pinIDVal, ok := session.Values["plex_pin_id"]
 	if !ok {
-		logger.Debug("No plex_pin_id in session")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
@@ -109,14 +101,11 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 
 	pinID, ok := pinIDVal.(int)
 	if !ok {
-		logger.Debug("plex_pin_id type assertion failed", "type", fmt.Sprintf("%T", pinIDVal))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
 		return
 	}
-
-	logger.Debug("Checking PIN status", "pin_id", pinID)
 
 	// Check PIN status to get auth token
 	check, err := h.plexAuth.CheckPIN(pinID)
@@ -140,7 +129,6 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 
 	authToken := check.AuthToken
 	if authToken == "" {
-		logger.Debug("AuthToken still empty", "pin_id", pinID, "pin_code", check.Code)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"authorized": false})
@@ -148,7 +136,6 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Token is ready! Create/update user and set session
-	logger.Debug("Received auth token from Plex", "token_length", len(authToken))
 	plexUserID := "plex-user-" + authToken[:10]
 	plexUsername := "PlexUser"
 

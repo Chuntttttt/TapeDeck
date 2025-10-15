@@ -104,8 +104,6 @@ func (c *AuthClient) RequestPIN() (*PINResponse, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	log.Printf("DEBUG RequestPIN: ID=%d, Code='%s' (len=%d)", pinResp.ID, pinResp.Code, len(pinResp.Code))
-
 	return &pinResp, nil
 }
 
@@ -144,9 +142,6 @@ func (c *AuthClient) CheckPIN(pinID int) (*PINCheckResponse, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&checkResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-
-	log.Printf("DEBUG CheckPIN: ID=%d, Code='%s', AuthToken='%s' (len=%d)",
-		checkResp.ID, checkResp.Code, checkResp.AuthToken, len(checkResp.AuthToken))
 
 	return &checkResp, nil
 }

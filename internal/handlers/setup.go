@@ -13,8 +13,10 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/ha"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
+	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/sessions"
 )
 
@@ -33,6 +35,7 @@ type SetupState struct {
 	Step        int                 `json:"step"`
 	PlexServers []config.PlexServer `json:"plex_servers"`
 	HAConfig    config.HAConfig     `json:"ha_config"`
+	HAToken     string              `json:"ha_token"` // Stored separately, will be saved to database
 	AppleTVs    []config.AppleTV    `json:"apple_tvs"`
 	SelectedTVs map[string]bool     `json:"selected_tvs"` // entity_id -> selected
 }
@@ -190,7 +193,7 @@ func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	if err := pages.SetupServerSelection(servers).Render(ctx, w); err != nil {
+	if err := pages.SetupServerSelection(servers, csrf.Token(r)).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -290,9 +293,9 @@ func (h *SetupHandler) Step3HomeAssistant(w http.ResponseWriter, r *http.Request
 
 	// Pre-fill with existing values if any
 	haURL := state.HAConfig.URL
-	haToken := state.HAConfig.Token
+	haToken := state.HAToken
 
-	if err := pages.SetupHomeAssistant(haURL, haToken).Render(ctx, w); err != nil {
+	if err := pages.SetupHomeAssistant(haURL, haToken, csrf.Token(r)).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -366,9 +369,9 @@ func (h *SetupHandler) SaveHomeAssistant(w http.ResponseWriter, r *http.Request)
 	}
 
 	state.HAConfig = config.HAConfig{
-		URL:   haURL,
-		Token: haToken,
+		URL: haURL,
 	}
+	state.HAToken = haToken
 	state.Step = 4
 
 	if err := h.saveSetupState(w, r, state); err != nil {
@@ -393,7 +396,7 @@ func (h *SetupHandler) Step4AppleTVs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get media players from HA
-	haClient := ha.NewRestClient(state.HAConfig.URL, state.HAConfig.Token, h.devMode)
+	haClient := ha.NewRestClient(state.HAConfig.URL, state.HAToken, h.devMode)
 
 	// Add timeout for external API call
 	apiCtx, cancel := context.WithTimeout(ctx, constants.HAAPITimeout)
@@ -423,7 +426,7 @@ func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	if err := pages.SetupAppleTVSelection(mediaPlayers, state.SelectedTVs).Render(ctx, w); err != nil {
+	if err := pages.SetupAppleTVSelection(mediaPlayers, state.SelectedTVs, csrf.Token(r)).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -470,7 +473,7 @@ func (h *SetupHandler) SaveAppleTVs(w http.ResponseWriter, r *http.Request) {
 	selectedEntities := r.Form["tv_entities"]
 
 	// Fetch media players again to get friendly names
-	haClient := ha.NewRestClient(state.HAConfig.URL, state.HAConfig.Token, h.devMode)
+	haClient := ha.NewRestClient(state.HAConfig.URL, state.HAToken, h.devMode)
 
 	// Add timeout for external API call
 	apiCtx, cancel := context.WithTimeout(ctx, constants.HAAPITimeout)
@@ -531,7 +534,7 @@ func (h *SetupHandler) Step5Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := pages.SetupComplete(len(state.PlexServers), state.HAConfig.URL, len(state.AppleTVs)).Render(ctx, w); err != nil {
+	if err := pages.SetupComplete(len(state.PlexServers), state.HAConfig.URL, len(state.AppleTVs), csrf.Token(r)).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -549,7 +552,16 @@ func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create runtime config
+	// Save HA token to database (encrypted)
+	settings := models.NewSettings(state.HAToken)
+	if err := h.db.SaveSettings(ctx, settings); err != nil {
+		log.Error("Failed to save settings to database", "error", err)
+		RespondError(w, r, "Failed to save Home Assistant token", http.StatusInternalServerError)
+		return
+	}
+	log.Info("Saved Home Assistant token to database (encrypted)")
+
+	// Create runtime config (without HA token - it's in database now)
 	runtimeConfig := &config.RuntimeConfig{
 		Version:       1,
 		PlexServers:   state.PlexServers,

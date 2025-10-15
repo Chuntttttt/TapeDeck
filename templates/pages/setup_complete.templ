@@ -5,11 +5,11 @@ import "github.com/Chuntttttt/tapedeck/templates/components"
 import "fmt"
 
 // SetupComplete renders the setup completion page
-templ SetupComplete(numServers int, haURL string, numAppleTVs int) {
-	@layouts.SetupLayout("Complete Setup", 4, completeContent(numServers, haURL, numAppleTVs))
+templ SetupComplete(numServers int, haURL string, numAppleTVs int, csrfToken string) {
+	@layouts.SetupLayout("Complete Setup", 4, completeContent(numServers, haURL, numAppleTVs, csrfToken))
 }
 
-templ completeContent(numServers int, haURL string, numAppleTVs int) {
+templ completeContent(numServers int, haURL string, numAppleTVs int, csrfToken string) {
 	<div class="container">
 		@components.BackLink("/setup/appletv", "Back")
 		<div class="emoji">✓</div>
@@ -31,6 +31,7 @@ templ completeContent(numServers int, haURL string, numAppleTVs int) {
 		</div>
 		<p>You're ready to start pairing NFC cards with your media!</p>
 		<form method="post" action="/setup/finish">
+			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<button type="submit" class="btn">Start Using TapeDeck</button>
 		</form>
 	</div>

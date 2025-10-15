@@ -6,16 +6,17 @@ import "github.com/Chuntttttt/tapedeck/internal/config"
 import "fmt"
 
 // SetupServerSelection renders the server selection page
-templ SetupServerSelection(servers []config.PlexServer) {
-	@layouts.SetupLayout("Select Plex Servers", 2, serverSelectionContent(servers))
+templ SetupServerSelection(servers []config.PlexServer, csrfToken string) {
+	@layouts.SetupLayout("Select Plex Servers", 2, serverSelectionContent(servers, csrfToken))
 }
 
-templ serverSelectionContent(servers []config.PlexServer) {
+templ serverSelectionContent(servers []config.PlexServer, csrfToken string) {
 	<div class="container">
 		@components.BackLink("/setup", "Back")
 		<h1>Select Plex Servers</h1>
 		<p>We found { fmt.Sprintf("%d", len(servers)) } server(s) connected to your account. Select which servers you'd like to use with TapeDeck.</p>
 		<form method="post" action="/setup/plex/save" id="serverForm">
+			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="server-list">
 				for _, server := range servers {
 					@serverItem(server)

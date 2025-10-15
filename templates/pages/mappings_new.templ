@@ -4,14 +4,15 @@ import "github.com/Chuntttttt/tapedeck/templates/layouts"
 import "github.com/Chuntttttt/tapedeck/templates/components"
 
 // MappingsNewForm renders the new mapping form page
-templ MappingsNewForm(navHTML string, bannerHTML string, bannerScript string) {
-	@layouts.AppLayout("New Card Mapping", navHTML, bannerHTML, bannerScript, newFormContent())
+templ MappingsNewForm(navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
+	@layouts.AppLayout("New Card Mapping", navHTML, bannerHTML, bannerScript, newFormContent(csrfToken))
 }
 
-templ newFormContent() {
+templ newFormContent(csrfToken string) {
 	<div class="app-page-narrow">
 		<h1>Create New Card Mapping</h1>
 		<form method="post" action="/mappings" id="mappingForm">
+			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="form-group">
 				<label for="tag_id">NFC Tag ID *</label>
 				<input type="text" id="tag_id" name="tag_id" required placeholder="e.g., nfc-12345"/>

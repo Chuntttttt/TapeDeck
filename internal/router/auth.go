@@ -1,3 +1,4 @@
+// Package router provides HTTP route configuration for the TapeDeck application.
 package router
 
 import (

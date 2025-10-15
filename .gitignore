@@ -1,8 +1,14 @@
 # Environment variables
 .env
 
-# Session secret (auto-generated if not in .env)
+# Session secret (auto-generated on first run)
 .session_secret
+
+# CSRF key (auto-generated on first run)
+.csrf_key
+
+# Encryption key (auto-generated on first run)
+.encryption_key
 
 # Runtime configuration
 config.yml

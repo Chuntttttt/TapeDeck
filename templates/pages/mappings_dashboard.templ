@@ -5,11 +5,11 @@ import "github.com/Chuntttttt/tapedeck/internal/models"
 import "fmt"
 
 // MappingsDashboard renders the card mappings dashboard
-templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHTML string, bannerScript string) {
-	@layouts.AppLayout("Card Mappings", navHTML, bannerHTML, bannerScript, dashboardContent(mappings))
+templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
+	@layouts.AppLayout("Card Mappings", navHTML, bannerHTML, bannerScript, dashboardContent(mappings, csrfToken))
 }
 
-templ dashboardContent(mappings []*models.CardMapping) {
+templ dashboardContent(mappings []*models.CardMapping, csrfToken string) {
 	<div class="app-page">
 		<div class="header">
 			<h1>Card Mappings</h1>
@@ -47,6 +47,7 @@ templ dashboardContent(mappings []*models.CardMapping) {
 							<td class="actions">
 								<a href={ templ.SafeURL(fmt.Sprintf("/mappings/%d/edit", mapping.ID)) } class="btn btn-small">Edit</a>
 								<form method="post" action={ templ.SafeURL(fmt.Sprintf("/mappings/%d/delete", mapping.ID)) } style="margin: 0;">
+									<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 									<button type="submit" class="btn btn-small btn-danger" onclick="return confirm('Delete this mapping?')">Delete</button>
 								</form>
 							</td>

@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/config"
+	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/sessions"
 )
 
@@ -13,14 +16,16 @@ import (
 type SettingsHandler struct {
 	sessionStore   *sessions.CookieStore
 	configPath     string
+	db             *db.DB
 	reloadHandlers func() error
 }
 
 // NewSettingsHandler creates a new settings handler
-func NewSettingsHandler(store *sessions.CookieStore, configPath string, reloadHandlers func() error) *SettingsHandler {
+func NewSettingsHandler(store *sessions.CookieStore, configPath string, database *db.DB, reloadHandlers func() error) *SettingsHandler {
 	return &SettingsHandler{
 		sessionStore:   store,
 		configPath:     configPath,
+		db:             database,
 		reloadHandlers: reloadHandlers,
 	}
 }
@@ -45,8 +50,16 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load HA token from database
+	settings, err := h.db.GetSettings(ctx)
+	if err != nil {
+		log.Error("Failed to load settings from database", "error", err)
+		RespondError(w, r, "Failed to load Home Assistant token", http.StatusInternalServerError)
+		return
+	}
+
 	// Render using templ template
-	if err := pages.Settings(runtimeCfg.PlexServers, runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token, runtimeCfg.AppleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+	if err := pages.Settings(runtimeCfg.PlexServers, runtimeCfg.HomeAssistant.URL, settings.HAToken, runtimeCfg.AppleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r)).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -85,16 +98,37 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load HA token from database
+	settings, err := h.db.GetSettings(ctx)
+	if err != nil {
+		log.Error("Failed to load settings from database", "error", err)
+		RespondError(w, r, "Failed to load Home Assistant token", http.StatusInternalServerError)
+		return
+	}
+
 	// Update Home Assistant settings
 	haURL := r.FormValue("ha_url")
 	haToken := r.FormValue("ha_token")
 	haChanged := false
 	if haURL != "" && haToken != "" {
-		if haURL != runtimeCfg.HomeAssistant.URL || haToken != runtimeCfg.HomeAssistant.Token {
+		// Check if URL changed (in config.yml)
+		if haURL != runtimeCfg.HomeAssistant.URL {
 			runtimeCfg.HomeAssistant.URL = haURL
-			runtimeCfg.HomeAssistant.Token = haToken
 			haChanged = true
-			log.Info("Updated Home Assistant settings", "url", haURL)
+			log.Info("Updated Home Assistant URL", "url", haURL)
+		}
+
+		// Check if token changed (in database)
+		if haToken != settings.HAToken {
+			settings.HAToken = haToken
+			settings.UpdatedAt = time.Now()
+			if err := h.db.SaveSettings(ctx, settings); err != nil {
+				log.Error("Failed to save settings to database", "error", err)
+				RespondError(w, r, "Failed to save Home Assistant token", http.StatusInternalServerError)
+				return
+			}
+			haChanged = true
+			log.Info("Updated Home Assistant token (encrypted in database)")
 		}
 	}
 

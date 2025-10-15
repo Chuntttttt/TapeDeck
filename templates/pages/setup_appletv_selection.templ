@@ -6,16 +6,17 @@ import "github.com/Chuntttttt/tapedeck/internal/ha"
 import "fmt"
 
 // SetupAppleTVSelection renders the Apple TV selection page
-templ SetupAppleTVSelection(mediaPlayers []ha.Entity, selectedTVs map[string]bool) {
-	@layouts.SetupLayout("Select Apple TVs", 4, appleTVSelectionContent(mediaPlayers, selectedTVs))
+templ SetupAppleTVSelection(mediaPlayers []ha.Entity, selectedTVs map[string]bool, csrfToken string) {
+	@layouts.SetupLayout("Select Apple TVs", 4, appleTVSelectionContent(mediaPlayers, selectedTVs, csrfToken))
 }
 
-templ appleTVSelectionContent(mediaPlayers []ha.Entity, selectedTVs map[string]bool) {
+templ appleTVSelectionContent(mediaPlayers []ha.Entity, selectedTVs map[string]bool, csrfToken string) {
 	<div class="container">
 		@components.BackLink("/setup/ha", "Back")
 		<h1>Select Apple TVs</h1>
 		<p>We found { fmt.Sprintf("%d", len(mediaPlayers)) } media player(s) in Home Assistant. Select which ones you'd like to use with TapeDeck.</p>
 		<form method="post" action="/setup/appletv/save">
+			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="tv-list">
 				for _, player := range mediaPlayers {
 					@appleTVItem(player, len(mediaPlayers) == 1 || selectedTVs[player.EntityID])

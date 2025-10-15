@@ -4,17 +4,18 @@ import "github.com/Chuntttttt/tapedeck/templates/layouts"
 import "github.com/Chuntttttt/tapedeck/templates/components"
 
 // SetupHomeAssistant renders the Home Assistant configuration page
-templ SetupHomeAssistant(haURL string, haToken string) {
-	@layouts.SetupLayout("Connect Home Assistant", 3, haContent(haURL, haToken))
+templ SetupHomeAssistant(haURL string, haToken string, csrfToken string) {
+	@layouts.SetupLayout("Connect Home Assistant", 3, haContent(haURL, haToken, csrfToken))
 }
 
-templ haContent(haURL string, haToken string) {
+templ haContent(haURL string, haToken string, csrfToken string) {
 	<div class="container">
 		@components.BackLink("/setup/plex", "Back")
 		<h1>Connect Home Assistant</h1>
 		<p>Home Assistant controls playback on your Apple TV.</p>
 		<div id="status" class="status"></div>
 		<form method="post" action="/setup/ha/save" id="haForm">
+			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="form-group">
 				<label for="ha_url">Home Assistant URL *</label>
 				<input type="text" id="ha_url" name="ha_url" value={ haURL } required placeholder="http://homeassistant.local:8123"/>

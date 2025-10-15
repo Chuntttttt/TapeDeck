@@ -22,7 +22,54 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/internal/router"
 	"github.com/Chuntttttt/tapedeck/internal/services"
+	"github.com/Chuntttttt/tapedeck/templates/pages"
+	"github.com/gorilla/csrf"
 )
+
+// csrfExemptMiddleware wraps CSRF protection but exempts certain routes
+// that don't use HTML forms (API endpoints use JSON, WebSocket endpoints use WS protocol)
+func csrfExemptMiddleware(csrfProtect func(http.Handler) http.Handler, devMode bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Exempt API routes (use JSON, not forms)
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Exempt WebSocket routes (use WS protocol, not forms)
+			if strings.HasPrefix(r.URL.Path, "/ws/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Exempt metrics endpoint (Prometheus scraping)
+			if r.URL.Path == "/metrics" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Exempt health check endpoint
+			if r.URL.Path == "/health" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// In dev mode, exempt localhost cross-origin requests (for Air proxy)
+			if devMode && r.Method != "GET" && r.Method != "HEAD" {
+				origin := r.Header.Get("Origin")
+				if origin != "" && (strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
+					// Localhost origin in dev mode - skip CSRF check
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			// Apply CSRF protection to all other routes
+			csrfProtect(next).ServeHTTP(w, r)
+		})
+	}
+}
 
 func main() {
 	// Try to load runtime configuration from config.yml
@@ -66,8 +113,8 @@ func main() {
 
 	logger.Info("Starting TapeDeck", "log_level", cfg.LogLevel, "dev_mode", cfg.DevMode, "needs_setup", needsSetup)
 
-	// Initialize database
-	database, err := db.New(cfg.DatabasePath)
+	// Initialize database with encryption key
+	database, err := db.New(cfg.DatabasePath, cfg.EncryptionKey)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err) //nolint:gocritic // exitAfterDefer: acceptable for fatal errors
 	}
@@ -83,6 +130,17 @@ func main() {
 	}
 
 	logger.Info("Database initialized successfully")
+
+	// Check if settings exist in database (required for HA token)
+	// If config.yml exists but settings don't, require setup
+	if !needsSetup {
+		ctx := context.Background()
+		_, err := database.GetSettings(ctx)
+		if err != nil {
+			logger.Info("Settings not found in database - setup wizard required")
+			needsSetup = true
+		}
+	}
 
 	// Initialize session store
 	sessionStore := middleware.NewSessionStore([]byte(cfg.SessionSecret), cfg.RequireTLS)
@@ -141,6 +199,14 @@ func main() {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
+		// Load HA token from database
+		ctx := context.Background()
+		settings, err := database.GetSettings(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to load Home Assistant token from database: %w", err)
+		}
+		haToken := settings.HAToken
+
 		// Build list of servers with their best connections
 		var servers []handlers.ServerInfo
 		var plexURL string      // For legacy handlers that need a single URL
@@ -185,13 +251,13 @@ func main() {
 		playbackHandler = handlers.NewPlaybackHandler(database, plexServerID)
 
 		// Initialize Home Assistant WebSocket client
-		haClient = ha.NewHAClient(runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token)
+		haClient = ha.NewHAClient(runtimeCfg.HomeAssistant.URL, haToken)
 		if err := haClient.Connect(); err != nil {
 			logger.Warn("Failed to connect to Home Assistant", "error", err)
 		}
 
 		// Initialize Home Assistant REST client
-		haRest := ha.NewRestClient(runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token, cfg.DevMode)
+		haRest := ha.NewRestClient(runtimeCfg.HomeAssistant.URL, haToken, cfg.DevMode)
 
 		// Initialize playback service
 		playbackService := services.NewPlaybackService(database, haRest)
@@ -207,7 +273,7 @@ func main() {
 		)
 
 		// Initialize status handler
-		statusHandler = handlers.NewStatusHandler(haClient, "./config.yml")
+		statusHandler = handlers.NewStatusHandler(haClient, "./config.yml", database)
 
 		// Sanity check: ensure all handlers were initialized
 		// This should never fail unless there's a programming error above
@@ -224,7 +290,7 @@ func main() {
 	setupHandler := handlers.NewSetupHandler(sessionStore, "./config.yml", plexAuth, database, cfg.DevMode, initializeHandlers)
 
 	// Initialize settings handler (always available) - uses same reload callback as setup
-	settingsHandler = handlers.NewSettingsHandler(sessionStore, "./config.yml", initializeHandlers)
+	settingsHandler = handlers.NewSettingsHandler(sessionStore, "./config.yml", database, initializeHandlers)
 
 	// Initialize handlers if config exists
 	if !needsSetup {
@@ -244,12 +310,15 @@ func main() {
 		AuthHandler:     authHandler,
 		SetupHandler:    setupHandler,
 		SettingsHandler: settingsHandler,
-		MappingsHandler: mappingsHandler,
-		MediaHandler:    mediaHandler,
-		PairingHandler:  pairingHandler,
-		PlaybackHandler: playbackHandler,
-		StatusHandler:   statusHandler,
 		AuthMiddleware:  middleware.RequireAuth(sessionStore),
+
+		// Handler getters that return current values (updated after setup/settings changes)
+		GetMappingsHandler: func() *handlers.MappingsHandler { return mappingsHandler },
+		GetMediaHandler:    func() *handlers.MediaHandler { return mediaHandler },
+		GetPairingHandler:  func() *handlers.PairingHandler { return pairingHandler },
+		GetPlaybackHandler: func() *handlers.PlaybackHandler { return playbackHandler },
+		GetStatusHandler:   func() *handlers.StatusHandler { return statusHandler },
+
 		// HandlersReady is used by requireInitialized middleware to check if
 		// handlers have been initialized. Returns true only if all runtime
 		// handlers are non-nil (i.e., initializeHandlers() has been called).
@@ -262,19 +331,53 @@ func main() {
 	// Create router
 	r := router.New(deps)
 
+	// Configure CSRF protection
+	// Exempt API and WebSocket routes (they use JSON/WebSocket, not forms)
+	csrfOptions := []csrf.Option{
+		csrf.Secure(cfg.RequireTLS),
+		csrf.Path("/"),
+		csrf.SameSite(csrf.SameSiteLaxMode),
+		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger.Warn("CSRF validation failed",
+				"path", r.URL.Path,
+				"method", r.Method,
+				"remote_addr", r.RemoteAddr,
+				"origin", r.Header.Get("Origin"),
+				"host", r.Host,
+				"reason", csrf.FailureReason(r))
+
+			// Render proper error page
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			if err := pages.Error(http.StatusForbidden, "CSRF token validation failed. Please try again.").Render(r.Context(), w); err != nil {
+				logger.Error("Failed to render CSRF error page", "error", err)
+				http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+			}
+		})),
+	}
+
+	csrfMiddleware := csrf.Protect(cfg.CSRFKey, csrfOptions...)
+
+	if cfg.DevMode {
+		logger.Info("CSRF protection: allowing localhost cross-origin requests in dev mode")
+	}
+
 	// Wrap with middleware chain
-	// 1. Metrics middleware (tracks request metrics)
-	// 2. Request ID middleware (generates unique request ID)
-	// 3. User ID middleware (extracts user ID from session)
-	// 4. Request logger middleware (creates scoped logger with request metadata)
-	// 5. Request logging middleware (logs all requests)
-	// 6. Setup middleware (checks config for all non-exempted routes)
-	handler := middleware.MetricsMiddleware()(
-		middleware.WithRequestID()(
-			middleware.WithUserID(sessionStore)(
-				middleware.WithRequestLogger()(
-					middleware.RequestLogger()(
-						middleware.SetupMiddleware("./config.yml", sessionStore)(r),
+	// 1. CSRF protection (validates tokens on POST/PUT/PATCH/DELETE)
+	// 2. Metrics middleware (tracks request metrics)
+	// 3. Request ID middleware (generates unique request ID)
+	// 4. User ID middleware (extracts user ID from session)
+	// 5. Request logger middleware (creates scoped logger with request metadata)
+	// 6. Request logging middleware (logs all requests)
+	// 7. Setup middleware (checks config for all non-exempted routes)
+	handler := csrfExemptMiddleware(csrfMiddleware, cfg.DevMode)(
+		middleware.MetricsMiddleware()(
+			middleware.WithRequestID()(
+				middleware.WithUserID(sessionStore)(
+					middleware.WithRequestLogger()(
+						middleware.RequestLogger()(
+							middleware.SetupMiddleware("./config.yml", sessionStore)(r),
+						),
 					),
 				),
 			),

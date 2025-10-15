@@ -14,11 +14,13 @@ type Dependencies struct {
 	AuthHandler     *handlers.AuthHandler
 	SetupHandler    *handlers.SetupHandler
 	SettingsHandler *handlers.SettingsHandler
-	MappingsHandler *handlers.MappingsHandler
-	MediaHandler    *handlers.MediaHandler
-	PairingHandler  *handlers.PairingHandler
-	PlaybackHandler *handlers.PlaybackHandler
-	StatusHandler   *handlers.StatusHandler
+
+	// Handler getters (return current handler values, may change after initialization)
+	GetMappingsHandler func() *handlers.MappingsHandler
+	GetMediaHandler    func() *handlers.MediaHandler
+	GetPairingHandler  func() *handlers.PairingHandler
+	GetPlaybackHandler func() *handlers.PlaybackHandler
+	GetStatusHandler   func() *handlers.StatusHandler
 
 	AuthMiddleware func(http.Handler) http.Handler
 	HandlersReady  func() bool
@@ -63,27 +65,54 @@ func New(deps *Dependencies) *chi.Mux {
 	// Therefore, individual route handlers do not need to check for nil handlers.
 	r.Group(func(r chi.Router) {
 		r.Use(requireInitialized(deps.HandlersReady))
+		r.Use(deps.AuthMiddleware)
 
 		// Media routes
-		r.Mount("/libraries", mediaRouter(deps.MediaHandler, deps.AuthMiddleware))
+		r.Get("/libraries", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMediaHandler().Libraries(w, req)
+		})
+		r.Get("/libraries/{libraryKey}", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMediaHandler().LibraryContents(w, req)
+		})
 
 		// Mappings routes
-		r.Mount("/mappings", mappingsRouter(
-			deps.MappingsHandler,
-			deps.PairingHandler,
-			deps.AuthMiddleware,
-		))
-
-		// API routes
-		r.Mount("/api", apiRouter(
-			deps.MappingsHandler,
-			deps.PlaybackHandler,
-			deps.StatusHandler,
-			deps.AuthMiddleware,
-		))
+		r.Get("/mappings", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().Dashboard(w, req)
+		})
+		r.Get("/mappings/new", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().NewMappingForm(w, req)
+		})
+		r.Post("/mappings", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().CreateMapping(w, req)
+		})
+		r.Get("/mappings/{id}/edit", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().EditMappingForm(w, req)
+		})
+		r.Post("/mappings/{id}", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().UpdateMapping(w, req)
+		})
+		r.Post("/mappings/{id}/delete", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().DeleteMapping(w, req)
+		})
+		r.Get("/mappings/pair", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetPairingHandler().PairForm(w, req)
+		})
 
 		// WebSocket routes
-		r.Mount("/ws", wsRouter(deps.PairingHandler, deps.AuthMiddleware))
+		r.Get("/ws/pairing", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetPairingHandler().WebSocketPairing(w, req)
+		})
+
+		// API routes (no auth middleware - exempt in csrfExemptMiddleware)
+		r.Get("/api/search", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().SearchJSON(w, req)
+		})
+		r.Post("/api/play", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetPlaybackHandler().Play(w, req)
+		})
+		r.Get("/api/status/ha", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetStatusHandler().HAStatus(w, req)
+		})
 	})
 
 	// Static files

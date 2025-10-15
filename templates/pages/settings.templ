@@ -4,16 +4,17 @@ import "github.com/Chuntttttt/tapedeck/templates/layouts"
 import "github.com/Chuntttttt/tapedeck/internal/config"
 
 // Settings renders the settings page
-templ Settings(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string) {
-	@layouts.AppLayout("Settings", navHTML, bannerHTML, bannerScript, settingsContent(plexServers, haURL, haToken, appleTVs))
+templ Settings(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
+	@layouts.AppLayout("Settings", navHTML, bannerHTML, bannerScript, settingsContent(plexServers, haURL, haToken, appleTVs, csrfToken))
 }
 
-templ settingsContent(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV) {
+templ settingsContent(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV, csrfToken string) {
 	<div class="app-page">
 		<div class="header">
 			<h1>⚙️ Settings</h1>
 		</div>
 		<form method="post" action="/settings/servers">
+			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="section" style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px;">
 				<h2 style="margin-top: 0; color: #333; border-bottom: 2px solid #e5a00d; padding-bottom: 10px;">Plex Servers</h2>
 				<div class="server-list" style="margin-top: 15px;">

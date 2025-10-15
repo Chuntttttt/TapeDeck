@@ -119,14 +119,28 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 
 	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
 
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Setup authenticated session
+	// Create authenticated session for requests
+	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
 		session, _ := store.Get(r, middleware.SessionName)
 		middleware.SetUserID(session, userID)
-		_ = session.Save(r, w)
+		if err := session.Save(r, w); err != nil {
+			return r, err
+		}
+		// Copy cookies from response to request
+		for _, cookie := range w.(*httptest.ResponseRecorder).Result().Cookies() {
+			r.AddCookie(cookie)
+		}
+		return r, nil
+	}
 
-		handler.WebSocketPairing(w, r)
+	// Create test server with middleware
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set up session in a temp recorder first
+		tempW := httptest.NewRecorder()
+		r, _ = setupAuthSession(tempW, r)
+
+		// Wrap with middleware to add user ID to context
+		middleware.WithUserID(store)(http.HandlerFunc(handler.WebSocketPairing)).ServeHTTP(w, r)
 	}))
 	defer server.Close()
 
@@ -248,14 +262,28 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 
 	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
 
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Setup authenticated session
+	// Create authenticated session for requests
+	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
 		session, _ := store.Get(r, middleware.SessionName)
 		middleware.SetUserID(session, userID)
-		_ = session.Save(r, w)
+		if err := session.Save(r, w); err != nil {
+			return r, err
+		}
+		// Copy cookies from response to request
+		for _, cookie := range w.(*httptest.ResponseRecorder).Result().Cookies() {
+			r.AddCookie(cookie)
+		}
+		return r, nil
+	}
 
-		handler.WebSocketPairing(w, r)
+	// Create test server with middleware
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set up session in a temp recorder first
+		tempW := httptest.NewRecorder()
+		r, _ = setupAuthSession(tempW, r)
+
+		// Wrap with middleware to add user ID to context
+		middleware.WithUserID(store)(http.HandlerFunc(handler.WebSocketPairing)).ServeHTTP(w, r)
 	}))
 	defer server.Close()
 
@@ -343,14 +371,28 @@ func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
 
 	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
 
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Setup authenticated session
+	// Create authenticated session for requests
+	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
 		session, _ := store.Get(r, middleware.SessionName)
 		middleware.SetUserID(session, userID)
-		_ = session.Save(r, w)
+		if err := session.Save(r, w); err != nil {
+			return r, err
+		}
+		// Copy cookies from response to request
+		for _, cookie := range w.(*httptest.ResponseRecorder).Result().Cookies() {
+			r.AddCookie(cookie)
+		}
+		return r, nil
+	}
 
-		handler.WebSocketPairing(w, r)
+	// Create test server with middleware
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set up session in a temp recorder first
+		tempW := httptest.NewRecorder()
+		r, _ = setupAuthSession(tempW, r)
+
+		// Wrap with middleware to add user ID to context
+		middleware.WithUserID(store)(http.HandlerFunc(handler.WebSocketPairing)).ServeHTTP(w, r)
 	}))
 	defer server.Close()
 
@@ -408,14 +450,28 @@ func TestPairingHandler_WebSocketPairing_MissingFields(t *testing.T) {
 
 	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
 
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Setup authenticated session
+	// Create authenticated session for requests
+	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
 		session, _ := store.Get(r, middleware.SessionName)
 		middleware.SetUserID(session, userID)
-		_ = session.Save(r, w)
+		if err := session.Save(r, w); err != nil {
+			return r, err
+		}
+		// Copy cookies from response to request
+		for _, cookie := range w.(*httptest.ResponseRecorder).Result().Cookies() {
+			r.AddCookie(cookie)
+		}
+		return r, nil
+	}
 
-		handler.WebSocketPairing(w, r)
+	// Create test server with middleware
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set up session in a temp recorder first
+		tempW := httptest.NewRecorder()
+		r, _ = setupAuthSession(tempW, r)
+
+		// Wrap with middleware to add user ID to context
+		middleware.WithUserID(store)(http.HandlerFunc(handler.WebSocketPairing)).ServeHTTP(w, r)
 	}))
 	defer server.Close()
 
@@ -809,14 +865,28 @@ func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
 
 	handler := NewPairingHandler(store, testDB, mockHA, playbackService, "")
 
-	// Create test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Setup authenticated session
+	// Create authenticated session for requests
+	setupAuthSession := func(w http.ResponseWriter, r *http.Request) (*http.Request, error) {
 		session, _ := store.Get(r, middleware.SessionName)
 		middleware.SetUserID(session, userID)
-		_ = session.Save(r, w)
+		if err := session.Save(r, w); err != nil {
+			return r, err
+		}
+		// Copy cookies from response to request
+		for _, cookie := range w.(*httptest.ResponseRecorder).Result().Cookies() {
+			r.AddCookie(cookie)
+		}
+		return r, nil
+	}
 
-		handler.WebSocketPairing(w, r)
+	// Create test server with middleware
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set up session in a temp recorder first
+		tempW := httptest.NewRecorder()
+		r, _ = setupAuthSession(tempW, r)
+
+		// Wrap with middleware to add user ID to context
+		middleware.WithUserID(store)(http.HandlerFunc(handler.WebSocketPairing)).ServeHTTP(w, r)
 	}))
 	defer server.Close()
 

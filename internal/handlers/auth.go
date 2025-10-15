@@ -40,17 +40,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if _, ok := middleware.GetUserID(session); ok {
 		// Use redirect parameter if provided, otherwise go to /
 		redirectTo := r.URL.Query().Get("redirect")
-		if redirectTo == "" {
-			redirectTo = "/"
+		validatedRedirect, err := ValidateRedirectPath(redirectTo)
+		if err != nil {
+			log.Warn("Invalid redirect path", "error", err, "redirect", redirectTo)
+			validatedRedirect = "/"
 		}
-		http.Redirect(w, r, redirectTo, http.StatusFound)
+		http.Redirect(w, r, validatedRedirect, http.StatusFound)
 		return
 	}
 
-	// Store redirect URL in session if provided
+	// Store redirect URL in session if provided (validate it first)
 	redirectTo := r.URL.Query().Get("redirect")
 	if redirectTo != "" {
-		session.Values["auth_redirect"] = redirectTo
+		validatedRedirect, err := ValidateRedirectPath(redirectTo)
+		if err != nil {
+			log.Warn("Invalid redirect path", "error", err, "redirect", redirectTo)
+		} else {
+			session.Values["auth_redirect"] = validatedRedirect
+		}
 	}
 
 	// Check if we already have a PIN in the session (avoid generating multiple PINs)
@@ -177,10 +184,15 @@ func (h *AuthHandler) PollStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get redirect URL from session (if set)
+	// Get redirect URL from session (if set) and validate it
 	redirectTo := "/"
 	if redirect, ok := session.Values["auth_redirect"].(string); ok && redirect != "" {
-		redirectTo = redirect
+		validatedRedirect, err := ValidateRedirectPath(redirect)
+		if err != nil {
+			log.Warn("Invalid redirect path from session", "error", err, "redirect", redirect)
+		} else {
+			redirectTo = validatedRedirect
+		}
 	}
 
 	// Store user ID in session
@@ -221,13 +233,18 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		log.Error("Failed to save session", "error", err)
 	}
 
-	// Check for redirect parameter
+	// Check for redirect parameter (validate to prevent open redirects)
 	redirectTo := r.URL.Query().Get("redirect")
-	if redirectTo == "" {
-		redirectTo = "/auth/login"
+	validatedRedirect, err := ValidateRedirectPath(redirectTo)
+	if err != nil {
+		log.Warn("Invalid redirect path", "error", err, "redirect", redirectTo)
+		validatedRedirect = "/auth/login"
+	}
+	if validatedRedirect == "" {
+		validatedRedirect = "/auth/login"
 	}
 
-	http.Redirect(w, r, redirectTo, http.StatusFound)
+	http.Redirect(w, r, validatedRedirect, http.StatusFound)
 }
 
 // getOrCreateSession retrieves or creates a session

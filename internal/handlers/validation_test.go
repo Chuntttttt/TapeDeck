@@ -140,3 +140,110 @@ func TestValidateHTTPURL(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRedirectPath(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantPath  string
+		wantError bool
+	}{
+		{
+			name:      "valid root path",
+			input:     "/",
+			wantPath:  "/",
+			wantError: false,
+		},
+		{
+			name:      "valid nested path",
+			input:     "/mappings",
+			wantPath:  "/mappings",
+			wantError: false,
+		},
+		{
+			name:      "valid deep path",
+			input:     "/mappings/123/edit",
+			wantPath:  "/mappings/123/edit",
+			wantError: false,
+		},
+		{
+			name:      "empty string defaults to root",
+			input:     "",
+			wantPath:  "/",
+			wantError: false,
+		},
+		{
+			name:      "path with whitespace",
+			input:     "  /settings  ",
+			wantPath:  "/settings",
+			wantError: false,
+		},
+		{
+			name:      "path with query string",
+			input:     "/auth/login?next=/mappings",
+			wantPath:  "/auth/login?next=/mappings",
+			wantError: false,
+		},
+		{
+			name:      "protocol-relative URL (open redirect)",
+			input:     "//evil.com",
+			wantPath:  "",
+			wantError: true,
+		},
+		{
+			name:      "protocol-relative URL with path",
+			input:     "//evil.com/phishing",
+			wantPath:  "",
+			wantError: true,
+		},
+		{
+			name:      "absolute URL http",
+			input:     "http://evil.com",
+			wantPath:  "",
+			wantError: true,
+		},
+		{
+			name:      "absolute URL https",
+			input:     "https://evil.com/phishing",
+			wantPath:  "",
+			wantError: true,
+		},
+		{
+			name:      "relative path without leading slash",
+			input:     "mappings/123",
+			wantPath:  "",
+			wantError: true,
+		},
+		{
+			name:      "javascript URL",
+			input:     "javascript:alert(1)",
+			wantPath:  "",
+			wantError: true,
+		},
+		{
+			name:      "data URL",
+			input:     "data:text/html,<script>alert(1)</script>",
+			wantPath:  "",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotPath, err := ValidateRedirectPath(tt.input)
+
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("ValidateRedirectPath() expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("ValidateRedirectPath() unexpected error: %v", err)
+				}
+				if gotPath != tt.wantPath {
+					t.Errorf("ValidateRedirectPath() = %q, want %q", gotPath, tt.wantPath)
+				}
+			}
+		})
+	}
+}

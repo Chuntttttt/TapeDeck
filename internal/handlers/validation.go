@@ -37,3 +37,27 @@ func ValidateHTTPURL(rawURL string) (string, error) {
 	// Return cleaned URL (removes trailing slash, normalizes)
 	return strings.TrimSuffix(parsedURL.String(), "/"), nil
 }
+
+// ValidateRedirectPath validates that a redirect path is safe for same-origin redirects.
+// This prevents open redirect attacks where attackers could redirect users to external sites.
+// Only allows relative paths starting with "/" but not "//" (which is a protocol-relative URL).
+func ValidateRedirectPath(redirect string) (string, error) {
+	if redirect == "" {
+		return "/", nil
+	}
+
+	// Trim whitespace
+	redirect = strings.TrimSpace(redirect)
+
+	// Must start with /
+	if !strings.HasPrefix(redirect, "/") {
+		return "", fmt.Errorf("redirect must be a relative path starting with /")
+	}
+
+	// Must not start with // (protocol-relative URL like //evil.com)
+	if strings.HasPrefix(redirect, "//") {
+		return "", fmt.Errorf("redirect must not be a protocol-relative URL")
+	}
+
+	return redirect, nil
+}

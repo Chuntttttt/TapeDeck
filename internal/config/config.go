@@ -19,6 +19,7 @@ type Config struct {
 	LogLevel      string
 	SessionSecret string
 	DevMode       bool
+	RequireTLS    bool
 }
 
 // Load reads configuration from environment variables and validates required fields.
@@ -54,6 +55,7 @@ func Load() (*Config, error) {
 		LogLevel:      getEnvOrDefault("LOG_LEVEL", "info"),
 		SessionSecret: sessionSecret,
 		DevMode:       os.Getenv("DEV_MODE") == "true",
+		RequireTLS:    os.Getenv("REQUIRE_TLS") == "true",
 	}
 
 	return cfg, nil

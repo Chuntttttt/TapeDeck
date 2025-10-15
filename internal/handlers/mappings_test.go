@@ -17,7 +17,7 @@ import (
 )
 
 func TestMappingsHandler_Dashboard(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
@@ -104,7 +104,7 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 }
 
 func TestMappingsHandler_Dashboard_Empty(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
@@ -166,7 +166,7 @@ func TestMappingsHandler_Dashboard_Empty(t *testing.T) {
 }
 
 func TestMappingsHandler_NewMappingForm(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
@@ -231,7 +231,7 @@ func TestMappingsHandler_NewMappingForm(t *testing.T) {
 }
 
 func TestMappingsHandler_CreateMapping(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
@@ -320,7 +320,7 @@ func TestMappingsHandler_CreateMapping(t *testing.T) {
 }
 
 func TestMappingsHandler_EditMappingForm(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
@@ -397,7 +397,7 @@ func TestMappingsHandler_EditMappingForm(t *testing.T) {
 }
 
 func TestMappingsHandler_UpdateMapping(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
@@ -485,7 +485,7 @@ func TestMappingsHandler_UpdateMapping(t *testing.T) {
 }
 
 func TestMappingsHandler_DeleteMapping(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := &MappingsHandler{
 		sessionStore: store,
 		db:           nil,
@@ -559,7 +559,7 @@ func TestMappingsHandler_DeleteMapping(t *testing.T) {
 }
 
 func TestMappingsHandler_SearchJSON(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{

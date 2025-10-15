@@ -85,13 +85,20 @@ func main() {
 	logger.Info("Database initialized successfully")
 
 	// Initialize session store
-	sessionStore := middleware.NewSessionStore([]byte(cfg.SessionSecret))
+	sessionStore := middleware.NewSessionStore([]byte(cfg.SessionSecret), cfg.RequireTLS)
 
-	// Initialize Plex auth client (needed for both normal operation and setup)
-	plexAuth := plex.NewAuthClient("https://plex.tv", "tapedeck-client-id", "TapeDeck", cfg.DevMode)
+	// Security warnings
 	if cfg.DevMode {
 		logger.Warn("DEV_MODE enabled: TLS verification disabled")
 	}
+	if !cfg.RequireTLS {
+		logger.Warn("TLS NOT REQUIRED - Session cookies will be sent over HTTP")
+		logger.Warn("This is INSECURE for internet-exposed deployments")
+		logger.Warn("Set REQUIRE_TLS=true and use HTTPS in production")
+	}
+
+	// Initialize Plex auth client (needed for both normal operation and setup)
+	plexAuth := plex.NewAuthClient("https://plex.tv", "tapedeck-client-id", "TapeDeck", cfg.DevMode)
 
 	// Initialize auth handler (needed for both normal operation and setup)
 	authHandler := handlers.NewAuthHandler(sessionStore, plexAuth, database)

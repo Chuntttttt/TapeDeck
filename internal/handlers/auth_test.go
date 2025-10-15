@@ -14,7 +14,7 @@ import (
 
 func TestAuthHandler_Login_GET(t *testing.T) {
 	// Create test dependencies
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	authClient := plex.NewAuthClient("https://plex.tv", "test-client", "TapeDeck", false)
 
 	handler := NewAuthHandler(store, authClient, nil)
@@ -39,7 +39,7 @@ func TestAuthHandler_Callback_Success(t *testing.T) {
 	// This is a more complex integration test that would require
 	// mocking the Plex PIN check and database operations
 	// For now, we'll test the basic structure
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	authClient := plex.NewAuthClient("https://plex.tv", "test-client", "TapeDeck", false)
 
 	// Create temporary test database
@@ -58,7 +58,7 @@ func TestAuthHandler_Callback_Success(t *testing.T) {
 }
 
 func TestAuthHandler_Logout(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	handler := NewAuthHandler(store, nil, nil)
 
@@ -92,7 +92,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 }
 
 func TestGetOrCreateSession(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 
@@ -103,7 +103,7 @@ func TestGetOrCreateSession(t *testing.T) {
 }
 
 func TestGetOrCreateSession_ExistingSession(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
@@ -133,7 +133,7 @@ func TestGetOrCreateSession_ExistingSession(t *testing.T) {
 }
 
 func TestAuthHandler_PollStatus_NoPINInSession(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := NewAuthHandler(store, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/poll-status", nil)
@@ -157,7 +157,7 @@ func TestAuthHandler_PollStatus_NoPINInSession(t *testing.T) {
 }
 
 func TestAuthHandler_PollStatus_InvalidPINIDType(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 	handler := NewAuthHandler(store, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/poll-status", nil)
@@ -188,7 +188,7 @@ func TestAuthHandler_PollStatus_InvalidPINIDType(t *testing.T) {
 }
 
 func TestAuthHandler_PollStatus_RateLimited(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create mock Plex client that returns rate limit error
 	mockPlex := &mockPlexAuthClient{
@@ -231,7 +231,7 @@ func TestAuthHandler_PollStatus_RateLimited(t *testing.T) {
 }
 
 func TestAuthHandler_PollStatus_NotYetAuthorized(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create mock Plex client that returns empty auth token
 	mockPlex := &mockPlexAuthClient{
@@ -278,7 +278,7 @@ func TestAuthHandler_PollStatus_NotYetAuthorized(t *testing.T) {
 }
 
 func TestAuthHandler_PollStatus_Authorized_CreateNewUser(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create mock Plex client that returns auth token
 	mockPlex := &mockPlexAuthClient{

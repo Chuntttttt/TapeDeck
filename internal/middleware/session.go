@@ -16,13 +16,13 @@ const (
 )
 
 // NewSessionStore creates a new session store with the given secret key
-func NewSessionStore(secret []byte) *sessions.CookieStore {
+func NewSessionStore(secret []byte, requireTLS bool) *sessions.CookieStore {
 	store := sessions.NewCookieStore(secret)
 	store.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   int(constants.SessionMaxAge.Seconds()),
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   requireTLS,
 		SameSite: http.SameSiteLaxMode,
 	}
 	return store

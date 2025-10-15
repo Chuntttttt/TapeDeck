@@ -9,7 +9,7 @@ import (
 func TestNewSessionStore(t *testing.T) {
 	secret := []byte("test-secret-key-32-chars-long!!")
 
-	store := NewSessionStore(secret)
+	store := NewSessionStore(secret, false)
 	if store == nil {
 		t.Fatal("NewSessionStore() returned nil")
 	}
@@ -35,7 +35,7 @@ func TestGetSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+			store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
@@ -70,7 +70,7 @@ func TestGetSession(t *testing.T) {
 }
 
 func TestSetGetUserID(t *testing.T) {
-	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
@@ -102,7 +102,7 @@ func TestSetGetUserID(t *testing.T) {
 }
 
 func TestGetUserID_NotSet(t *testing.T) {
-	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	session, err := store.Get(req, SessionName)
@@ -117,7 +117,7 @@ func TestGetUserID_NotSet(t *testing.T) {
 }
 
 func TestClearSession(t *testing.T) {
-	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
@@ -144,7 +144,7 @@ func TestClearSession(t *testing.T) {
 }
 
 func TestRequireAuth_Authenticated(t *testing.T) {
-	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Setup authenticated session
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
@@ -181,7 +181,7 @@ func TestRequireAuth_Authenticated(t *testing.T) {
 }
 
 func TestRequireAuth_NotAuthenticated(t *testing.T) {
-	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// No session setup - unauthenticated
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)

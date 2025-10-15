@@ -14,7 +14,7 @@ import (
 )
 
 func TestMediaHandler_Libraries(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{
@@ -99,7 +99,7 @@ func TestMediaHandler_Libraries(t *testing.T) {
 }
 
 func TestMediaHandler_LibraryContents(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{
@@ -192,7 +192,7 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 }
 
 func TestMediaHandler_Search(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create mock Plex client
 	mockPlex := &mockPlexClient{
@@ -279,7 +279,7 @@ func TestMediaHandler_Search(t *testing.T) {
 }
 
 func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	handler := &MediaHandler{
 		sessionStore: store,

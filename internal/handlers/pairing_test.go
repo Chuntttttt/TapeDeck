@@ -18,7 +18,7 @@ import (
 )
 
 func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	handler := NewPairingHandler(store, nil, nil, nil, "", false)
 
@@ -33,7 +33,7 @@ func TestPairingHandler_PairForm_NotAuthenticated(t *testing.T) {
 }
 
 func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	handler := NewPairingHandler(store, nil, nil, nil, "", false)
 
@@ -72,7 +72,7 @@ func TestPairingHandler_PairForm_Authenticated(t *testing.T) {
 }
 
 func TestPairingHandler_WebSocketUpgrade_NotAuthenticated(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	handler := NewPairingHandler(store, nil, nil, nil, "", false)
 
@@ -87,7 +87,7 @@ func TestPairingHandler_WebSocketUpgrade_NotAuthenticated(t *testing.T) {
 }
 
 func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -223,7 +223,7 @@ func TestPairingHandler_WebSocketPairing_Success(t *testing.T) {
 }
 
 func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -340,7 +340,7 @@ func TestPairingHandler_WebSocketPairing_DuplicateTag(t *testing.T) {
 }
 
 func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -419,7 +419,7 @@ func TestPairingHandler_WebSocketPairing_InvalidMessage(t *testing.T) {
 }
 
 func TestPairingHandler_WebSocketPairing_MissingFields(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -620,7 +620,7 @@ func (m *mockHARestClient) PlayMedia(_ context.Context, entityID, contentType, c
 }
 
 func TestPairingHandler_Playback_Success(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -688,7 +688,7 @@ func TestPairingHandler_Playback_Success(t *testing.T) {
 }
 
 func TestPairingHandler_Playback_NoMapping(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -726,7 +726,7 @@ func TestPairingHandler_Playback_NoMapping(t *testing.T) {
 }
 
 func TestPairingHandler_Playback_RestClientError(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -783,7 +783,7 @@ func TestPairingHandler_Playback_RestClientError(t *testing.T) {
 }
 
 func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")
@@ -832,7 +832,7 @@ func TestPairingHandler_Playback_NilRestClient(t *testing.T) {
 }
 
 func TestPairingHandler_PairingMode_StillWorks(t *testing.T) {
-	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"))
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
 
 	// Create test database
 	testDB, err := db.New(":memory:")

@@ -58,7 +58,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		pin, err = h.plexAuth.RequestPIN()
 		if err != nil {
 			log.Printf("Failed to request PIN: %v", err)
-			http.Error(w, "Failed to initiate Plex authentication", http.StatusInternalServerError)
+			RespondError(w, r, "Failed to initiate Plex authentication", http.StatusInternalServerError)
 			return
 		}
 
@@ -67,7 +67,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		session.Values["plex_pin_code"] = pin.Code
 		if err := session.Save(r, w); err != nil {
 			log.Printf("Failed to save session: %v", err)
-			http.Error(w, "Session error", http.StatusInternalServerError)
+			RespondError(w, r, "Session error", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -75,7 +75,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Render login page with polling
 	if err := pages.AuthLogin(pin.Code).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 

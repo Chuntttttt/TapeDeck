@@ -93,7 +93,7 @@ func (h *SetupHandler) Step1Welcome(w http.ResponseWriter, r *http.Request) {
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to load setup wizard", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load setup wizard", http.StatusInternalServerError)
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *SetupHandler) Step1Welcome(w http.ResponseWriter, r *http.Request) {
 	// Render using templ template
 	if err := pages.SetupWelcome().Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
@@ -152,35 +152,35 @@ func (h *SetupHandler) Step2Plex(w http.ResponseWriter, r *http.Request) {
 func (h *SetupHandler) renderPlexLogin(w http.ResponseWriter, r *http.Request) {
 	if err := pages.SetupPlexLogin().Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 func (h *SetupHandler) renderPlexError(w http.ResponseWriter, r *http.Request, errorMsg string) {
 	if err := pages.SetupPlexError(errorMsg).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, r *http.Request, servers []config.PlexServer) {
 	if err := pages.SetupServerSelection(servers).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // SavePlexServers handles POST /setup/plex/servers
 func (h *SetupHandler) SavePlexServers(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		RespondError(w, r, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
 
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	userID, ok := middleware.GetUserID(session)
 	if !ok {
-		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
@@ -188,7 +188,7 @@ func (h *SetupHandler) SavePlexServers(w http.ResponseWriter, r *http.Request) {
 	user, err := h.db.GetUserByID(userID)
 	if err != nil {
 		log.Printf("Failed to get user: %v", err)
-		http.Error(w, "Failed to get user", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -196,14 +196,14 @@ func (h *SetupHandler) SavePlexServers(w http.ResponseWriter, r *http.Request) {
 	allServers, err := h.plexAuth.GetServers(user.PlexAuthToken)
 	if err != nil {
 		log.Printf("Failed to get servers: %v", err)
-		http.Error(w, "Failed to fetch servers", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to fetch servers", http.StatusInternalServerError)
 		return
 	}
 
 	// Get selected server IDs
 	selectedIDs := r.Form["server_ids"]
 	if len(selectedIDs) == 0 {
-		http.Error(w, "Please select at least one server", http.StatusBadRequest)
+		RespondError(w, r, "Please select at least one server", http.StatusBadRequest)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (h *SetupHandler) SavePlexServers(w http.ResponseWriter, r *http.Request) {
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to save state", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save state", http.StatusInternalServerError)
 		return
 	}
 
@@ -231,7 +231,7 @@ func (h *SetupHandler) SavePlexServers(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.saveSetupState(w, r, state); err != nil {
 		log.Printf("Failed to save setup state: %v", err)
-		http.Error(w, "Failed to save state", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save state", http.StatusInternalServerError)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (h *SetupHandler) Step3HomeAssistant(w http.ResponseWriter, r *http.Request
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to load setup wizard", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load setup wizard", http.StatusInternalServerError)
 		return
 	}
 
@@ -253,7 +253,7 @@ func (h *SetupHandler) Step3HomeAssistant(w http.ResponseWriter, r *http.Request
 
 	if err := pages.SetupHomeAssistant(haURL, haToken).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
@@ -291,7 +291,7 @@ func (h *SetupHandler) TestHomeAssistant(w http.ResponseWriter, r *http.Request)
 // SaveHomeAssistant handles POST /setup/ha/save
 func (h *SetupHandler) SaveHomeAssistant(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		RespondError(w, r, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
 
@@ -299,7 +299,7 @@ func (h *SetupHandler) SaveHomeAssistant(w http.ResponseWriter, r *http.Request)
 	haToken := r.FormValue("ha_token")
 
 	if haURL == "" || haToken == "" {
-		http.Error(w, "URL and token are required", http.StatusBadRequest)
+		RespondError(w, r, "URL and token are required", http.StatusBadRequest)
 		return
 	}
 
@@ -307,7 +307,7 @@ func (h *SetupHandler) SaveHomeAssistant(w http.ResponseWriter, r *http.Request)
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to save state", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save state", http.StatusInternalServerError)
 		return
 	}
 
@@ -319,7 +319,7 @@ func (h *SetupHandler) SaveHomeAssistant(w http.ResponseWriter, r *http.Request)
 
 	if err := h.saveSetupState(w, r, state); err != nil {
 		log.Printf("Failed to save setup state: %v", err)
-		http.Error(w, "Failed to save state", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save state", http.StatusInternalServerError)
 		return
 	}
 
@@ -331,7 +331,7 @@ func (h *SetupHandler) Step4AppleTVs(w http.ResponseWriter, r *http.Request) {
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to load setup wizard", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load setup wizard", http.StatusInternalServerError)
 		return
 	}
 
@@ -356,35 +356,35 @@ func (h *SetupHandler) Step4AppleTVs(w http.ResponseWriter, r *http.Request) {
 func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, r *http.Request, mediaPlayers []ha.Entity, state *SetupState) {
 	if err := pages.SetupAppleTVSelection(mediaPlayers, state.SelectedTVs).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 func (h *SetupHandler) renderAppleTVEmpty(w http.ResponseWriter, r *http.Request) {
 	if err := pages.SetupAppleTVEmpty().Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 func (h *SetupHandler) renderAppleTVError(w http.ResponseWriter, r *http.Request, errorMsg string) {
 	if err := pages.SetupAppleTVError(errorMsg).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
 // SaveAppleTVs handles POST /setup/appletv/save
 func (h *SetupHandler) SaveAppleTVs(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		RespondError(w, r, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
 
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to save state", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save state", http.StatusInternalServerError)
 		return
 	}
 
@@ -396,7 +396,7 @@ func (h *SetupHandler) SaveAppleTVs(w http.ResponseWriter, r *http.Request) {
 	mediaPlayers, err := haClient.GetMediaPlayers()
 	if err != nil {
 		log.Printf("Failed to get media players: %v", err)
-		http.Error(w, "Failed to fetch media players", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to fetch media players", http.StatusInternalServerError)
 		return
 	}
 
@@ -424,7 +424,7 @@ func (h *SetupHandler) SaveAppleTVs(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.saveSetupState(w, r, state); err != nil {
 		log.Printf("Failed to save setup state: %v", err)
-		http.Error(w, "Failed to save state", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save state", http.StatusInternalServerError)
 		return
 	}
 
@@ -436,13 +436,13 @@ func (h *SetupHandler) Step5Complete(w http.ResponseWriter, r *http.Request) {
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to load setup wizard", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load setup wizard", http.StatusInternalServerError)
 		return
 	}
 
 	if err := pages.SetupComplete(len(state.PlexServers), state.HAConfig.URL, len(state.AppleTVs)).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
@@ -451,7 +451,7 @@ func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 	state, err := h.getSetupState(r)
 	if err != nil {
 		log.Printf("Failed to get setup state: %v", err)
-		http.Error(w, "Failed to load setup wizard", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load setup wizard", http.StatusInternalServerError)
 		return
 	}
 
@@ -466,14 +466,14 @@ func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 	// Validate config
 	if err := runtimeConfig.Validate(); err != nil {
 		log.Printf("Invalid config: %v", err)
-		http.Error(w, "Configuration is invalid: "+err.Error(), http.StatusBadRequest)
+		RespondError(w, r, "Configuration is invalid: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Save to file
 	if err := runtimeConfig.Save(h.configPath); err != nil {
 		log.Printf("Failed to save config: %v", err)
-		http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save configuration", http.StatusInternalServerError)
 		return
 	}
 
@@ -483,7 +483,7 @@ func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 	if h.onSetupComplete != nil {
 		if err := h.onSetupComplete(); err != nil {
 			log.Printf("Failed to initialize handlers: %v", err)
-			http.Error(w, "Setup completed but failed to initialize handlers. Please restart the application.", http.StatusInternalServerError)
+			RespondError(w, r, "Setup completed but failed to initialize handlers. Please restart the application.", http.StatusInternalServerError)
 			return
 		}
 		log.Println("Handlers initialized successfully")

@@ -31,7 +31,7 @@ func NewStatusHandler(haClient HAStatusInterface, configPath string) *StatusHand
 // HAStatus handles GET /api/status/ha
 func (h *StatusHandler) HAStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		RespondError(w, r, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -53,7 +53,7 @@ func (h *StatusHandler) HAStatus(w http.ResponseWriter, r *http.Request) {
 // HAReconnect handles POST /api/status/ha/reconnect
 func (h *StatusHandler) HAReconnect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		RespondError(w, r, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 

@@ -32,21 +32,21 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	_, ok := middleware.GetUserID(session)
 	if !ok {
-		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Load current config
 	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
-		http.Error(w, "Failed to load configuration", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load configuration", http.StatusInternalServerError)
 		return
 	}
 
 	// Render using templ template
 	if err := pages.Settings(runtimeCfg.PlexServers, runtimeCfg.HomeAssistant.URL, runtimeCfg.HomeAssistant.Token, runtimeCfg.AppleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
@@ -56,13 +56,13 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	_, ok := middleware.GetUserID(session)
 	if !ok {
-		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Parse form
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		RespondError(w, r, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
 
@@ -76,7 +76,7 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	// Load current config
 	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
-		http.Error(w, "Failed to load configuration", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load configuration", http.StatusInternalServerError)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	// Save updated config
 	if err := runtimeCfg.Save(h.configPath); err != nil {
 		log.Printf("Failed to save configuration: %v", err)
-		http.Error(w, "Failed to save configuration", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to save configuration", http.StatusInternalServerError)
 		return
 	}
 

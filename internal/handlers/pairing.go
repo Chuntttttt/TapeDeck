@@ -98,14 +98,14 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	_, ok := middleware.GetUserID(session)
 	if !ok {
-		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 
 	// Load runtime config to get Apple TVs
 	runtimeCfg, err := config.LoadRuntimeConfig(h.configPath)
 	if err != nil {
-		http.Error(w, "Failed to load configuration", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to load configuration", http.StatusInternalServerError)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *PairingHandler) PairForm(w http.ResponseWriter, r *http.Request) {
 	// Render using templ template
 	if err := pages.PairingForm(appleTVOptions, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(r.Context(), w); err != nil {
 		log.Printf("Failed to render template: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
 }
 
@@ -132,7 +132,7 @@ func (h *PairingHandler) WebSocketPairing(w http.ResponseWriter, r *http.Request
 	session, _ := h.sessionStore.Get(r, middleware.SessionName)
 	userID, ok := middleware.GetUserID(session)
 	if !ok {
-		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
 	}
 

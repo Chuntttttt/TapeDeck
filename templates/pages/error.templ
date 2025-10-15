@@ -1,0 +1,35 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "fmt"
+
+// Error renders a generic error page
+templ Error(statusCode int, message string) {
+	@layouts.Base(fmt.Sprintf("Error %d", statusCode), errorContent(statusCode, message))
+}
+
+templ errorContent(statusCode int, message string) {
+	<div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto; text-align: center;">
+		<h1 style="font-size: 72px; margin: 0; color: #dc3545;">{ fmt.Sprintf("%d", statusCode) }</h1>
+		<h2 style="margin: 20px 0; color: #333;">{ getStatusText(statusCode) }</h2>
+		<p style="margin: 20px 0; color: #666; font-size: 18px;">{ message }</p>
+		<a href="/" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Go Home</a>
+	</div>
+}
+
+func getStatusText(statusCode int) string {
+	switch statusCode {
+	case 400:
+		return "Bad Request"
+	case 401:
+		return "Unauthorized"
+	case 403:
+		return "Forbidden"
+	case 404:
+		return "Not Found"
+	case 500:
+		return "Internal Server Error"
+	default:
+		return "Error"
+	}
+}

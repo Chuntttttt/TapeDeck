@@ -12,49 +12,34 @@ templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHT
 templ dashboardContent(mappings []*models.CardMapping, csrfToken string) {
 	<div class="app-page">
 		<div class="header">
-			<h1>Card Mappings</h1>
+			<h1>My Card Collection</h1>
 			<div class="header-actions">
-				<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair NFC Card</a>
-				<a href="/mappings/new" class="btn">+ New Mapping</a>
+				<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair New Card</a>
 			</div>
 		</div>
 		if len(mappings) == 0 {
 			<div class="empty-state">
 				<h2>No card mappings yet</h2>
 				<p>Create your first mapping to link an NFC card with media.</p>
-				<a href="/mappings/new" class="btn">Create Mapping</a>
+				<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair Your First Card</a>
 			</div>
 		} else {
-			<table class="mappings-table">
-				<thead>
-					<tr>
-						<th>Tag ID</th>
-						<th>Media Title</th>
-						<th>Type</th>
-						<th>Media ID</th>
-						<th>Created</th>
-						<th>Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, mapping := range mappings {
-						<tr>
-							<td>{ mapping.TagID }</td>
-							<td>{ mapping.MediaTitle }</td>
-							<td>{ mapping.MediaType }</td>
-							<td>{ mapping.MediaID }</td>
-							<td>{ mapping.CreatedAt.Format("2006-01-02 15:04") }</td>
-							<td class="actions">
-								<a href={ templ.SafeURL(fmt.Sprintf("/mappings/%d/edit", mapping.ID)) } class="btn btn-small">Edit</a>
-								<form method="post" action={ templ.SafeURL(fmt.Sprintf("/mappings/%d/delete", mapping.ID)) } style="margin: 0;">
-									<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
-									<button type="submit" class="btn btn-small btn-danger" onclick="return confirm('Delete this mapping?')">Delete</button>
-								</form>
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
+			<div class="card-grid">
+				for _, mapping := range mappings {
+					<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", mapping.PlexServerID, mapping.MediaID)) } class="card-item">
+						if mapping.ThumbnailURL != "" {
+							<div class="card-poster" style={ fmt.Sprintf("background-image: url('%s')", mapping.ThumbnailURL) }></div>
+						} else {
+							<div class="card-poster card-poster-placeholder">
+								<div class="placeholder-icon">🎬</div>
+							</div>
+						}
+						<div class="card-overlay">
+							<div class="card-title">{ mapping.MediaTitle }</div>
+						</div>
+					</a>
+				}
+			</div>
 		}
 	</div>
 }

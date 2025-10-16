@@ -95,16 +95,19 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 		t.Errorf("Content-Type = %s, want text/html", contentType)
 	}
 
-	// Body should contain mapping data
+	// Body should contain mapping data in visual grid format
 	body := w.Body.String()
-	if !strings.Contains(body, "nfc-123") {
-		t.Error("Response body should contain tag ID nfc-123")
+	if !strings.Contains(body, "My Card Collection") {
+		t.Error("Response body should contain 'My Card Collection' heading")
 	}
 	if !strings.Contains(body, "The Matrix") {
 		t.Error("Response body should contain media title The Matrix")
 	}
 	if !strings.Contains(body, "Breaking Bad") {
 		t.Error("Response body should contain media title Breaking Bad")
+	}
+	if !strings.Contains(body, "card-grid") {
+		t.Error("Response body should contain card-grid class for visual layout")
 	}
 }
 

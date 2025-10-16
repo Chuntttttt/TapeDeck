@@ -1,9 +1,71 @@
+/* Color Variables */
+:root {
+    /* Backgrounds */
+    --bg-body: #f5f5f5;
+    --bg-container: white;
+    --bg-hover: #fffbf0;
+    --bg-summary: #f5f5f5;
+
+    /* Text Colors */
+    --text-primary: #333;
+    --text-secondary: #555;
+    --text-tertiary: #666;
+    --text-muted: #999;
+
+    /* Borders */
+    --border-default: #ddd;
+    --border-light: #f0f0f0;
+    --border-dark: #404040;
+
+    /* Brand Colors */
+    --color-gold: #e5a00d;
+    --color-gold-dark: #cc8f0a;
+
+    /* Status Colors - Success */
+    --success-bg: #dcfce7;
+    --success-border: #22c55e;
+    --success-text: #166534;
+
+    /* Status Colors - Error */
+    --error-bg: #fee2e2;
+    --error-border: #ef4444;
+    --error-text: #991b1b;
+
+    /* Status Colors - Warning/Info */
+    --warning-bg: #fef3c7;
+    --warning-border: #f59e0b;
+    --warning-text: #92400e;
+
+    /* Form Elements */
+    --input-bg: white;
+    --input-border: #ddd;
+    --input-focus: #e5a00d;
+
+    /* Special Colors */
+    --color-blue: #1976d2;
+    --color-blue-bg: #f0f9ff;
+    --color-blue-border: #0284c7;
+    --color-blue-text-dark: #0c4a6e;
+    --color-blue-text: #075985;
+
+    /* Buttons */
+    --btn-secondary-bg: #666;
+    --btn-secondary-hover: #555;
+    --btn-danger-bg: #d32f2f;
+    --btn-danger-hover: #b71c1c;
+    --btn-disabled-bg: #ccc;
+
+    /* Loading Spinner */
+    --spinner-track: #f3f3f3;
+    --spinner-color: #e5a00d;
+}
+
 /* Base Styles */
 body {
     font-family: sans-serif;
     margin: 0;
     padding: 0;
-    background: #f5f5f5;
+    background: var(--bg-body);
 }
 
 /* Setup Container */
@@ -14,7 +76,7 @@ body {
 }
 
 .container {
-    background: white;
+    background: var(--bg-container);
     padding: 40px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -30,30 +92,30 @@ body {
 .progress-step {
     flex: 1;
     height: 4px;
-    background: #ddd;
+    background: var(--border-default);
     border-radius: 2px;
 }
 
 .progress-step.active {
-    background: #e5a00d;
+    background: var(--color-gold);
 }
 
 /* Typography */
 h1 {
-    color: #333;
+    color: var(--text-primary);
     margin-top: 0;
 }
 
 p {
     line-height: 1.6;
-    color: #555;
+    color: var(--text-secondary);
 }
 
 /* Buttons */
 .btn {
     padding: 12px 24px;
     font-size: 16px;
-    background: #e5a00d;
+    background: var(--color-gold);
     color: white;
     border: none;
     border-radius: 4px;
@@ -64,32 +126,32 @@ p {
 }
 
 .btn:hover {
-    background: #cc8f0a;
+    background: var(--color-gold-dark);
 }
 
 .btn:disabled {
-    background: #ccc;
+    background: var(--btn-disabled-bg);
     cursor: not-allowed;
 }
 
 .btn-secondary {
-    background: #666;
+    background: var(--btn-secondary-bg);
 }
 
 .btn-secondary:hover {
-    background: #555;
+    background: var(--btn-secondary-hover);
 }
 
 /* Links */
 .back-link {
-    color: #e5a00d;
+    color: var(--color-gold);
     text-decoration: none;
     margin-bottom: 20px;
     display: inline-block;
 }
 
 .help-link {
-    color: #e5a00d;
+    color: var(--color-gold);
 }
 
 /* Forms */
@@ -110,23 +172,23 @@ select {
     padding: 12px;
     width: 100%;
     font-size: 16px;
-    border: 2px solid #ddd;
+    border: 2px solid var(--input-border);
     border-radius: 4px;
     box-sizing: border-box;
-    background: white;
+    background: var(--input-bg);
 }
 
 input[type="text"]:focus,
 input[type="password"]:focus,
 input[type="email"]:focus,
 select:focus {
-    border-color: #e5a00d;
+    border-color: var(--input-focus);
     outline: none;
 }
 
 .help-text {
     font-size: 14px;
-    color: #666;
+    color: var(--text-tertiary);
     margin-top: 5px;
 }
 
@@ -139,25 +201,25 @@ select:focus {
 }
 
 .status.success {
-    background: #dcfce7;
-    border: 2px solid #22c55e;
-    color: #166534;
+    background: var(--success-bg);
+    border: 2px solid var(--success-border);
+    color: var(--success-text);
 }
 
 .status.error {
-    background: #fee2e2;
-    border: 2px solid #ef4444;
-    color: #991b1b;
+    background: var(--error-bg);
+    border: 2px solid var(--error-border);
+    color: var(--error-text);
 }
 
 .status.waiting {
-    background: #fef3c7;
-    border: 2px solid #f59e0b;
+    background: var(--warning-bg);
+    border: 2px solid var(--warning-border);
 }
 
 .status.ready {
-    background: #dcfce7;
-    border: 2px solid #22c55e;
+    background: var(--success-bg);
+    border: 2px solid var(--success-border);
 }
 
 .status-icon {
@@ -173,24 +235,24 @@ select:focus {
 
 .status-detail {
     font-size: 14px;
-    color: #666;
+    color: var(--text-tertiary);
 }
 
 .error {
-    background: #fee2e2;
-    border: 2px solid #ef4444;
+    background: var(--error-bg);
+    border: 2px solid var(--error-border);
     padding: 15px;
     border-radius: 4px;
-    color: #991b1b;
+    color: var(--error-text);
     margin: 20px 0;
 }
 
 .info {
-    background: #fef3c7;
-    border: 2px solid #f59e0b;
+    background: var(--warning-bg);
+    border: 2px solid var(--warning-border);
     padding: 15px;
     border-radius: 4px;
-    color: #92400e;
+    color: var(--warning-text);
     margin: 20px 0;
 }
 
@@ -203,7 +265,7 @@ select:focus {
 
 .steps li {
     padding: 10px 0;
-    border-left: 3px solid #e5a00d;
+    border-left: 3px solid var(--color-gold);
     padding-left: 15px;
     margin-bottom: 10px;
 }
@@ -219,8 +281,8 @@ select:focus {
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #e5a00d;
+    border: 3px solid var(--spinner-track);
+    border-top: 3px solid var(--spinner-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -241,7 +303,7 @@ select:focus {
     display: flex;
     align-items: flex-start;
     padding: 15px;
-    border: 2px solid #ddd;
+    border: 2px solid var(--border-default);
     border-radius: 4px;
     margin-bottom: 10px;
     cursor: pointer;
@@ -249,8 +311,8 @@ select:focus {
 
 .server-item:hover,
 .tv-item:hover {
-    border-color: #e5a00d;
-    background: #fffbf0;
+    border-color: var(--color-gold);
+    background: var(--bg-hover);
 }
 
 .server-item input[type="checkbox"],
@@ -276,13 +338,13 @@ select:focus {
 .server-meta,
 .tv-meta {
     font-size: 14px;
-    color: #666;
+    color: var(--text-tertiary);
     word-break: break-all;
 }
 
 /* Summary */
 .summary {
-    background: #f5f5f5;
+    background: var(--bg-summary);
     padding: 20px;
     border-radius: 4px;
     margin: 20px 0;
@@ -290,7 +352,7 @@ select:focus {
 
 .summary-item {
     padding: 10px 0;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-default);
 }
 
 .summary-item:last-child {
@@ -303,7 +365,7 @@ select:focus {
 }
 
 .summary-value {
-    color: #666;
+    color: var(--text-tertiary);
 }
 
 /* App Pages Layout */
@@ -337,8 +399,8 @@ select:focus {
     top: 100%;
     left: 0;
     right: 0;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--input-bg);
+    border: 1px solid var(--border-default);
     border-top: none;
     max-height: 300px;
     overflow-y: auto;
@@ -353,12 +415,12 @@ select:focus {
 
 .search-result-item {
     padding: 12px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border-light);
     cursor: pointer;
 }
 
 .search-result-item:hover {
-    background: #f5f5f5;
+    background: var(--bg-summary);
 }
 
 .result-title {
@@ -368,20 +430,20 @@ select:focus {
 
 .result-meta {
     font-size: 14px;
-    color: #666;
+    color: var(--text-tertiary);
 }
 
 .result-server {
     font-size: 12px;
-    color: #1976d2;
+    color: var(--color-blue);
     margin-top: 3px;
     font-weight: 500;
 }
 
 .selected-media {
     padding: 12px;
-    background: #f0f9ff;
-    border: 2px solid #0284c7;
+    background: var(--color-blue-bg);
+    border: 2px solid var(--color-blue-border);
     border-radius: 4px;
     margin-top: 10px;
     display: none;
@@ -395,12 +457,12 @@ select:focus {
     font-weight: bold;
     font-size: 18px;
     margin-bottom: 5px;
-    color: #0c4a6e;
+    color: var(--color-blue-text-dark);
 }
 
 .selected-media-meta {
     font-size: 14px;
-    color: #075985;
+    color: var(--color-blue-text);
 }
 
 /* Media Grid */
@@ -411,7 +473,7 @@ select:focus {
 }
 
 .media-card {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-default);
     border-radius: 8px;
     padding: 15px;
 }
@@ -422,18 +484,18 @@ select:focus {
 }
 
 .media-year {
-    color: #666;
+    color: var(--text-tertiary);
     font-size: 14px;
 }
 
 .media-type {
-    color: #999;
+    color: var(--text-muted);
     font-size: 12px;
     text-transform: uppercase;
 }
 
 .media-server {
-    color: #1976d2;
+    color: var(--color-blue);
     font-size: 12px;
     margin-top: 5px;
     font-weight: 500;
@@ -447,7 +509,7 @@ select:focus {
 }
 
 .library-card {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-default);
     border-radius: 8px;
     padding: 20px;
     text-decoration: none;
@@ -456,7 +518,7 @@ select:focus {
 }
 
 .library-card:hover {
-    background: #f5f5f5;
+    background: var(--bg-summary);
 }
 
 .library-title {
@@ -466,7 +528,7 @@ select:focus {
 }
 
 .library-type {
-    color: #666;
+    color: var(--text-tertiary);
     font-size: 14px;
 }
 
@@ -481,11 +543,11 @@ select:focus {
 .mappings-table td {
     padding: 12px;
     text-align: left;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-default);
 }
 
 .mappings-table th {
-    background-color: #f5f5f5;
+    background-color: var(--bg-summary);
     font-weight: bold;
 }
 
@@ -500,18 +562,18 @@ select:focus {
 }
 
 .btn-danger {
-    background: #d32f2f;
+    background: var(--btn-danger-bg);
 }
 
 .btn-danger:hover {
-    background: #b71c1c;
+    background: var(--btn-danger-hover);
 }
 
 /* Empty State */
 .empty-state {
     text-align: center;
     padding: 50px 20px;
-    color: #666;
+    color: var(--text-tertiary);
 }
 
 .empty-state h2 {
@@ -540,7 +602,7 @@ select:focus {
     display: inline-block;
     width: 30px;
     height: 30px;
-    background: #e5a00d;
+    background: var(--color-gold);
     color: white;
     border-radius: 50%;
     text-align: center;
@@ -551,14 +613,14 @@ select:focus {
 
 .ws-status {
     font-size: 12px;
-    color: #666;
+    color: var(--text-tertiary);
     margin-top: 10px;
 }
 
 .ws-status.connected {
-    color: #22c55e;
+    color: var(--success-border);
 }
 
 .ws-status.disconnected {
-    color: #ef4444;
+    color: var(--error-border);
 }

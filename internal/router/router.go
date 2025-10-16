@@ -138,9 +138,9 @@ func New(deps *Dependencies) *chi.Mux {
 		}
 	})
 
-	// Home route - redirect to libraries
+	// Home route - redirect to mappings dashboard
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/libraries", http.StatusFound)
+		http.Redirect(w, r, "/mappings", http.StatusFound)
 	})
 
 	return r

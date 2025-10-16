@@ -44,9 +44,67 @@ templ mediaDetailContent(title string, mediaType string, summary string, year in
 					</div>
 				}
 				<p class="media-server-info">Server: { serverName }</p>
+				<div class="media-id-container">
+					<button class="media-id-button" onclick={ templ.ComponentScript{Call: fmt.Sprintf("copyMediaID('%s')", ratingKey)} } title="Click to copy media ID">
+						<span class="media-id-label">Media ID:</span>
+						<span class="media-id-value">{ ratingKey }</span>
+						<span class="media-id-copy-icon">📋</span>
+					</button>
+					<span id="copyFeedback" class="copy-feedback"></span>
+				</div>
 			</div>
 		</div>
 	</div>
+	<style>
+		.media-id-container {
+			margin-top: 15px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.media-id-button {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 12px;
+			background: var(--bg-summary);
+			border: 1px solid var(--border-color);
+			border-radius: 4px;
+			color: var(--text-secondary);
+			font-family: 'Monaco', 'Menlo', monospace;
+			font-size: 14px;
+			cursor: pointer;
+			transition: all 0.2s;
+		}
+		.media-id-button:hover {
+			background: var(--bg-container);
+			border-color: var(--color-gold);
+			color: var(--text-primary);
+		}
+		.media-id-label {
+			font-weight: 600;
+			color: var(--text-primary);
+		}
+		.media-id-value {
+			color: var(--color-gold);
+		}
+		.media-id-copy-icon {
+			opacity: 0.6;
+		}
+		.media-id-button:hover .media-id-copy-icon {
+			opacity: 1;
+		}
+		.copy-feedback {
+			color: var(--success-border);
+			font-size: 14px;
+			font-weight: 500;
+			opacity: 0;
+			transition: opacity 0.2s;
+		}
+		.copy-feedback.show {
+			opacity: 1;
+		}
+	</style>
 	<script>
 		async function playMedia(serverID, ratingKey, title) {
 			try {
@@ -81,6 +139,26 @@ templ mediaDetailContent(title string, mediaType string, summary string, year in
 				media_type: mediaType
 			});
 			window.location.href = '/mappings/pair?' + params.toString();
+		}
+
+		async function copyMediaID(mediaID) {
+			try {
+				await navigator.clipboard.writeText(mediaID);
+				const feedback = document.getElementById('copyFeedback');
+				feedback.textContent = '✓ Copied!';
+				feedback.classList.add('show');
+				setTimeout(() => {
+					feedback.classList.remove('show');
+				}, 2000);
+			} catch (error) {
+				console.error('Failed to copy:', error);
+				const feedback = document.getElementById('copyFeedback');
+				feedback.textContent = '✗ Failed to copy';
+				feedback.classList.add('show');
+				setTimeout(() => {
+					feedback.classList.remove('show');
+				}, 2000);
+			}
 		}
 	</script>
 }

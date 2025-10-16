@@ -5,24 +5,26 @@ import "github.com/Chuntttttt/tapedeck/internal/plex"
 import "fmt"
 
 // MediaLibraryContents renders the library contents page
-templ MediaLibraryContents(items []plex.MediaItem, navHTML string, bannerHTML string, bannerScript string) {
-	@layouts.AppLayout("Library", navHTML, bannerHTML, bannerScript, libraryContentsContent(items))
+templ MediaLibraryContents(items []plex.MediaItem, serverID string, navHTML string, bannerHTML string, bannerScript string) {
+	@layouts.AppLayout("Library", navHTML, bannerHTML, bannerScript, libraryContentsContent(items, serverID))
 }
 
-templ libraryContentsContent(items []plex.MediaItem) {
+templ libraryContentsContent(items []plex.MediaItem, serverID string) {
 	<div class="app-page">
 		<div class="header">
 			<h1>🎬 Library Contents</h1>
 		</div>
 		<div class="media-grid">
 			for _, item := range items {
-				<div class="media-card">
-					<div class="media-title">{ item.Title }</div>
-					if item.Year > 0 {
-						<div class="media-year">({ fmt.Sprintf("%d", item.Year) })</div>
-					}
-					<div class="media-type">{ item.Type }</div>
-				</div>
+				<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", serverID, item.RatingKey)) } class="media-item-link">
+					<div class="media-card">
+						<div class="media-title">{ item.Title }</div>
+						if item.Year > 0 {
+							<div class="media-year">({ fmt.Sprintf("%d", item.Year) })</div>
+						}
+						<div class="media-type">{ item.Type }</div>
+					</div>
+				</a>
 			}
 		</div>
 	</div>

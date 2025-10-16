@@ -439,6 +439,21 @@ select:focus {
     font-weight: 500;
 }
 
+.media-item-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: opacity 0.2s;
+}
+
+.media-item-link:hover {
+    opacity: 0.8;
+}
+
+.media-item-link .media-card {
+    cursor: pointer;
+}
+
 /* Library Grid */
 .library-grid {
     display: grid;

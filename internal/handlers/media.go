@@ -233,7 +233,7 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render using templ template
-	if err := pages.MediaLibraryContents(items, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
+	if err := pages.MediaLibraryContents(items, selectedServer.ID, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}

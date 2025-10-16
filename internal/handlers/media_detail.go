@@ -11,7 +11,9 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/go-chi/chi/v5"
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/sessions"
 )
 
@@ -131,17 +133,9 @@ func (h *MediaDetailHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Render using templ template (template will be created in Task 6)
-	// TODO: Uncomment when media_detail.templ is created
-	_ = metadata
-	_ = thumbnailURL
-	_ = plexWebURL
-	_ = serverName
-	_ = defaultAppleTV
-	_ = existingMapping
-	RespondError(w, r, "Media detail page template not yet implemented", http.StatusNotImplemented)
-	// if err := pages.MediaDetail(metadata.Title, metadata.Summary, metadata.Year, thumbnailURL, plexWebURL, serverID, ratingKey, serverName, defaultAppleTV, existingMapping != nil, h.appleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r)).Render(ctx, w); err != nil {
-	// 	log.Error("Failed to render template", "error", err)
-	// 	RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
-	// }
+	// Render using templ template
+	if err := pages.MediaDetail(metadata.Title, metadata.Summary, metadata.Year, thumbnailURL, plexWebURL, serverID, ratingKey, serverName, defaultAppleTV, existingMapping != nil, h.appleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r)).Render(ctx, w); err != nil {
+		log.Error("Failed to render template", "error", err)
+		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
+	}
 }

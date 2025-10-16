@@ -1,0 +1,61 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/internal/config"
+import "fmt"
+
+// MediaDetail renders the media detail page
+templ MediaDetail(title string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
+	@layouts.AppLayout(title, navHTML, bannerHTML, bannerScript, mediaDetailContent(title, summary, year, thumbnailURL, plexWebURL, serverID, ratingKey, serverName, defaultAppleTV, isPaired, appleTVs, csrfToken))
+}
+
+templ mediaDetailContent(title string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, csrfToken string) {
+	<div class="media-detail">
+		<div class="media-detail-container">
+			<div class="media-poster-column">
+				if thumbnailURL != "" {
+					<img src={ thumbnailURL } alt={ title } class="media-poster-large"/>
+				} else {
+					<div class="media-poster-large media-poster-placeholder">
+						<div class="placeholder-icon">🎬</div>
+					</div>
+				}
+			</div>
+			<div class="media-info-column">
+				<h1 class="media-title">{ title }</h1>
+				if year > 0 {
+					<p class="media-year">{ fmt.Sprintf("%d", year) }</p>
+				}
+				<div class="media-actions">
+					if isPaired {
+						<button class="btn btn-paired" disabled>📱 Paired to Card</button>
+					} else {
+						<button class="btn btn-primary btn-pair" onclick={ templ.ComponentScript{Call: fmt.Sprintf("openPairingModal('%s', '%s', '%s')", serverID, ratingKey, title)} }>📱 Pair to Card</button>
+					}
+					if defaultAppleTV != "" {
+						<button class="btn btn-secondary" onclick={ templ.ComponentScript{Call: fmt.Sprintf("playMedia('%s', '%s', '%s')", serverID, ratingKey, title)} }>▶ Play on { defaultAppleTV }</button>
+					}
+					<a href={ templ.SafeURL(plexWebURL) } target="_blank" class="btn btn-link">Open in Plex →</a>
+				</div>
+				if summary != "" {
+					<div class="media-summary">
+						<h3>Summary</h3>
+						<p>{ summary }</p>
+					</div>
+				}
+				<p class="media-server-info">Server: { serverName }</p>
+			</div>
+		</div>
+	</div>
+	<script>
+		function playMedia(serverID, ratingKey, title) {
+			// TODO: Implement play functionality in next task
+			alert('Play functionality coming soon!');
+		}
+
+		function openPairingModal(serverID, ratingKey, title) {
+			// TODO: Implement pairing modal in next task
+			alert('Pairing modal coming soon!');
+		}
+	</script>
+}

@@ -96,20 +96,15 @@ func TestMediaDetailHandler_Detail(t *testing.T) {
 	w = httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(w, req)
 
-	// TODO: Change to http.StatusOK when template is implemented in Task 6
-	if w.Code != http.StatusNotImplemented {
-		t.Errorf("expected status 501, got: %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got: %d", w.Code)
 	}
 
 	body := w.Body.String()
-	// TODO: Uncomment when template is implemented in Task 6
-	// if !strings.Contains(body, "Test Movie") {
-	// 	t.Error("expected body to contain 'Test Movie'")
-	// }
-	// if !strings.Contains(body, "A test movie summary") {
-	// 	t.Error("expected body to contain summary")
-	// }
-	if !strings.Contains(body, "Media detail page template not yet implemented") {
-		t.Error("expected body to contain not implemented message")
+	if !strings.Contains(body, "Test Movie") {
+		t.Error("expected body to contain 'Test Movie'")
+	}
+	if !strings.Contains(body, "A test movie summary") {
+		t.Error("expected body to contain summary")
 	}
 }

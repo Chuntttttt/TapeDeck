@@ -16,6 +16,7 @@ type CardMapping struct {
 	MediaTitle    string
 	PlexServerID  string
 	AppleTVEntity string
+	ThumbnailURL  string // Cached Plex poster URL
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }

@@ -383,6 +383,43 @@ func TestSingleUserConstraint(t *testing.T) {
 	}
 }
 
+func TestUpdateThumbnailURL(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	ctx := context.Background()
+
+	// Create user
+	user := models.NewUser("testuser", "12345", "test-token")
+	userID, err := db.CreateUser(ctx, user)
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	// Create mapping
+	mapping := models.NewCardMapping(userID, "tag-001", "movie", "123", "Test Movie", "server-1", "media_player.test")
+	mappingID, err := db.CreateCardMapping(ctx, mapping)
+	if err != nil {
+		t.Fatalf("failed to create mapping: %v", err)
+	}
+
+	// Update thumbnail URL
+	thumbnailURL := "https://plex.example.com/library/metadata/123/thumb?X-Plex-Token=abc"
+	err = db.UpdateThumbnailURL(ctx, mappingID, thumbnailURL)
+	if err != nil {
+		t.Fatalf("failed to update thumbnail URL: %v", err)
+	}
+
+	// Verify update
+	updated, err := db.GetCardMappingByID(ctx, mappingID)
+	if err != nil {
+		t.Fatalf("failed to get mapping: %v", err)
+	}
+	if updated.ThumbnailURL != thumbnailURL {
+		t.Errorf("expected thumbnail URL %s, got: %s", thumbnailURL, updated.ThumbnailURL)
+	}
+}
+
 // setupTestDB creates a temporary database for testing
 func setupTestDB(t *testing.T) *DB {
 	t.Helper()

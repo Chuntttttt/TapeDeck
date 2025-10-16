@@ -19,6 +19,7 @@ type PlexClientInterface interface {
 	GetLibraries(ctx context.Context) ([]plex.Library, error)
 	GetLibraryContents(ctx context.Context, libraryKey string) ([]plex.MediaItem, error)
 	Search(ctx context.Context, query string) ([]plex.MediaItem, error)
+	GetMetadata(ctx context.Context, ratingKey string) (*plex.MediaMetadata, error)
 }
 
 // PlexClientFactory creates a new Plex client

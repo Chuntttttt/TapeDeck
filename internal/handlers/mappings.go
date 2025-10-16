@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/constants"
@@ -53,6 +54,14 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get user to retrieve auth token
+	user, err := h.db.GetUserByID(ctx, userID)
+	if err != nil {
+		log.Error("Failed to get user", "error", err)
+		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
+		return
+	}
+
 	// Get all mappings for the user
 	mappings, err := h.db.GetCardMappingsByUserID(ctx, userID)
 	if err != nil {
@@ -61,11 +70,80 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch thumbnails for mappings that don't have them cached
+	h.fetchThumbnails(ctx, user.PlexAuthToken, mappings)
+
 	// Render using templ template
 	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r)).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
+}
+
+// fetchThumbnails fetches and caches thumbnail URLs for mappings in parallel
+func (h *MappingsHandler) fetchThumbnails(ctx context.Context, authToken string, mappings []*models.CardMapping) {
+	log := middleware.GetLogger(ctx)
+
+	// Use channel to limit concurrent Plex API calls
+	semaphore := make(chan struct{}, 5)
+	var wg sync.WaitGroup
+
+	for _, mapping := range mappings {
+		// Skip if already has thumbnail URL
+		if mapping.ThumbnailURL != "" {
+			continue
+		}
+
+		wg.Add(1)
+		go func(m *models.CardMapping) {
+			defer wg.Done()
+			semaphore <- struct{}{}        // Acquire
+			defer func() { <-semaphore }() // Release
+
+			// Find server for this mapping
+			var serverURL string
+			for _, srv := range h.servers {
+				if srv.ID == m.PlexServerID {
+					if len(srv.URLs) > 0 {
+						serverURL = srv.URLs[0]
+					}
+					break
+				}
+			}
+
+			if serverURL == "" {
+				log.Warn("Server not found for mapping", "server_id", m.PlexServerID, "mapping_id", m.ID)
+				return
+			}
+
+			// Fetch metadata
+			plexClient := h.newPlexClient(serverURL, m.PlexServerID, authToken, h.devMode)
+			apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+			metadata, err := plexClient.GetMetadata(apiCtx, m.MediaID)
+			cancel()
+
+			if err != nil {
+				log.Warn("Failed to fetch metadata for mapping", "mapping_id", m.ID, "error", err)
+				return
+			}
+
+			// Build full thumbnail URL
+			if metadata.Thumb != "" {
+				thumbnailURL := fmt.Sprintf("%s%s?X-Plex-Token=%s", serverURL, metadata.Thumb, authToken)
+
+				// Update database
+				if err := h.db.UpdateThumbnailURL(ctx, m.ID, thumbnailURL); err != nil {
+					log.Warn("Failed to cache thumbnail URL", "mapping_id", m.ID, "error", err)
+					return
+				}
+
+				// Update in-memory mapping for this request
+				m.ThumbnailURL = thumbnailURL
+			}
+		}(mapping)
+	}
+
+	wg.Wait()
 }
 
 // NewMappingForm handles GET /mappings/new

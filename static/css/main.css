@@ -80,6 +80,19 @@ p {
     background: #555;
 }
 
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.button-group .btn {
+    flex: 0 1 auto;
+    margin: 0;
+}
+
 /* Links */
 .back-link {
     color: #e5a00d;
@@ -641,6 +654,12 @@ select:focus {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+}
+
+.card-year {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 12px;
+    margin-top: 4px;
 }
 
 /* Responsive grid */

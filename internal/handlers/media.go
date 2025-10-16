@@ -201,6 +201,7 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 	// Try all URLs for this server until one works
 	var items []plex.MediaItem
 	var lastErr error
+	var successfulURL string
 
 	for _, url := range selectedServer.URLs {
 		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
@@ -212,6 +213,7 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 
 		if lastErr == nil {
 			// Success! Use these results
+			successfulURL = url
 			break
 		}
 		// Try next URL
@@ -230,6 +232,13 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 		log.Error("Failed to get library contents from server", "server", selectedServer.Name, "urls_tried", len(selectedServer.URLs), "error", lastErr)
 		RespondError(w, r, "Failed to get library contents", http.StatusInternalServerError)
 		return
+	}
+
+	// Build full thumbnail URLs
+	for i := range items {
+		if items[i].Thumb != "" {
+			items[i].Thumb = successfulURL + items[i].Thumb + "?X-Plex-Token=" + user.PlexAuthToken
+		}
 	}
 
 	// Render using templ template

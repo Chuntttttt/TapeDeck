@@ -22,8 +22,10 @@ templ appleTVSelectionContent(mediaPlayers []ha.Entity, selectedTVs map[string]b
 					@appleTVItem(player, len(mediaPlayers) == 1 || selectedTVs[player.EntityID])
 				}
 			</div>
-			<button type="submit" class="btn">Continue</button>
-			@components.ButtonLink("Skip for Now", "/setup/complete", templ.Attributes{"class": "btn-secondary"})
+			<div class="button-group">
+				@components.ButtonLink("Skip for Now", "/setup/complete", templ.Attributes{"class": "btn btn-secondary"})
+				<button type="submit" class="btn btn-primary">Continue</button>
+			</div>
 		</form>
 	</div>
 }

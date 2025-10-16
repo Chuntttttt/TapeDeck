@@ -5,11 +5,11 @@ import "github.com/Chuntttttt/tapedeck/internal/config"
 import "fmt"
 
 // MediaDetail renders the media detail page
-templ MediaDetail(title string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
-	@layouts.AppLayout(title, navHTML, bannerHTML, bannerScript, mediaDetailContent(title, summary, year, thumbnailURL, plexWebURL, serverID, ratingKey, serverName, defaultAppleTV, isPaired, appleTVs, csrfToken))
+templ MediaDetail(title string, mediaType string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
+	@layouts.AppLayout(title, navHTML, bannerHTML, bannerScript, mediaDetailContent(title, mediaType, summary, year, thumbnailURL, plexWebURL, serverID, ratingKey, serverName, defaultAppleTV, isPaired, appleTVs, csrfToken))
 }
 
-templ mediaDetailContent(title string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, csrfToken string) {
+templ mediaDetailContent(title string, mediaType string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, csrfToken string) {
 	<div class="media-detail">
 		<div class="media-detail-container">
 			<div class="media-poster-column">
@@ -30,7 +30,7 @@ templ mediaDetailContent(title string, summary string, year int, thumbnailURL st
 					if isPaired {
 						<button class="btn btn-paired" disabled>📱 Paired to Card</button>
 					} else {
-						<button class="btn btn-primary btn-pair" onclick={ templ.ComponentScript{Call: fmt.Sprintf("openPairingModal('%s', '%s', '%s')", serverID, ratingKey, title)} }>📱 Pair to Card</button>
+						<button class="btn btn-primary btn-pair" onclick={ templ.ComponentScript{Call: fmt.Sprintf("openPairingModal('%s', '%s', '%s', '%s')", serverID, ratingKey, title, mediaType)} }>📱 Pair to Card</button>
 					}
 					if defaultAppleTV != "" {
 						<button class="btn btn-secondary" onclick={ templ.ComponentScript{Call: fmt.Sprintf("playMedia('%s', '%s', '%s')", serverID, ratingKey, title)} }>▶ Play on { defaultAppleTV }</button>
@@ -63,9 +63,7 @@ templ mediaDetailContent(title string, summary string, year int, thumbnailURL st
 
 				const data = await response.json();
 
-				if (data.success) {
-					alert('Playing: ' + title);
-				} else {
+				if (!data.success) {
 					alert('Failed to play: ' + (data.error || 'Unknown error'));
 				}
 			} catch (error) {
@@ -74,9 +72,15 @@ templ mediaDetailContent(title string, summary string, year int, thumbnailURL st
 			}
 		}
 
-		function openPairingModal(serverID, ratingKey, title) {
-			// TODO: Implement pairing modal in next task
-			alert('Pairing modal coming soon!');
+		function openPairingModal(serverID, ratingKey, title, mediaType) {
+			// Redirect to pairing page with media pre-selected
+			const params = new URLSearchParams({
+				media_id: ratingKey,
+				media_title: title,
+				plex_server_id: serverID,
+				media_type: mediaType
+			});
+			window.location.href = '/mappings/pair?' + params.toString();
 		}
 	</script>
 }

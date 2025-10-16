@@ -51,3 +51,6 @@ vendor/
 
 # Air
 .air.toml.tmp
+
+# Git worktrees
+.worktrees/

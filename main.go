@@ -167,6 +167,7 @@ func main() {
 	var mediaDetailHandler *handlers.MediaDetailHandler
 	var mappingsHandler *handlers.MappingsHandler
 	var playbackHandler *handlers.PlaybackHandler
+	var playHandler *handlers.PlayHandler
 	var pairingHandler *handlers.PairingHandler
 	var statusHandler *handlers.StatusHandler
 	var settingsHandler *handlers.SettingsHandler
@@ -251,6 +252,7 @@ func main() {
 		mediaDetailHandler = handlers.NewMediaDetailHandler(sessionStore, database, servers, cfg.DevMode, runtimeCfg.AppleTVs)
 		mappingsHandler = handlers.NewMappingsHandler(sessionStore, database, servers, cfg.DevMode)
 		playbackHandler = handlers.NewPlaybackHandler(database, plexServerID)
+		playHandler = handlers.NewPlayHandler(sessionStore, database, servers, runtimeCfg.AppleTVs, runtimeCfg.HomeAssistant.URL, haToken, cfg.DevMode)
 
 		// Initialize Home Assistant WebSocket client
 		haClient = ha.NewHAClient(runtimeCfg.HomeAssistant.URL, haToken)
@@ -280,7 +282,7 @@ func main() {
 		// Sanity check: ensure all handlers were initialized
 		// This should never fail unless there's a programming error above
 		if mediaHandler == nil || mediaDetailHandler == nil || mappingsHandler == nil || playbackHandler == nil ||
-			pairingHandler == nil || statusHandler == nil {
+			playHandler == nil || pairingHandler == nil || statusHandler == nil {
 			return fmt.Errorf("handler initialization incomplete - this is a programming error")
 		}
 
@@ -320,6 +322,7 @@ func main() {
 		GetMediaDetailHandler: func() *handlers.MediaDetailHandler { return mediaDetailHandler },
 		GetPairingHandler:     func() *handlers.PairingHandler { return pairingHandler },
 		GetPlaybackHandler:    func() *handlers.PlaybackHandler { return playbackHandler },
+		GetPlayHandler:        func() *handlers.PlayHandler { return playHandler },
 		GetStatusHandler:      func() *handlers.StatusHandler { return statusHandler },
 
 		// HandlersReady is used by requireInitialized middleware to check if
@@ -327,7 +330,7 @@ func main() {
 		// handlers are non-nil (i.e., initializeHandlers() has been called).
 		HandlersReady: func() bool {
 			return mediaHandler != nil && mediaDetailHandler != nil && mappingsHandler != nil && pairingHandler != nil &&
-				playbackHandler != nil && statusHandler != nil
+				playbackHandler != nil && playHandler != nil && statusHandler != nil
 		},
 	}
 

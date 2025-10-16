@@ -48,9 +48,30 @@ templ mediaDetailContent(title string, summary string, year int, thumbnailURL st
 		</div>
 	</div>
 	<script>
-		function playMedia(serverID, ratingKey, title) {
-			// TODO: Implement play functionality in next task
-			alert('Play functionality coming soon!');
+		async function playMedia(serverID, ratingKey, title) {
+			try {
+				const response = await fetch('/api/play', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						server_id: serverID,
+						rating_key: ratingKey,
+					}),
+				});
+
+				const data = await response.json();
+
+				if (data.success) {
+					alert('Playing: ' + title);
+				} else {
+					alert('Failed to play: ' + (data.error || 'Unknown error'));
+				}
+			} catch (error) {
+				console.error('Play error:', error);
+				alert('Failed to start playback');
+			}
 		}
 
 		function openPairingModal(serverID, ratingKey, title) {

@@ -21,6 +21,7 @@ type Dependencies struct {
 	GetMediaDetailHandler func() *handlers.MediaDetailHandler
 	GetPairingHandler     func() *handlers.PairingHandler
 	GetPlaybackHandler    func() *handlers.PlaybackHandler
+	GetPlayHandler        func() *handlers.PlayHandler
 	GetStatusHandler      func() *handlers.StatusHandler
 
 	AuthMiddleware func(http.Handler) http.Handler
@@ -112,7 +113,7 @@ func New(deps *Dependencies) *chi.Mux {
 			deps.GetMappingsHandler().SearchJSON(w, req)
 		})
 		r.Post("/api/play", func(w http.ResponseWriter, req *http.Request) {
-			deps.GetPlaybackHandler().Play(w, req)
+			deps.GetPlayHandler().PlayByRatingKey(w, req)
 		})
 		r.Get("/api/status/ha", func(w http.ResponseWriter, req *http.Request) {
 			deps.GetStatusHandler().HAStatus(w, req)

@@ -26,8 +26,22 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 		.settings-section label {
 			color: var(--text-primary);
 		}
+		.settings-section input[type="url"],
+		.settings-section input[type="password"] {
+			background: var(--bg-body);
+			color: var(--text-primary);
+			border: 1px solid var(--border-color);
+		}
+		.settings-section input[type="url"]::placeholder,
+		.settings-section input[type="password"]::placeholder {
+			color: var(--text-tertiary);
+		}
 		.settings-section .server-item {
 			color: var(--text-primary);
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 8px;
 		}
 		.settings-section .server-name {
 			color: var(--text-primary);
@@ -68,13 +82,12 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 								<div class="server-item" style="opacity: 0.5;">
 									<input type="checkbox" name="servers" value={ srv.ID } checked disabled/>
 									<span class="server-name">{ srv.Name }</span>
-									<span class="server-owner shared-warning">Shared (not supported)</span>
+									<span class="server-owner shared-warning">(not supported)</span>
 								</div>
 							} else {
 								<div class="server-item">
 									<input type="checkbox" name="servers" value={ srv.ID } checked/>
 									<span class="server-name">{ srv.Name }</span>
-									<span class="server-owner">{ srv.Owner }</span>
 								</div>
 							}
 						}

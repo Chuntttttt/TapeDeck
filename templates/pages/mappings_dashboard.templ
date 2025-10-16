@@ -29,16 +29,16 @@ templ dashboardContent(mappings []*models.CardMapping, csrfToken string, sortOrd
 					<input type="hidden" name="print" value="true"/>
 				}
 				<div style="display: flex; gap: 0.5rem; align-items: center;">
-					<label for="sort" style="font-weight: 500;">Sort:</label>
-					<select name="sort" id="sort" onchange="this.form.submit()" style="padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #d1d5db; background: white;">
+					<label for="sort" style="font-weight: 500; color: var(--text-primary);">Sort:</label>
+					<select name="sort" id="sort" onchange="this.form.submit()" style="padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-primary);">
 						<option value="newest" selected?={ sortOrder == "newest" || sortOrder == "" }>Newest First</option>
 						<option value="oldest" selected?={ sortOrder == "oldest" }>Oldest First</option>
 						<option value="alpha" selected?={ sortOrder == "alpha" }>Alphabetical</option>
 					</select>
 				</div>
 				<div style="display: flex; gap: 0.5rem; flex: 1; align-items: center;">
-					<label for="search" style="font-weight: 500;">Search:</label>
-					<input type="text" name="search" id="search" value={ searchQuery } placeholder="Filter by title..." style="padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #d1d5db; flex: 1; max-width: 400px;"/>
+					<label for="search" style="font-weight: 500; color: var(--text-primary);">Search:</label>
+					<input type="text" name="search" id="search" value={ searchQuery } placeholder="Filter by title..." style="padding: 0.5rem; border-radius: 0.375rem; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-primary); flex: 1; max-width: 400px;"/>
 					<button type="submit" class="btn" style="background: #3b82f6;">Search</button>
 					if searchQuery != "" {
 						if printMode {
@@ -73,9 +73,9 @@ templ dashboardContent(mappings []*models.CardMapping, csrfToken string, sortOrd
 				} else {
 					<div class="card-grid">
 						for _, mapping := range mappings {
-							<div class="card-item-wrapper" style="position: relative;">
-								<input type="checkbox" name="mapping_ids" value={ fmt.Sprintf("%d", mapping.ID) } class="sticker-checkbox" style="position: absolute; top: 0.5rem; left: 0.5rem; width: 1.5rem; height: 1.5rem; cursor: pointer; z-index: 10;"/>
-								<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", mapping.PlexServerID, mapping.MediaID)) } class="card-item">
+							<div class="card-item-wrapper" style="position: relative; aspect-ratio: 2/3; display: block;">
+								<input type="checkbox" name="mapping_ids" value={ fmt.Sprintf("%d", mapping.ID) } class="sticker-checkbox" id={ fmt.Sprintf("checkbox-%d", mapping.ID) } style="position: absolute; top: 0.5rem; left: 0.5rem; width: 1.5rem; height: 1.5rem; cursor: pointer; z-index: 10;"/>
+								<label for={ fmt.Sprintf("checkbox-%d", mapping.ID) } class="card-item" style="display: block; height: 100%; cursor: pointer;">
 									if mapping.ThumbnailURL != "" {
 										<div class="card-poster" style={ fmt.Sprintf("background-image: url(%s)", mapping.ThumbnailURL) }></div>
 									} else {
@@ -86,7 +86,7 @@ templ dashboardContent(mappings []*models.CardMapping, csrfToken string, sortOrd
 									<div class="card-overlay">
 										<div class="card-title">{ mapping.MediaTitle }</div>
 									</div>
-								</a>
+								</label>
 							</div>
 						}
 					</div>

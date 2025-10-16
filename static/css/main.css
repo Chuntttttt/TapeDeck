@@ -176,6 +176,7 @@ label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
+    color: var(--text-primary);
 }
 
 input[type="text"],
@@ -256,6 +257,7 @@ input[type="url"]::placeholder {
     font-size: 18px;
     font-weight: bold;
     margin-bottom: 5px;
+    color: var(--text-primary);
 }
 
 .status-detail {
@@ -359,6 +361,7 @@ input[type="url"]::placeholder {
 .tv-name {
     font-weight: bold;
     margin-bottom: 5px;
+    color: var(--text-primary);
 }
 
 .server-meta,
@@ -388,6 +391,7 @@ input[type="url"]::placeholder {
 .summary-label {
     font-weight: bold;
     margin-bottom: 5px;
+    color: var(--text-primary);
 }
 
 .summary-value {
@@ -452,6 +456,7 @@ input[type="url"]::placeholder {
 .result-title {
     font-weight: bold;
     margin-bottom: 3px;
+    color: var(--text-primary);
 }
 
 .result-meta {
@@ -507,6 +512,7 @@ input[type="url"]::placeholder {
 .media-title {
     font-weight: bold;
     margin-bottom: 5px;
+    color: var(--text-primary);
 }
 
 .media-year {
@@ -566,6 +572,7 @@ input[type="url"]::placeholder {
     font-size: 20px;
     font-weight: bold;
     margin-bottom: 10px;
+    color: var(--text-primary);
 }
 
 .library-type {
@@ -619,6 +626,7 @@ input[type="url"]::placeholder {
 
 .empty-state h2 {
     margin-bottom: 10px;
+    color: var(--text-primary);
 }
 
 /* Header */

@@ -11,13 +11,53 @@ templ SetupAppleTVSelection(mediaPlayers []ha.Entity, selectedTVs map[string]boo
 }
 
 templ appleTVSelectionContent(mediaPlayers []ha.Entity, selectedTVs map[string]bool, csrfToken string) {
+	<style>
+		.setup-tv-list {
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			margin: 20px 0;
+		}
+		.setup-tv-item {
+			display: flex;
+			align-items: center;
+			padding: 12px 15px;
+			border: 2px solid var(--border-default);
+			border-radius: 4px;
+			background: var(--bg-container);
+			transition: all 0.2s;
+			cursor: pointer;
+		}
+		.setup-tv-item:hover {
+			border-color: var(--color-gold);
+			background: var(--bg-hover);
+		}
+		.setup-tv-item input[type="checkbox"] {
+			margin: 0 12px 0 0;
+			width: 18px;
+			height: 18px;
+			cursor: pointer;
+		}
+		.setup-tv-content {
+			flex: 1;
+		}
+		.setup-tv-name {
+			font-weight: 600;
+			color: var(--text-primary);
+			margin-bottom: 4px;
+		}
+		.setup-tv-meta {
+			font-size: 13px;
+			color: var(--text-tertiary);
+		}
+	</style>
 	<div class="container">
 		@components.BackLink("/setup/ha", "Back")
 		<h1>Select Apple TVs</h1>
-		<p>We found { fmt.Sprintf("%d", len(mediaPlayers)) } media player(s) in Home Assistant. Select which ones you'd like to use with TapeDeck.</p>
+		<p style="color: var(--text-secondary);">We found { fmt.Sprintf("%d", len(mediaPlayers)) } media player(s) in Home Assistant. Select which ones you'd like to use with TapeDeck.</p>
 		<form method="post" action="/setup/appletv/save">
 			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
-			<div class="tv-list">
+			<div class="setup-tv-list">
 				for _, player := range mediaPlayers {
 					@appleTVItem(player, len(mediaPlayers) == 1 || selectedTVs[player.EntityID])
 				}
@@ -31,15 +71,15 @@ templ appleTVSelectionContent(mediaPlayers []ha.Entity, selectedTVs map[string]b
 }
 
 templ appleTVItem(player ha.Entity, checked bool) {
-	<label class="tv-item">
+	<label class="setup-tv-item">
 		if checked {
 			<input type="checkbox" name="tv_entities" value={ player.EntityID } checked/>
 		} else {
 			<input type="checkbox" name="tv_entities" value={ player.EntityID }/>
 		}
-		<div>
-			<div class="tv-name">{ player.GetFriendlyName() }</div>
-			<div class="tv-meta">{ player.EntityID } - { player.State }</div>
+		<div class="setup-tv-content">
+			<div class="setup-tv-name">{ player.GetFriendlyName() }</div>
+			<div class="setup-tv-meta">{ player.EntityID } - { player.State }</div>
 		</div>
 	</label>
 }

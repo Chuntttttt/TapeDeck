@@ -19,22 +19,22 @@ import (
 
 // Sticker dimensions in inches
 const (
-	stickerWidthLandscape  = 3.35
-	stickerHeightLandscape = 2.13
-	stickerSizeSquare      = 2.13
+	stickerWidthPortrait  = 2.13
+	stickerHeightPortrait = 3.35
+	stickerSizeSquare     = 2.13
 
 	// Page setup
 	pageWidth  = 8.5
 	pageHeight = 11.0
 	margin     = 0.25
 
-	// Grid layout (2 columns x 4 rows)
-	gridCols = 2
-	gridRows = 4
+	// Grid layout (3 columns x 3 rows for portrait)
+	gridCols = 3
+	gridRows = 3
 
 	// Spacing
-	horizontalGap = 1.3
-	verticalGap   = 0.7
+	horizontalGap = 0.6
+	verticalGap   = 0.3
 
 	// Registration mark size
 	markLength = 0.2
@@ -69,8 +69,8 @@ func (g *Generator) GeneratePDF(mappings []*models.CardMapping, _ string) ([]byt
 		}
 
 		// Calculate position
-		x := margin + float64(col)*(stickerWidthLandscape+horizontalGap)
-		y := margin + float64(row)*(stickerHeightLandscape+verticalGap)
+		x := margin + float64(col)*(stickerWidthPortrait+horizontalGap)
+		y := margin + float64(row)*(stickerHeightPortrait+verticalGap)
 
 		// Fetch poster image (or use placeholder)
 		var img image.Image
@@ -90,7 +90,7 @@ func (g *Generator) GeneratePDF(mappings []*models.CardMapping, _ string) ([]byt
 		if isMusic {
 			g.addSquareSticker(pdf, img, x, y)
 		} else {
-			g.addLetterboxSticker(pdf, img, dominantColor, x, y)
+			g.addPortraitSticker(pdf, img, dominantColor, x, y)
 		}
 
 		// Move to next grid position
@@ -241,38 +241,38 @@ func (g *Generator) extractDominantColor(img image.Image) color.Color {
 	return color.RGBA{avgR, avgG, avgB, 255}
 }
 
-// addLetterboxSticker adds a landscape sticker with letterbox sidebars.
-func (g *Generator) addLetterboxSticker(pdf *gofpdf.Fpdf, img image.Image, dominantColor color.Color, x, y float64) {
+// addPortraitSticker adds a portrait sticker with letterbox bars at top/bottom.
+func (g *Generator) addPortraitSticker(pdf *gofpdf.Fpdf, img image.Image, dominantColor color.Color, x, y float64) {
 	// Draw registration marks at corners
-	g.drawRegistrationMarks(pdf, x, y, stickerWidthLandscape, stickerHeightLandscape)
+	g.drawRegistrationMarks(pdf, x, y, stickerWidthPortrait, stickerHeightPortrait)
 
 	// If no dominant color, use default
 	if dominantColor == nil {
 		dominantColor = color.RGBA{40, 50, 60, 255}
 	}
 
-	// Draw letterbox sidebars
+	// Draw letterbox bars (top/bottom)
 	r, gColor, b, _ := dominantColor.RGBA()
 	pdf.SetFillColor(int(r>>8), int(gColor>>8), int(b>>8))
 
 	posterMargin := 0.05
-	posterHeight := stickerHeightLandscape - (2 * posterMargin)
-	posterWidth := posterHeight * 2.0 / 3.0
-	sidebarWidth := (stickerWidthLandscape - posterWidth) / 2.0
+	posterWidth := stickerWidthPortrait - (2 * posterMargin)
+	posterHeight := posterWidth * 3.0 / 2.0 // 2:3 ratio portrait
+	barHeight := (stickerHeightPortrait - posterHeight) / 2.0
 
-	// Left sidebar
-	pdf.Rect(x, y, sidebarWidth, stickerHeightLandscape, "F")
-	// Right sidebar
-	pdf.Rect(x+sidebarWidth+posterWidth, y, sidebarWidth, stickerHeightLandscape, "F")
+	// Top bar
+	pdf.Rect(x, y, stickerWidthPortrait, barHeight, "F")
+	// Bottom bar
+	pdf.Rect(x, y+barHeight+posterHeight, stickerWidthPortrait, barHeight, "F")
 
 	// Draw poster (or placeholder) in center
-	posterX := x + sidebarWidth
-	posterY := y + posterMargin
+	posterX := x + posterMargin
+	posterY := y + barHeight
 
 	if img != nil {
 		g.drawImage(pdf, img, posterX, posterY, posterWidth, posterHeight)
 	} else {
-		// Placeholder: gray rectangle with "?" text
+		// Placeholder: gray rectangle
 		pdf.SetFillColor(100, 100, 100)
 		pdf.Rect(posterX, posterY, posterWidth, posterHeight, "F")
 	}
@@ -335,8 +335,11 @@ func (g *Generator) drawImage(pdf *gofpdf.Fpdf, img image.Image, x, y, width, he
 		_ = os.Remove(tmpPath)
 	}()
 
+	// Convert to 8-bit RGBA (gofpdf doesn't support 16-bit PNGs)
+	img8bit := g.convertTo8Bit(img)
+
 	// Encode image as PNG
-	if err := png.Encode(tmpFile, img); err != nil {
+	if err := png.Encode(tmpFile, img8bit); err != nil {
 		_ = tmpFile.Close()
 		// Fallback
 		g.drawColoredFallback(pdf, img, x, y, width, height)
@@ -364,4 +367,19 @@ func (g *Generator) drawColoredFallback(pdf *gofpdf.Fpdf, img image.Image, x, y,
 	r, gColor, b, _ := img.At(centerX, centerY).RGBA()
 	pdf.SetFillColor(int(r>>8), int(gColor>>8), int(b>>8))
 	pdf.Rect(x, y, width, height, "F")
+}
+
+// convertTo8Bit converts any image to 8-bit NRGBA format.
+// This is necessary because gofpdf doesn't support 16-bit PNG images.
+func (g *Generator) convertTo8Bit(src image.Image) *image.NRGBA {
+	bounds := src.Bounds()
+	dst := image.NewNRGBA(bounds)
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			dst.Set(x, y, src.At(x, y))
+		}
+	}
+
+	return dst
 }

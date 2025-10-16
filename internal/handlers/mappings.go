@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -62,6 +64,14 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get query parameters
+	sortOrder := r.URL.Query().Get("sort")
+	if sortOrder == "" {
+		sortOrder = "newest"
+	}
+	searchQuery := r.URL.Query().Get("search")
+	printMode := r.URL.Query().Get("print") == "true"
+
 	// Get all mappings for the user
 	mappings, err := h.db.GetCardMappingsByUserID(ctx, userID)
 	if err != nil {
@@ -70,11 +80,39 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Apply search filter
+	if searchQuery != "" {
+		filtered := make([]*models.CardMapping, 0)
+		searchLower := strings.ToLower(searchQuery)
+		for _, m := range mappings {
+			if strings.Contains(strings.ToLower(m.MediaTitle), searchLower) {
+				filtered = append(filtered, m)
+			}
+		}
+		mappings = filtered
+	}
+
+	// Apply sort
+	switch sortOrder {
+	case "oldest":
+		sort.Slice(mappings, func(i, j int) bool {
+			return mappings[i].CreatedAt.Before(mappings[j].CreatedAt)
+		})
+	case "alpha":
+		sort.Slice(mappings, func(i, j int) bool {
+			return strings.ToLower(mappings[i].MediaTitle) < strings.ToLower(mappings[j].MediaTitle)
+		})
+	default: // "newest"
+		sort.Slice(mappings, func(i, j int) bool {
+			return mappings[i].CreatedAt.After(mappings[j].CreatedAt)
+		})
+	}
+
 	// Fetch thumbnails for mappings that don't have them cached
 	h.fetchThumbnails(ctx, user.PlexAuthToken, mappings)
 
 	// Render using templ template
-	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r)).Render(ctx, w); err != nil {
+	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r), sortOrder, searchQuery, printMode).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}

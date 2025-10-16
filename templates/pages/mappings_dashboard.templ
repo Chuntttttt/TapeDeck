@@ -5,41 +5,125 @@ import "github.com/Chuntttttt/tapedeck/internal/models"
 import "fmt"
 
 // MappingsDashboard renders the card mappings dashboard
-templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
-	@layouts.AppLayout("Card Mappings", navHTML, bannerHTML, bannerScript, dashboardContent(mappings, csrfToken))
+templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHTML string, bannerScript string, csrfToken string, sortOrder string, searchQuery string, printMode bool) {
+	@layouts.AppLayout("Card Mappings", navHTML, bannerHTML, bannerScript, dashboardContent(mappings, csrfToken, sortOrder, searchQuery, printMode))
 }
 
-templ dashboardContent(mappings []*models.CardMapping, csrfToken string) {
+templ dashboardContent(mappings []*models.CardMapping, csrfToken string, sortOrder string, searchQuery string, printMode bool) {
 	<div class="app-page">
 		<div class="header">
 			<h1>My Card Collection</h1>
 			<div class="header-actions">
-				<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair New Card</a>
-			</div>
-		</div>
-		if len(mappings) == 0 {
-			<div class="empty-state">
-				<h2>No card mappings yet</h2>
-				<p>Create your first mapping to link an NFC card with media.</p>
-				<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair Your First Card</a>
-			</div>
-		} else {
-			<div class="card-grid">
-				for _, mapping := range mappings {
-					<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", mapping.PlexServerID, mapping.MediaID)) } class="card-item">
-						if mapping.ThumbnailURL != "" {
-							<div class="card-poster" style={ fmt.Sprintf("background-image: url(%s)", mapping.ThumbnailURL) }></div>
-						} else {
-							<div class="card-poster card-poster-placeholder">
-								<div class="placeholder-icon">🎬</div>
-							</div>
-						}
-						<div class="card-overlay">
-							<div class="card-title">{ mapping.MediaTitle }</div>
-						</div>
-					</a>
+				if printMode {
+					<a href="/mappings" class="btn">✖️ Cancel Print Mode</a>
+				} else {
+					<a href="/mappings?print=true" class="btn" style="background: #9333ea;">🖨️ Print Stickers</a>
+					<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair New Card</a>
 				}
 			</div>
+		</div>
+		<!-- Sort and Search Controls -->
+		<div class="controls-bar" style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
+			<form method="GET" action="/mappings" style="display: flex; gap: 1rem; flex: 1;">
+				if printMode {
+					<input type="hidden" name="print" value="true"/>
+				}
+				<div style="display: flex; gap: 0.5rem; align-items: center;">
+					<label for="sort" style="font-weight: 500;">Sort:</label>
+					<select name="sort" id="sort" onchange="this.form.submit()" style="padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #d1d5db; background: white;">
+						<option value="newest" selected?={ sortOrder == "newest" || sortOrder == "" }>Newest First</option>
+						<option value="oldest" selected?={ sortOrder == "oldest" }>Oldest First</option>
+						<option value="alpha" selected?={ sortOrder == "alpha" }>Alphabetical</option>
+					</select>
+				</div>
+				<div style="display: flex; gap: 0.5rem; flex: 1; align-items: center;">
+					<label for="search" style="font-weight: 500;">Search:</label>
+					<input type="text" name="search" id="search" value={ searchQuery } placeholder="Filter by title..." style="padding: 0.5rem; border-radius: 0.375rem; border: 1px solid #d1d5db; flex: 1; max-width: 400px;"/>
+					<button type="submit" class="btn" style="background: #3b82f6;">Search</button>
+					if searchQuery != "" {
+						if printMode {
+							<a href={ templ.SafeURL("/mappings?sort=" + sortOrder + "&print=true") } class="btn" style="background: #6b7280;">Clear</a>
+						} else {
+							<a href={ templ.SafeURL("/mappings?sort=" + sortOrder) } class="btn" style="background: #6b7280;">Clear</a>
+						}
+					}
+				</div>
+			</form>
+		</div>
+		if printMode {
+			<form id="print-form" method="POST" action="/mappings/generate-stickers">
+				<input type="hidden" name="csrf_token" value={ csrfToken }/>
+				<div style="margin-bottom: 1rem; display: flex; gap: 1rem;">
+					<button type="button" id="select-all" class="btn" style="background: #6b7280;">Select All</button>
+					<button type="button" id="deselect-all" class="btn" style="background: #6b7280;">Deselect All</button>
+					<button type="submit" id="generate-btn" class="btn" style="background: #22c55e;">Generate PDF</button>
+				</div>
+				if len(mappings) == 0 {
+					<div class="empty-state">
+						if searchQuery != "" {
+							<h2>No matches found</h2>
+							<p>No card mappings match "{ searchQuery }"</p>
+							<a href="/mappings" class="btn">Clear Search</a>
+						} else {
+							<h2>No card mappings yet</h2>
+							<p>Create your first mapping to link an NFC card with media.</p>
+							<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair Your First Card</a>
+						}
+					</div>
+				} else {
+					<div class="card-grid">
+						for _, mapping := range mappings {
+							<div class="card-item-wrapper" style="position: relative;">
+								<input type="checkbox" name="mapping_ids" value={ fmt.Sprintf("%d", mapping.ID) } class="sticker-checkbox" style="position: absolute; top: 0.5rem; left: 0.5rem; width: 1.5rem; height: 1.5rem; cursor: pointer; z-index: 10;"/>
+								<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", mapping.PlexServerID, mapping.MediaID)) } class="card-item">
+									if mapping.ThumbnailURL != "" {
+										<div class="card-poster" style={ fmt.Sprintf("background-image: url(%s)", mapping.ThumbnailURL) }></div>
+									} else {
+										<div class="card-poster card-poster-placeholder">
+											<div class="placeholder-icon">🎬</div>
+										</div>
+									}
+									<div class="card-overlay">
+										<div class="card-title">{ mapping.MediaTitle }</div>
+									</div>
+								</a>
+							</div>
+						}
+					</div>
+				}
+			</form>
+			<script src="/static/js/print-mode.js"></script>
+		} else {
+			if len(mappings) == 0 {
+				<div class="empty-state">
+					if searchQuery != "" {
+						<h2>No matches found</h2>
+						<p>No card mappings match "{ searchQuery }"</p>
+						<a href="/mappings" class="btn">Clear Search</a>
+					} else {
+						<h2>No card mappings yet</h2>
+						<p>Create your first mapping to link an NFC card with media.</p>
+						<a href="/mappings/pair" class="btn" style="background: #22c55e;">📱 Pair Your First Card</a>
+					}
+				</div>
+			} else {
+				<div class="card-grid">
+					for _, mapping := range mappings {
+						<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", mapping.PlexServerID, mapping.MediaID)) } class="card-item">
+							if mapping.ThumbnailURL != "" {
+								<div class="card-poster" style={ fmt.Sprintf("background-image: url(%s)", mapping.ThumbnailURL) }></div>
+							} else {
+								<div class="card-poster card-poster-placeholder">
+									<div class="placeholder-icon">🎬</div>
+								</div>
+							}
+							<div class="card-overlay">
+								<div class="card-title">{ mapping.MediaTitle }</div>
+							</div>
+						</a>
+					}
+				</div>
+			}
 		}
 	</div>
 }

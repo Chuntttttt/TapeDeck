@@ -181,6 +181,7 @@ label {
 input[type="text"],
 input[type="password"],
 input[type="email"],
+input[type="url"],
 select {
     padding: 12px;
     width: 100%;
@@ -189,14 +190,25 @@ select {
     border-radius: 4px;
     box-sizing: border-box;
     background: var(--input-bg);
+    color: var(--text-primary);
 }
 
 input[type="text"]:focus,
 input[type="password"]:focus,
 input[type="email"]:focus,
+input[type="url"]:focus,
 select:focus {
     border-color: var(--input-focus);
     outline: none;
+    box-shadow: 0 0 0 3px rgba(229, 160, 13, 0.1);
+}
+
+input[type="text"]::placeholder,
+input[type="password"]::placeholder,
+input[type="email"]::placeholder,
+input[type="url"]::placeholder {
+    color: var(--text-tertiary);
+    opacity: 0.7;
 }
 
 .help-text {

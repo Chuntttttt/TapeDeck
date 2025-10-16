@@ -12,58 +12,117 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 	<style>
 		.settings-section {
 			background: var(--bg-container);
-			padding: 25px;
+			padding: 30px;
 			border-radius: 8px;
 			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-			margin-bottom: 25px;
+			margin-bottom: 30px;
 		}
 		.settings-heading {
 			margin-top: 0;
+			margin-bottom: 20px;
 			color: var(--text-primary);
 			border-bottom: 2px solid var(--color-gold);
 			padding-bottom: 10px;
+			font-size: 20px;
 		}
-		.settings-section label {
-			color: var(--text-primary);
+		.settings-server-list {
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
 		}
-		.settings-section input[type="url"],
-		.settings-section input[type="password"] {
+		.settings-server-item {
+			display: flex;
+			align-items: center;
+			padding: 12px 15px;
+			border: 2px solid var(--border-default);
+			border-radius: 4px;
 			background: var(--bg-body);
-			color: var(--text-primary);
-			border: 1px solid var(--border-color);
+			transition: all 0.2s;
 		}
-		.settings-section input[type="url"]::placeholder,
-		.settings-section input[type="password"]::placeholder {
-			color: var(--text-tertiary);
+		.settings-server-item:not(.disabled):hover {
+			border-color: var(--color-gold);
+			background: var(--bg-hover);
 		}
-		.settings-section .server-item {
+		.settings-server-item.disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+		.settings-server-item input[type="checkbox"] {
+			margin: 0 12px 0 0;
+			width: 18px;
+			height: 18px;
+			cursor: pointer;
+		}
+		.settings-server-item.disabled input[type="checkbox"] {
+			cursor: not-allowed;
+		}
+		.settings-server-content {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.server-name {
+			font-weight: 600;
 			color: var(--text-primary);
+		}
+		.server-badge {
+			font-size: 12px;
+			padding: 3px 8px;
+			border-radius: 4px;
+			font-weight: 600;
+		}
+		.server-badge-warning {
+			background: var(--warning-bg);
+			color: var(--warning-text);
+			border: 1px solid var(--warning-border);
+		}
+		.tv-list {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+		.tv-list-item {
 			display: flex;
 			align-items: center;
 			gap: 8px;
-			margin-bottom: 8px;
-		}
-		.settings-section .server-name {
-			color: var(--text-primary);
-			font-weight: 600;
-		}
-		.settings-section .server-owner {
-			color: var(--text-secondary);
-		}
-		.settings-section p {
-			color: var(--text-secondary);
-		}
-		.settings-section .info {
-			background: var(--bg-summary);
-			padding: 15px;
+			padding: 10px 15px;
+			background: var(--bg-body);
+			border: 1px solid var(--border-default);
 			border-radius: 4px;
-			border-left: 3px solid var(--color-gold);
 		}
-		.shared-warning { color: var(--warning-border); }
-		.default-badge { background: var(--success-border); color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-		.status-testing { color: var(--text-tertiary); }
-		.status-success { color: var(--success-border); }
-		.status-error { color: var(--error-border); }
+		.tv-name {
+			font-weight: 500;
+			color: var(--text-primary);
+			flex: 1;
+		}
+		.default-badge {
+			background: var(--success-border);
+			color: white;
+			padding: 3px 8px;
+			border-radius: 4px;
+			font-size: 11px;
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+		.ha-test-group {
+			display: flex;
+			align-items: center;
+			gap: 15px;
+			margin-top: 10px;
+		}
+		.ha-status {
+			font-size: 14px;
+			font-weight: 500;
+		}
+		.ha-status.testing { color: var(--text-tertiary); }
+		.ha-status.success { color: var(--success-border); }
+		.ha-status.error { color: var(--error-border); }
+		.settings-actions {
+			display: flex;
+			gap: 12px;
+			flex-wrap: wrap;
+		}
 	</style>
 	<div class="app-page">
 		<div class="header">
@@ -73,29 +132,33 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="settings-section">
 				<h2 class="settings-heading">Plex Servers</h2>
-				<div class="server-list" style="margin-top: 15px;">
-					if len(plexServers) == 0 {
-						<p>No Plex servers configured.</p>
-					} else {
+				if len(plexServers) == 0 {
+					<p style="color: var(--text-tertiary);">No Plex servers configured.</p>
+				} else {
+					<div class="settings-server-list">
 						for _, srv := range plexServers {
 							if srv.Owner == "Shared" {
-								<div class="server-item" style="opacity: 0.5;">
+								<div class="settings-server-item disabled">
 									<input type="checkbox" name="servers" value={ srv.ID } checked disabled/>
-									<span class="server-name">{ srv.Name }</span>
-									<span class="server-owner shared-warning">(not supported)</span>
+									<div class="settings-server-content">
+										<span class="server-name">{ srv.Name }</span>
+										<span class="server-badge server-badge-warning">Not Supported</span>
+									</div>
 								</div>
 							} else {
-								<div class="server-item">
+								<div class="settings-server-item">
 									<input type="checkbox" name="servers" value={ srv.ID } checked/>
-									<span class="server-name">{ srv.Name }</span>
+									<div class="settings-server-content">
+										<span class="server-name">{ srv.Name }</span>
+									</div>
 								</div>
 							}
 						}
-					}
-				</div>
-				<div class="info" style="margin-top: 15px;">
-					<p><strong>Note:</strong> Shared servers are currently not supported due to Plex API limitations. Uncheck servers you don't want to use.</p>
-				</div>
+					</div>
+					<div class="info" style="margin-top: 20px;">
+						<p style="margin: 0; color: var(--text-secondary);"><strong>Note:</strong> Shared servers are not supported due to Plex API limitations. Uncheck servers you don't want to use.</p>
+					</div>
+				}
 			</div>
 			<div class="settings-section">
 				<h2 class="settings-heading">Home Assistant</h2>
@@ -107,29 +170,34 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 					<label for="ha_token">Long-Lived Access Token</label>
 					<input type="password" id="ha_token" name="ha_token" value={ haToken } placeholder="Enter token..."/>
 				</div>
-				<div class="form-group">
+				<div class="ha-test-group">
 					<button type="button" id="testHABtn" class="btn btn-secondary">Test Connection</button>
-					<span id="haStatus" style="margin-left: 15px;">Click to test</span>
+					<span id="haStatus" class="ha-status">Click to test</span>
 				</div>
 			</div>
 			<div class="settings-section">
 				<h2 class="settings-heading">Apple TVs</h2>
 				if len(appleTVs) == 0 {
-					<p>No Apple TVs configured.</p>
+					<p style="color: var(--text-tertiary);">No Apple TVs configured.</p>
 				} else {
-					for _, tv := range appleTVs {
-						if tv.Default {
-							<p>• { tv.Name } <span class="default-badge">DEFAULT</span></p>
-						} else {
-							<p>• { tv.Name }</p>
+					<div class="tv-list">
+						for _, tv := range appleTVs {
+							<div class="tv-list-item">
+								<span class="tv-name">{ tv.Name }</span>
+								if tv.Default {
+									<span class="default-badge">Default</span>
+								}
+							</div>
 						}
-					}
+					</div>
 				}
 			</div>
-			<div class="actions" style="margin-top: 20px;">
-				<button type="submit" class="btn">Save Changes</button>
-				<a href="/setup" class="btn btn-secondary">Re-run Setup Wizard</a>
-				<a href="/metrics" class="btn btn-secondary" target="_blank">View Metrics</a>
+			<div class="settings-section">
+				<div class="settings-actions">
+					<button type="submit" class="btn">Save Changes</button>
+					<a href="/setup" class="btn btn-secondary">Re-run Setup Wizard</a>
+					<a href="/metrics" class="btn btn-secondary" target="_blank">View Metrics</a>
+				</div>
 			</div>
 		</form>
 	</div>
@@ -138,14 +206,14 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 		document.getElementById('testHABtn').addEventListener('click', function() {
 			const statusEl = document.getElementById('haStatus');
 			statusEl.textContent = 'Testing...';
-			statusEl.className = 'status-testing';
+			statusEl.className = 'ha-status testing';
 
 			const url = document.getElementById('ha_url').value;
 			const token = document.getElementById('ha_token').value;
 
 			if (!url || !token) {
 				statusEl.textContent = '✗ Please fill in URL and token';
-				statusEl.className = 'status-error';
+				statusEl.className = 'ha-status error';
 				return;
 			}
 
@@ -158,16 +226,16 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 			.then(data => {
 				if (data.success) {
 					statusEl.textContent = '✓ Connection successful';
-					statusEl.className = 'status-success';
+					statusEl.className = 'ha-status success';
 				} else {
 					statusEl.textContent = '✗ ' + (data.error || 'Connection failed');
-					statusEl.className = 'status-error';
+					statusEl.className = 'ha-status error';
 				}
 			})
 			.catch(err => {
 				console.error('Test failed:', err);
 				statusEl.textContent = '✗ Test failed';
-				statusEl.className = 'status-error';
+				statusEl.className = 'ha-status error';
 			});
 		});
 
@@ -178,10 +246,10 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 				const statusEl = document.getElementById('haStatus');
 				if (data.connected) {
 					statusEl.textContent = '✓ Currently connected';
-					statusEl.className = 'status-success';
+					statusEl.className = 'ha-status success';
 				} else {
 					statusEl.textContent = '✗ Currently disconnected';
-					statusEl.className = 'status-error';
+					statusEl.className = 'ha-status error';
 				}
 			})
 			.catch(err => {

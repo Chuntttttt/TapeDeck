@@ -220,3 +220,56 @@ func (c *Client) Search(ctx context.Context, query string) ([]MediaItem, error) 
 
 	return searchResp.MediaContainer.Metadata, nil
 }
+
+// MediaMetadata represents detailed metadata for a media item
+type MediaMetadata struct {
+	RatingKey string `json:"ratingKey"`
+	Title     string `json:"title"`
+	Type      string `json:"type"`
+	Thumb     string `json:"thumb"`
+	Year      int    `json:"year"`
+	Summary   string `json:"summary"`
+}
+
+// GetMetadata fetches detailed metadata for a specific media item
+func (c *Client) GetMetadata(ctx context.Context, ratingKey string) (*MediaMetadata, error) {
+	url := fmt.Sprintf("%s/library/metadata/%s", c.serverURL, ratingKey)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("X-Plex-Token", c.authToken)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch metadata: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Warn("Failed to close response body", "error", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("plex returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		MediaContainer struct {
+			Metadata []MediaMetadata `json:"Metadata"`
+		} `json:"MediaContainer"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(result.MediaContainer.Metadata) == 0 {
+		return nil, fmt.Errorf("no metadata found for ratingKey %s", ratingKey)
+	}
+
+	return &result.MediaContainer.Metadata[0], nil
+}

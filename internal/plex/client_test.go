@@ -308,3 +308,62 @@ func TestSearch(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMetadata(t *testing.T) {
+	t.Run("successful metadata fetch with thumbnail", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/library/metadata/123" {
+				t.Errorf("unexpected path: %s", r.URL.Path)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"MediaContainer": map[string]interface{}{
+					"Metadata": []map[string]interface{}{
+						{
+							"ratingKey": "123",
+							"title":     "Test Movie",
+							"type":      "movie",
+							"thumb":     "/library/metadata/123/thumb/1234567890",
+							"year":      2023,
+							"summary":   "A test movie",
+						},
+					},
+				},
+			})
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, "test-server", "test-token", false)
+		metadata, err := client.GetMetadata(context.Background(), "123")
+
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if metadata.RatingKey != "123" {
+			t.Errorf("expected ratingKey 123, got: %s", metadata.RatingKey)
+		}
+		if metadata.Title != "Test Movie" {
+			t.Errorf("expected title 'Test Movie', got: %s", metadata.Title)
+		}
+		if metadata.Thumb != "/library/metadata/123/thumb/1234567890" {
+			t.Errorf("expected thumb path, got: %s", metadata.Thumb)
+		}
+		if metadata.Summary != "A test movie" {
+			t.Errorf("expected summary, got: %s", metadata.Summary)
+		}
+	})
+
+	t.Run("metadata not found", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, "test-server", "test-token", false)
+		_, err := client.GetMetadata(context.Background(), "999")
+
+		if err == nil {
+			t.Fatal("expected error for 404, got nil")
+		}
+	})
+}

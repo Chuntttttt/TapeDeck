@@ -164,6 +164,7 @@ func main() {
 	// Declare handler variables that will be initialized either at startup or after setup
 	// These start as nil and are populated by initializeHandlers() below.
 	var mediaHandler *handlers.MediaHandler
+	var mediaDetailHandler *handlers.MediaDetailHandler
 	var mappingsHandler *handlers.MappingsHandler
 	var playbackHandler *handlers.PlaybackHandler
 	var pairingHandler *handlers.PairingHandler
@@ -247,6 +248,7 @@ func main() {
 
 		// Initialize handlers
 		mediaHandler = handlers.NewMediaHandler(sessionStore, database, servers, cfg.DevMode)
+		mediaDetailHandler = handlers.NewMediaDetailHandler(sessionStore, database, servers, cfg.DevMode, runtimeCfg.AppleTVs)
 		mappingsHandler = handlers.NewMappingsHandler(sessionStore, database, servers, cfg.DevMode)
 		playbackHandler = handlers.NewPlaybackHandler(database, plexServerID)
 
@@ -277,7 +279,7 @@ func main() {
 
 		// Sanity check: ensure all handlers were initialized
 		// This should never fail unless there's a programming error above
-		if mediaHandler == nil || mappingsHandler == nil || playbackHandler == nil ||
+		if mediaHandler == nil || mediaDetailHandler == nil || mappingsHandler == nil || playbackHandler == nil ||
 			pairingHandler == nil || statusHandler == nil {
 			return fmt.Errorf("handler initialization incomplete - this is a programming error")
 		}
@@ -313,17 +315,18 @@ func main() {
 		AuthMiddleware:  middleware.RequireAuth(sessionStore),
 
 		// Handler getters that return current values (updated after setup/settings changes)
-		GetMappingsHandler: func() *handlers.MappingsHandler { return mappingsHandler },
-		GetMediaHandler:    func() *handlers.MediaHandler { return mediaHandler },
-		GetPairingHandler:  func() *handlers.PairingHandler { return pairingHandler },
-		GetPlaybackHandler: func() *handlers.PlaybackHandler { return playbackHandler },
-		GetStatusHandler:   func() *handlers.StatusHandler { return statusHandler },
+		GetMappingsHandler:    func() *handlers.MappingsHandler { return mappingsHandler },
+		GetMediaHandler:       func() *handlers.MediaHandler { return mediaHandler },
+		GetMediaDetailHandler: func() *handlers.MediaDetailHandler { return mediaDetailHandler },
+		GetPairingHandler:     func() *handlers.PairingHandler { return pairingHandler },
+		GetPlaybackHandler:    func() *handlers.PlaybackHandler { return playbackHandler },
+		GetStatusHandler:      func() *handlers.StatusHandler { return statusHandler },
 
 		// HandlersReady is used by requireInitialized middleware to check if
 		// handlers have been initialized. Returns true only if all runtime
 		// handlers are non-nil (i.e., initializeHandlers() has been called).
 		HandlersReady: func() bool {
-			return mediaHandler != nil && mappingsHandler != nil && pairingHandler != nil &&
+			return mediaHandler != nil && mediaDetailHandler != nil && mappingsHandler != nil && pairingHandler != nil &&
 				playbackHandler != nil && statusHandler != nil
 		},
 	}

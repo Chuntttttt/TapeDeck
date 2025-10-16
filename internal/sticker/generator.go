@@ -251,24 +251,21 @@ func (g *Generator) addPortraitSticker(pdf *gofpdf.Fpdf, img image.Image, domina
 		dominantColor = color.RGBA{40, 50, 60, 255}
 	}
 
-	// Draw letterbox bars (top/bottom)
+	// Fill entire sticker background with dominant color
 	r, gColor, b, _ := dominantColor.RGBA()
 	pdf.SetFillColor(int(r>>8), int(gColor>>8), int(b>>8))
+	pdf.Rect(x, y, stickerWidthPortrait, stickerHeightPortrait, "F")
 
+	// Calculate poster dimensions (2:3 ratio, centered)
 	posterMargin := 0.05
 	posterWidth := stickerWidthPortrait - (2 * posterMargin)
 	posterHeight := posterWidth * 3.0 / 2.0 // 2:3 ratio portrait
-	barHeight := (stickerHeightPortrait - posterHeight) / 2.0
 
-	// Top bar
-	pdf.Rect(x, y, stickerWidthPortrait, barHeight, "F")
-	// Bottom bar
-	pdf.Rect(x, y+barHeight+posterHeight, stickerWidthPortrait, barHeight, "F")
-
-	// Draw poster (or placeholder) in center
+	// Center poster vertically
 	posterX := x + posterMargin
-	posterY := y + barHeight
+	posterY := y + (stickerHeightPortrait-posterHeight)/2.0
 
+	// Draw poster (or placeholder) on top of background
 	if img != nil {
 		g.drawImage(pdf, img, posterX, posterY, posterWidth, posterHeight)
 	} else {

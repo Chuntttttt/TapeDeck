@@ -16,12 +16,13 @@ templ PairingForm(appleTVs []AppleTVOption, navHTML string, bannerHTML string, b
 }
 
 templ pairingFormContent(appleTVs []AppleTVOption) {
-	<div class="app-page-narrow" style="background: #f5f5f5;">
+	<div class="app-page-narrow" style="background: var(--bg-body);">
 		<div class="container">
+			@components.BackLink("/mappings", "Back")
 			<h1>NFC Pairing Mode</h1>
 			<div class="step">
 				<span class="step-number">1</span>
-				<strong>Search for media to pair</strong>
+				<strong style="color: var(--text-primary);">Search for media to pair</strong>
 				<div style="margin-top: 10px;">
 					@components.MediaSearch("media_", true)
 					<input type="hidden" id="media_type"/>
@@ -32,9 +33,9 @@ templ pairingFormContent(appleTVs []AppleTVOption) {
 			</div>
 			<div class="step">
 				<span class="step-number">2</span>
-				<strong>Select Apple TV</strong>
+				<strong style="color: var(--text-primary);">Select Apple TV</strong>
 				<div style="margin-top: 10px;">
-					<select id="appleTVSelect" style="padding: 12px; width: 100%; font-size: 16px; border: 2px solid #ddd; border-radius: 4px; background: white;">
+					<select id="appleTVSelect" style="padding: 12px; width: 100%; font-size: 16px; border: 2px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-primary);">
 						if len(appleTVs) == 0 {
 							<option value="">No Apple TVs configured</option>
 						} else {
@@ -51,7 +52,7 @@ templ pairingFormContent(appleTVs []AppleTVOption) {
 			</div>
 			<div class="step">
 				<span class="step-number">3</span>
-				<strong>Tap your NFC card</strong>
+				<strong style="color: var(--text-primary);">Tap your NFC card</strong>
 				<div class="ws-status" id="wsStatus">Checking connection...</div>
 			</div>
 			<div class="status" id="status" style="display: none;">

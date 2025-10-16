@@ -268,6 +268,7 @@ select:focus {
     border-left: 3px solid var(--color-gold);
     padding-left: 15px;
     margin-bottom: 10px;
+    color: var(--text-secondary);
 }
 
 /* Emoji */

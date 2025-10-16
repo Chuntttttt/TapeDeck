@@ -10,8 +10,41 @@ templ Settings(plexServers []config.PlexServer, haURL string, haToken string, ap
 
 templ settingsContent(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV, csrfToken string) {
 	<style>
-		.settings-section { background: var(--bg-container); padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px; }
-		.settings-heading { margin-top: 0; color: var(--text-primary); border-bottom: 2px solid #e5a00d; padding-bottom: 10px; }
+		.settings-section {
+			background: var(--bg-container);
+			padding: 25px;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+			margin-bottom: 25px;
+		}
+		.settings-heading {
+			margin-top: 0;
+			color: var(--text-primary);
+			border-bottom: 2px solid var(--color-gold);
+			padding-bottom: 10px;
+		}
+		.settings-section label {
+			color: var(--text-primary);
+		}
+		.settings-section .server-item {
+			color: var(--text-primary);
+		}
+		.settings-section .server-name {
+			color: var(--text-primary);
+			font-weight: 600;
+		}
+		.settings-section .server-owner {
+			color: var(--text-secondary);
+		}
+		.settings-section p {
+			color: var(--text-secondary);
+		}
+		.settings-section .info {
+			background: var(--bg-summary);
+			padding: 15px;
+			border-radius: 4px;
+			border-left: 3px solid var(--color-gold);
+		}
 		.shared-warning { color: var(--warning-border); }
 		.default-badge { background: var(--success-border); color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
 		.status-testing { color: var(--text-tertiary); }

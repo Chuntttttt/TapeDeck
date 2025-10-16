@@ -735,7 +735,7 @@ select:focus {
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
     text-decoration: none;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--border-default);
 }
 
 .card-item:hover {
@@ -838,12 +838,12 @@ select:focus {
     font-size: 32px;
     font-weight: 700;
     margin: 0;
-    color: #1f2937;
+    color: var(--text-primary);
 }
 
 .media-year {
     font-size: 16px;
-    color: #6b7280;
+    color: var(--text-tertiary);
     margin: 0;
 }
 
@@ -854,7 +854,7 @@ select:focus {
 }
 
 .btn-primary {
-    background: #22c55e;
+    background: var(--success-border);
     color: white;
 }
 
@@ -863,7 +863,7 @@ select:focus {
 }
 
 .btn-secondary {
-    background: #3b82f6;
+    background: var(--color-blue-border);
     color: white;
 }
 
@@ -873,17 +873,17 @@ select:focus {
 
 .btn-link {
     background: transparent;
-    color: #3b82f6;
-    border: 1px solid #3b82f6;
+    color: var(--color-blue-border);
+    border: 1px solid var(--color-blue-border);
 }
 
 .btn-link:hover {
-    background: #eff6ff;
+    background: var(--color-blue-bg);
 }
 
 .btn-paired {
-    background: #d1d5db;
-    color: #6b7280;
+    background: var(--btn-disabled-bg);
+    color: var(--text-tertiary);
     cursor: not-allowed;
 }
 
@@ -891,19 +891,19 @@ select:focus {
     font-size: 18px;
     font-weight: 600;
     margin: 0 0 10px 0;
-    color: #1f2937;
+    color: var(--text-primary);
 }
 
 .media-summary p {
     font-size: 14px;
     line-height: 1.6;
-    color: #4b5563;
+    color: var(--text-secondary);
     margin: 0;
 }
 
 .media-server-info {
     font-size: 14px;
-    color: #9ca3af;
+    color: var(--text-tertiary);
     margin: 0;
 }
 

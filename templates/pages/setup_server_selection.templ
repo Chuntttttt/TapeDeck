@@ -22,7 +22,7 @@ templ serverSelectionContent(servers []config.PlexServer, csrfToken string) {
 					@serverItem(server)
 				}
 			</div>
-			<p style="font-size: 14px; color: #666;">All servers are selected by default. Uncheck any you don't want to use.</p>
+			<p style="font-size: 14px; color: var(--text-tertiary);">All servers are selected by default. Uncheck any you don't want to use.</p>
 			<button type="submit" class="btn" id="submitBtn">Continue with Selected Servers</button>
 		</form>
 	</div>

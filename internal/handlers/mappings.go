@@ -84,6 +84,18 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 func (h *MappingsHandler) fetchThumbnails(ctx context.Context, authToken string, mappings []*models.CardMapping) {
 	log := middleware.GetLogger(ctx)
 
+	// Count how many need thumbnails
+	needThumbnails := 0
+	for _, m := range mappings {
+		if m.ThumbnailURL == "" {
+			needThumbnails++
+		}
+	}
+
+	if needThumbnails > 0 {
+		log.Info("Fetching thumbnails for mappings", "count", needThumbnails)
+	}
+
 	// Use channel to limit concurrent Plex API calls
 	semaphore := make(chan struct{}, 5)
 	var wg sync.WaitGroup
@@ -139,11 +151,15 @@ func (h *MappingsHandler) fetchThumbnails(ctx context.Context, authToken string,
 
 				// Update in-memory mapping for this request
 				m.ThumbnailURL = thumbnailURL
+				log.Info("Cached thumbnail for mapping", "mapping_id", m.ID, "media_title", m.MediaTitle)
+			} else {
+				log.Warn("No thumbnail available for mapping", "mapping_id", m.ID, "media_title", m.MediaTitle)
 			}
 		}(mapping)
 	}
 
 	wg.Wait()
+	log.Info("Finished fetching thumbnails")
 }
 
 // NewMappingForm handles GET /mappings/new

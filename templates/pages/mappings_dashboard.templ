@@ -28,7 +28,7 @@ templ dashboardContent(mappings []*models.CardMapping, csrfToken string) {
 				for _, mapping := range mappings {
 					<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", mapping.PlexServerID, mapping.MediaID)) } class="card-item">
 						if mapping.ThumbnailURL != "" {
-							<div class="card-poster" style={ fmt.Sprintf("background-image: url('%s')", mapping.ThumbnailURL) }></div>
+							<div class="card-poster" style={ fmt.Sprintf("background-image: url(%s)", mapping.ThumbnailURL) }></div>
 						} else {
 							<div class="card-poster card-poster-placeholder">
 								<div class="placeholder-icon">🎬</div>

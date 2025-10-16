@@ -28,7 +28,7 @@ templ libraryContentsContent(items []plex.MediaItem, serverID string) {
 			for _, item := range items {
 				<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", serverID, item.RatingKey)) } class="card-item" data-title={ item.Title }>
 					if item.Thumb != "" {
-						<div class="card-poster" style={ fmt.Sprintf("background-image: url('%s')", item.Thumb) }></div>
+						<div class="card-poster" style={ fmt.Sprintf("background-image: url(%s)", item.Thumb) }></div>
 					} else {
 						<div class="card-poster card-poster-placeholder">
 							<div class="placeholder-icon">🎬</div>

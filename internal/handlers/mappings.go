@@ -16,6 +16,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/Chuntttttt/tapedeck/internal/sticker"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/csrf"
@@ -568,4 +569,101 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+// GenerateStickers handles POST /mappings/generate-stickers
+func (h *MappingsHandler) GenerateStickers(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
+	if !ok {
+		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	// Get user to retrieve auth token
+	user, err := h.db.GetUserByID(ctx, userID)
+	if err != nil {
+		log.Error("Failed to get user", "error", err)
+		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse form
+	if err := r.ParseForm(); err != nil {
+		log.Error("Failed to parse form", "error", err)
+		RespondError(w, r, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	// Get mapping IDs
+	mappingIDStrs := r.Form["mapping_ids"]
+	if len(mappingIDStrs) == 0 {
+		RespondError(w, r, "No mappings selected", http.StatusBadRequest)
+		return
+	}
+
+	// Parse and validate mapping IDs
+	var mappingIDs []int64
+	for _, idStr := range mappingIDStrs {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			log.Warn("Invalid mapping ID", "id", idStr)
+			continue
+		}
+		mappingIDs = append(mappingIDs, id)
+	}
+
+	if len(mappingIDs) == 0 {
+		RespondError(w, r, "No valid mappings selected", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch mappings and verify ownership
+	var mappings []*models.CardMapping
+	for _, id := range mappingIDs {
+		mapping, err := h.db.GetCardMappingByID(ctx, id)
+		if err != nil {
+			log.Warn("Mapping not found", "id", id)
+			continue
+		}
+
+		// Verify ownership
+		if mapping.UserID != userID {
+			log.Warn("User does not own mapping", "user_id", userID, "mapping_id", id)
+			continue
+		}
+
+		mappings = append(mappings, mapping)
+	}
+
+	if len(mappings) == 0 {
+		RespondError(w, r, "No valid mappings found", http.StatusBadRequest)
+		return
+	}
+
+	// Generate PDF
+	generator := sticker.NewGenerator(h.devMode)
+	pdfBytes, err := generator.GeneratePDF(mappings, user.PlexAuthToken)
+	if err != nil {
+		log.Error("Failed to generate PDF", "error", err)
+		RespondError(w, r, "Failed to generate stickers PDF", http.StatusInternalServerError)
+		return
+	}
+
+	// Send PDF as download
+	timestamp := time.Now().Format("2006-01-02-150405")
+	filename := fmt.Sprintf("tapedeck-stickers-%s.pdf", timestamp)
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Header().Set("Content-Length", strconv.Itoa(len(pdfBytes)))
+
+	if _, err := w.Write(pdfBytes); err != nil {
+		log.Error("Failed to write PDF response", "error", err)
+	}
+
+	log.Info("Generated stickers PDF", "filename", filename, "mapping_count", len(mappings))
 }

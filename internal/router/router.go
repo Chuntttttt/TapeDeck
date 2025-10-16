@@ -99,6 +99,9 @@ func New(deps *Dependencies) *chi.Mux {
 		r.Post("/mappings/{id}/delete", func(w http.ResponseWriter, req *http.Request) {
 			deps.GetMappingsHandler().DeleteMapping(w, req)
 		})
+		r.Post("/mappings/generate-stickers", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().GenerateStickers(w, req)
+		})
 		r.Get("/mappings/pair", func(w http.ResponseWriter, req *http.Request) {
 			deps.GetPairingHandler().PairForm(w, req)
 		})

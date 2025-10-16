@@ -136,7 +136,17 @@ templ MediaSearch(hiddenFieldPrefix string, showServerInfo bool) {
 				fetch('/api/search?q=' + encodeURIComponent(query), {
 					signal: currentController.signal
 				})
-					.then(r => r.json())
+					.then(r => {
+						// Check for authentication error
+						if (r.status === 401) {
+							return r.json().then(data => {
+								// Redirect to login
+								window.location.href = data.redirect || '/auth/login';
+								throw new Error('Authentication expired');
+							});
+						}
+						return r.json();
+					})
 					.then(data => {
 						// Only render if this is still the latest request
 						if (thisRequestId === requestId) {

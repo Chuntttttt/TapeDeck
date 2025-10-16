@@ -375,6 +375,7 @@ type mockPlexClient struct {
 	getLibrariesFunc       func(context.Context) ([]plex.Library, error)
 	getLibraryContentsFunc func(context.Context, string) ([]plex.MediaItem, error)
 	searchFunc             func(context.Context, string) ([]plex.MediaItem, error)
+	getMetadataFunc        func(context.Context, string) (*plex.MediaMetadata, error)
 }
 
 func (m *mockPlexClient) GetLibraries(ctx context.Context) ([]plex.Library, error) {
@@ -394,6 +395,13 @@ func (m *mockPlexClient) GetLibraryContents(ctx context.Context, libraryKey stri
 func (m *mockPlexClient) Search(ctx context.Context, query string) ([]plex.MediaItem, error) {
 	if m.searchFunc != nil {
 		return m.searchFunc(ctx, query)
+	}
+	return nil, nil
+}
+
+func (m *mockPlexClient) GetMetadata(ctx context.Context, ratingKey string) (*plex.MediaMetadata, error) {
+	if m.getMetadataFunc != nil {
+		return m.getMetadataFunc(ctx, ratingKey)
 	}
 	return nil, nil
 }

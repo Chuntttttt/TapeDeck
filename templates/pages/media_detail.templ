@@ -1,0 +1,86 @@
+package pages
+
+import "github.com/Chuntttttt/tapedeck/templates/layouts"
+import "github.com/Chuntttttt/tapedeck/internal/config"
+import "fmt"
+
+// MediaDetail renders the media detail page
+templ MediaDetail(title string, mediaType string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
+	@layouts.AppLayout(title, navHTML, bannerHTML, bannerScript, mediaDetailContent(title, mediaType, summary, year, thumbnailURL, plexWebURL, serverID, ratingKey, serverName, defaultAppleTV, isPaired, appleTVs, csrfToken))
+}
+
+templ mediaDetailContent(title string, mediaType string, summary string, year int, thumbnailURL string, plexWebURL string, serverID string, ratingKey string, serverName string, defaultAppleTV string, isPaired bool, appleTVs []config.AppleTV, csrfToken string) {
+	<div class="media-detail">
+		<div class="media-detail-container">
+			<div class="media-poster-column">
+				if thumbnailURL != "" {
+					<img src={ thumbnailURL } alt={ title } class="media-poster-large"/>
+				} else {
+					<div class="media-poster-large media-poster-placeholder">
+						<div class="placeholder-icon">🎬</div>
+					</div>
+				}
+			</div>
+			<div class="media-info-column">
+				<h1 class="media-title">{ title }</h1>
+				if year > 0 {
+					<p class="media-year">{ fmt.Sprintf("%d", year) }</p>
+				}
+				<div class="media-actions">
+					if isPaired {
+						<button class="btn btn-paired" disabled>📱 Paired to Card</button>
+					} else {
+						<button class="btn btn-primary btn-pair" onclick={ templ.ComponentScript{Call: fmt.Sprintf("openPairingModal('%s', '%s', '%s', '%s')", serverID, ratingKey, title, mediaType)} }>📱 Pair to Card</button>
+					}
+					if defaultAppleTV != "" {
+						<button class="btn btn-secondary" onclick={ templ.ComponentScript{Call: fmt.Sprintf("playMedia('%s', '%s', '%s')", serverID, ratingKey, title)} }>▶ Play on { defaultAppleTV }</button>
+					}
+					<a href={ templ.SafeURL(plexWebURL) } target="_blank" class="btn btn-link">Open in Plex →</a>
+				</div>
+				if summary != "" {
+					<div class="media-summary">
+						<h3>Summary</h3>
+						<p>{ summary }</p>
+					</div>
+				}
+				<p class="media-server-info">Server: { serverName }</p>
+			</div>
+		</div>
+	</div>
+	<script>
+		async function playMedia(serverID, ratingKey, title) {
+			try {
+				const response = await fetch('/api/play', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						server_id: serverID,
+						rating_key: ratingKey,
+					}),
+				});
+
+				const data = await response.json();
+
+				if (!data.success) {
+					alert('Failed to play: ' + (data.error || 'Unknown error'));
+				}
+			} catch (error) {
+				console.error('Play error:', error);
+				alert('Failed to start playback');
+			}
+		}
+
+		function openPairingModal(serverID, ratingKey, title, mediaType) {
+			// Redirect to pairing page with media pre-selected
+			const params = new URLSearchParams({
+				media_id: ratingKey,
+				media_title: title,
+				plex_server_id: serverID,
+				media_type: mediaType
+			});
+			window.location.href = '/mappings/pair?' + params.toString();
+		}
+	</script>
+}

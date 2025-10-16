@@ -609,6 +609,6 @@ func (h *SetupHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 		log.Error("Failed to clear setup state", "error", err)
 	}
 
-	// Redirect to libraries page
-	http.Redirect(w, r, "/libraries", http.StatusFound)
+	// Redirect to mappings dashboard (card collection)
+	http.Redirect(w, r, "/mappings", http.StatusFound)
 }

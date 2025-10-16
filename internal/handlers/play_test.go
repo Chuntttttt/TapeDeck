@@ -42,15 +42,15 @@ func TestPlayHandler_PlayByRatingKey(t *testing.T) {
 	}
 
 	// Mock HA server
-	haServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	haServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer haServer.Close()
 
 	// Mock Plex server
-	plexServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	plexServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"MediaContainer": map[string]interface{}{
 				"Metadata": []map[string]interface{}{
 					{
@@ -116,7 +116,9 @@ func TestPlayHandler_PlayByRatingKey(t *testing.T) {
 	}
 
 	var response map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&response)
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 
 	if response["success"] != true {
 		t.Errorf("expected success true, got: %v", response)

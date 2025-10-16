@@ -57,7 +57,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Invalid request",
 		})
@@ -69,7 +69,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Not authenticated",
 		})
@@ -82,7 +82,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 		log.Error("Failed to get user", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Failed to get user",
 		})
@@ -104,7 +104,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 		log.Error("Server not found", "server_id", req.ServerID)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Server not found",
 		})
@@ -121,7 +121,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 		log.Error("Failed to fetch metadata", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Media not found",
 		})
@@ -141,7 +141,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 		log.Error("No default Apple TV configured")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "No default Apple TV configured",
 		})
@@ -168,7 +168,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 		log.Error("Failed to play media", "error", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   fmt.Sprintf("Failed to play media: %s", err.Error()),
 		})
@@ -179,7 +179,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 		log.Error("Playback failed", "error", result.Error)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   fmt.Sprintf("Playback failed: %s", result.Error.Error()),
 		})
@@ -190,7 +190,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": fmt.Sprintf("Playing %s", metadata.Title),
 	})

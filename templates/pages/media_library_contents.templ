@@ -14,18 +14,68 @@ templ libraryContentsContent(items []plex.MediaItem, serverID string) {
 		<div class="header">
 			<h1>🎬 Library Contents</h1>
 		</div>
-		<div class="media-grid">
+		<div class="search-filter" style="margin-bottom: 20px;">
+			<input
+				type="text"
+				id="library-filter"
+				placeholder="Filter library..."
+				style="padding: 10px; width: 300px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px;"
+				oninput="filterLibraryItems(this.value)"
+			/>
+			<span id="filter-count" style="margin-left: 10px; color: #666;"></span>
+		</div>
+		<div class="card-grid" id="library-items">
 			for _, item := range items {
-				<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", serverID, item.RatingKey)) } class="media-item-link">
-					<div class="media-card">
-						<div class="media-title">{ item.Title }</div>
+				<a href={ templ.SafeURL(fmt.Sprintf("/media/%s/%s", serverID, item.RatingKey)) } class="card-item" data-title={ item.Title }>
+					if item.Thumb != "" {
+						<div class="card-poster" style={ fmt.Sprintf("background-image: url('%s')", item.Thumb) }></div>
+					} else {
+						<div class="card-poster card-poster-placeholder">
+							<div class="placeholder-icon">🎬</div>
+						</div>
+					}
+					<div class="card-overlay">
+						<div class="card-title">{ item.Title }</div>
 						if item.Year > 0 {
-							<div class="media-year">({ fmt.Sprintf("%d", item.Year) })</div>
+							<div class="card-year">{ fmt.Sprintf("(%d)", item.Year) }</div>
 						}
-						<div class="media-type">{ item.Type }</div>
 					</div>
 				</a>
 			}
 		</div>
 	</div>
+	<script>
+		// Update count display on page load
+		document.addEventListener('DOMContentLoaded', function() {
+			updateFilterCount();
+		});
+
+		function filterLibraryItems(query) {
+			const items = document.querySelectorAll('.card-item');
+			const searchTerm = query.toLowerCase().trim();
+
+			items.forEach(item => {
+				const title = item.getAttribute('data-title').toLowerCase();
+				if (searchTerm === '' || title.includes(searchTerm)) {
+					item.style.display = '';
+				} else {
+					item.style.display = 'none';
+				}
+			});
+
+			updateFilterCount();
+		}
+
+		function updateFilterCount() {
+			const items = document.querySelectorAll('.card-item');
+			const visibleItems = Array.from(items).filter(item => item.style.display !== 'none');
+			const countEl = document.getElementById('filter-count');
+
+			if (visibleItems.length === items.length) {
+				countEl.textContent = `${items.length} items`;
+			} else {
+				countEl.textContent = `${visibleItems.length} of ${items.length} items`;
+			}
+		}
+	</script>
 }

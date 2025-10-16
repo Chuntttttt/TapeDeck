@@ -454,8 +454,22 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if any server returned 401 Unauthorized (token revoked)
+	// For API endpoints, return JSON error instead of redirecting
 	for _, err := range searchErrors {
-		if handlePlexUnauthorized(w, r, err, h.sessionStore) {
+		if plex.IsUnauthorized(err) {
+			log.Warn("Plex token unauthorized - clearing session")
+
+			// Clear the session
+			session := getOrCreateSession(h.sessionStore, r)
+			middleware.ClearSession(session)
+			if saveErr := session.Save(r, w); saveErr != nil {
+				log.Error("Failed to save session during logout", "error", saveErr)
+			}
+
+			// Return JSON error for API endpoint
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = fmt.Fprint(w, `{"error":"Authentication expired. Please log in again.","redirect":"/auth/login"}`)
 			return
 		}
 	}
@@ -463,7 +477,9 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	// If all servers failed, return error
 	if len(searchErrors) == len(h.servers) && len(h.servers) > 0 {
 		log.Error("All servers failed to search")
-		RespondError(w, r, "Failed to search all servers", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprint(w, `{"error":"Failed to search all servers","results":[]}`)
 		return
 	}
 

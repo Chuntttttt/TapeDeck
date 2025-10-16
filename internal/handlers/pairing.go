@@ -354,6 +354,12 @@ func (h *PairingHandler) handleTagScanned(tagID string) {
 		)
 		mappingID, err := h.db.CreateCardMapping(ctx, mapping)
 		if err != nil {
+			// Handle race condition where tag was mapped between our check and insertion
+			if db.IsDuplicateTagError(err) {
+				logger.Warn("Tag was mapped between check and insert (race condition)", "tag_id", tagID)
+				h.sendError(client, "This tag was just mapped by another request")
+				continue
+			}
 			logger.Error("Failed to create mapping", "error", err)
 			h.sendError(client, "Failed to create mapping")
 			continue

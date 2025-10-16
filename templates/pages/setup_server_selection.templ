@@ -11,18 +11,80 @@ templ SetupServerSelection(servers []config.PlexServer, csrfToken string) {
 }
 
 templ serverSelectionContent(servers []config.PlexServer, csrfToken string) {
+	<style>
+		.setup-server-list {
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			margin: 20px 0;
+		}
+		.setup-server-item {
+			display: flex;
+			align-items: center;
+			padding: 12px 15px;
+			border: 2px solid var(--border-default);
+			border-radius: 4px;
+			background: var(--bg-container);
+			transition: all 0.2s;
+			cursor: pointer;
+		}
+		.setup-server-item:not(.disabled):hover {
+			border-color: var(--color-gold);
+			background: var(--bg-hover);
+		}
+		.setup-server-item.disabled {
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+		.setup-server-item input[type="checkbox"] {
+			margin: 0 12px 0 0;
+			width: 18px;
+			height: 18px;
+			cursor: pointer;
+		}
+		.setup-server-item.disabled input[type="checkbox"] {
+			cursor: not-allowed;
+		}
+		.setup-server-content {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.setup-server-name {
+			font-weight: 600;
+			color: var(--text-primary);
+		}
+		.setup-server-meta {
+			font-size: 13px;
+			color: var(--text-tertiary);
+		}
+		.server-badge {
+			font-size: 12px;
+			padding: 3px 8px;
+			border-radius: 4px;
+			font-weight: 600;
+		}
+		.server-badge-warning {
+			background: var(--warning-bg);
+			color: var(--warning-text);
+			border: 1px solid var(--warning-border);
+		}
+	</style>
 	<div class="container">
 		@components.BackLink("/setup", "Back")
 		<h1>Select Plex Servers</h1>
 		<p>We found { fmt.Sprintf("%d", len(servers)) } server(s) connected to your account. Select which servers you'd like to use with TapeDeck.</p>
 		<form method="post" action="/setup/plex/save" id="serverForm">
 			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
-			<div class="server-list">
+			<div class="setup-server-list">
 				for _, server := range servers {
 					@serverItem(server)
 				}
 			</div>
-			<p style="font-size: 14px; color: #666;">All servers are selected by default. Uncheck any you don't want to use.</p>
+			<div class="info" style="margin: 20px 0;">
+				<p style="margin: 0; color: var(--text-secondary);"><strong>Note:</strong> Shared servers are not supported due to Plex API limitations. All servers are selected by default - uncheck any you don't want to use.</p>
+			</div>
 			<button type="submit" class="btn" id="submitBtn">Continue with Selected Servers</button>
 		</form>
 	</div>
@@ -38,13 +100,28 @@ templ serverSelectionContent(servers []config.PlexServer, csrfToken string) {
 }
 
 templ serverItem(server config.PlexServer) {
-	<label class="server-item">
-		<input type="checkbox" name="server_ids" value={ server.ID } checked/>
-		<div>
-			<div class="server-name">{ server.Name } ({ server.Owner })</div>
-			<div class="server-meta">{ getConnectionInfo(server) }</div>
+	if server.Owner == "Shared" {
+		<div class="setup-server-item disabled">
+			<input type="checkbox" name="server_ids" value={ server.ID } checked disabled/>
+			<div class="setup-server-content">
+				<div>
+					<div class="setup-server-name">{ server.Name } ({ server.Owner })</div>
+					<div class="setup-server-meta">{ getConnectionInfo(server) }</div>
+				</div>
+				<span class="server-badge server-badge-warning">Not Supported</span>
+			</div>
 		</div>
-	</label>
+	} else {
+		<label class="setup-server-item">
+			<input type="checkbox" name="server_ids" value={ server.ID } checked/>
+			<div class="setup-server-content">
+				<div>
+					<div class="setup-server-name">{ server.Name } ({ server.Owner })</div>
+					<div class="setup-server-meta">{ getConnectionInfo(server) }</div>
+				</div>
+			</div>
+		</label>
+	}
 }
 
 func getConnectionInfo(server config.PlexServer) string {

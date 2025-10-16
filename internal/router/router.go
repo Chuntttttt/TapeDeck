@@ -16,11 +16,13 @@ type Dependencies struct {
 	SettingsHandler *handlers.SettingsHandler
 
 	// Handler getters (return current handler values, may change after initialization)
-	GetMappingsHandler func() *handlers.MappingsHandler
-	GetMediaHandler    func() *handlers.MediaHandler
-	GetPairingHandler  func() *handlers.PairingHandler
-	GetPlaybackHandler func() *handlers.PlaybackHandler
-	GetStatusHandler   func() *handlers.StatusHandler
+	GetMappingsHandler    func() *handlers.MappingsHandler
+	GetMediaHandler       func() *handlers.MediaHandler
+	GetMediaDetailHandler func() *handlers.MediaDetailHandler
+	GetPairingHandler     func() *handlers.PairingHandler
+	GetPlaybackHandler    func() *handlers.PlaybackHandler
+	GetPlayHandler        func() *handlers.PlayHandler
+	GetStatusHandler      func() *handlers.StatusHandler
 
 	AuthMiddleware func(http.Handler) http.Handler
 	HandlersReady  func() bool
@@ -74,6 +76,9 @@ func New(deps *Dependencies) *chi.Mux {
 		r.Get("/libraries/{libraryKey}", func(w http.ResponseWriter, req *http.Request) {
 			deps.GetMediaHandler().LibraryContents(w, req)
 		})
+		r.Get("/media/{serverID}/{ratingKey}", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMediaDetailHandler().Detail(w, req)
+		})
 
 		// Mappings routes
 		r.Get("/mappings", func(w http.ResponseWriter, req *http.Request) {
@@ -94,6 +99,9 @@ func New(deps *Dependencies) *chi.Mux {
 		r.Post("/mappings/{id}/delete", func(w http.ResponseWriter, req *http.Request) {
 			deps.GetMappingsHandler().DeleteMapping(w, req)
 		})
+		r.Post("/mappings/generate-stickers", func(w http.ResponseWriter, req *http.Request) {
+			deps.GetMappingsHandler().GenerateStickers(w, req)
+		})
 		r.Get("/mappings/pair", func(w http.ResponseWriter, req *http.Request) {
 			deps.GetPairingHandler().PairForm(w, req)
 		})
@@ -108,7 +116,7 @@ func New(deps *Dependencies) *chi.Mux {
 			deps.GetMappingsHandler().SearchJSON(w, req)
 		})
 		r.Post("/api/play", func(w http.ResponseWriter, req *http.Request) {
-			deps.GetPlaybackHandler().Play(w, req)
+			deps.GetPlayHandler().PlayByRatingKey(w, req)
 		})
 		r.Get("/api/status/ha", func(w http.ResponseWriter, req *http.Request) {
 			deps.GetStatusHandler().HAStatus(w, req)
@@ -133,9 +141,9 @@ func New(deps *Dependencies) *chi.Mux {
 		}
 	})
 
-	// Home route - redirect to libraries
+	// Home route - redirect to mappings dashboard
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/libraries", http.StatusFound)
+		http.Redirect(w, r, "/mappings", http.StatusFound)
 	})
 
 	return r

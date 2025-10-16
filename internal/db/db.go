@@ -4,7 +4,10 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/crypto"
 	"github.com/Chuntttttt/tapedeck/internal/logger"
@@ -14,6 +17,30 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file" // Register file source driver
 	_ "modernc.org/sqlite"                               // Register SQLite driver
 )
+
+// DuplicateTagError is returned when attempting to create a mapping for a tag that already exists
+type DuplicateTagError struct {
+	TagID string
+}
+
+func (e *DuplicateTagError) Error() string {
+	return fmt.Sprintf("tag %s is already mapped to media", e.TagID)
+}
+
+// IsDuplicateTagError checks if an error is a DuplicateTagError
+func IsDuplicateTagError(err error) bool {
+	var dupErr *DuplicateTagError
+	return errors.As(err, &dupErr)
+}
+
+// isUniqueConstraintError checks if the error is a UNIQUE constraint violation from SQLite
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// SQLite UNIQUE constraint error message contains "UNIQUE constraint failed"
+	return strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
 
 // DB wraps the database connection and provides data access methods
 type DB struct {
@@ -213,6 +240,10 @@ func (db *DB) CreateCardMapping(ctx context.Context, mapping *models.CardMapping
 		mapping.UpdatedAt,
 	)
 	if err != nil {
+		// Check for UNIQUE constraint violation
+		if isUniqueConstraintError(err) {
+			return 0, &DuplicateTagError{TagID: mapping.TagID}
+		}
 		return 0, fmt.Errorf("failed to insert card mapping: %w", err)
 	}
 
@@ -227,7 +258,7 @@ func (db *DB) CreateCardMapping(ctx context.Context, mapping *models.CardMapping
 // GetCardMappingsByUserID retrieves all card mappings for a user
 func (db *DB) GetCardMappingsByUserID(ctx context.Context, userID int64) ([]*models.CardMapping, error) {
 	rows, err := db.conn.QueryContext(ctx,
-		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, thumbnail_url, created_at, updated_at
 		FROM card_mappings WHERE user_id = ? ORDER BY created_at DESC`,
 		userID,
 	)
@@ -243,6 +274,7 @@ func (db *DB) GetCardMappingsByUserID(ctx context.Context, userID int64) ([]*mod
 	var mappings []*models.CardMapping
 	for rows.Next() {
 		mapping := &models.CardMapping{}
+		var thumbnailURL sql.NullString
 		err := rows.Scan(
 			&mapping.ID,
 			&mapping.UserID,
@@ -252,11 +284,15 @@ func (db *DB) GetCardMappingsByUserID(ctx context.Context, userID int64) ([]*mod
 			&mapping.MediaTitle,
 			&mapping.PlexServerID,
 			&mapping.AppleTVEntity,
+			&thumbnailURL,
 			&mapping.CreatedAt,
 			&mapping.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan card mapping: %w", err)
+		}
+		if thumbnailURL.Valid {
+			mapping.ThumbnailURL = thumbnailURL.String
 		}
 		mappings = append(mappings, mapping)
 	}
@@ -271,8 +307,9 @@ func (db *DB) GetCardMappingsByUserID(ctx context.Context, userID int64) ([]*mod
 // GetCardMappingByID retrieves a card mapping by its ID
 func (db *DB) GetCardMappingByID(ctx context.Context, id int64) (*models.CardMapping, error) {
 	mapping := &models.CardMapping{}
+	var thumbnailURL sql.NullString
 	err := db.conn.QueryRowContext(ctx,
-		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, thumbnail_url, created_at, updated_at
 		FROM card_mappings WHERE id = ?`,
 		id,
 	).Scan(
@@ -284,6 +321,7 @@ func (db *DB) GetCardMappingByID(ctx context.Context, id int64) (*models.CardMap
 		&mapping.MediaTitle,
 		&mapping.PlexServerID,
 		&mapping.AppleTVEntity,
+		&thumbnailURL,
 		&mapping.CreatedAt,
 		&mapping.UpdatedAt,
 	)
@@ -292,6 +330,9 @@ func (db *DB) GetCardMappingByID(ctx context.Context, id int64) (*models.CardMap
 			return nil, fmt.Errorf("card mapping not found")
 		}
 		return nil, fmt.Errorf("failed to query card mapping: %w", err)
+	}
+	if thumbnailURL.Valid {
+		mapping.ThumbnailURL = thumbnailURL.String
 	}
 
 	return mapping, nil
@@ -341,13 +382,24 @@ func (db *DB) DeleteCardMapping(ctx context.Context, id int64) error {
 	return nil
 }
 
+// UpdateThumbnailURL updates the cached thumbnail URL for a card mapping
+func (db *DB) UpdateThumbnailURL(ctx context.Context, mappingID int64, thumbnailURL string) error {
+	_, err := db.conn.ExecContext(ctx, `UPDATE card_mappings SET thumbnail_url = ?, updated_at = ? WHERE id = ?`,
+		thumbnailURL, time.Now(), mappingID)
+	if err != nil {
+		return fmt.Errorf("failed to update thumbnail URL: %w", err)
+	}
+	return nil
+}
+
 // GetCardMappingByTagID retrieves a card mapping by its tag ID.
 // Since TapeDeck enforces single-user operation and tag_id is unique per user,
 // each tag_id is guaranteed to be globally unique.
 func (db *DB) GetCardMappingByTagID(ctx context.Context, tagID string) (*models.CardMapping, error) {
 	mapping := &models.CardMapping{}
+	var thumbnailURL sql.NullString
 	err := db.conn.QueryRowContext(ctx,
-		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at
+		`SELECT id, user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, thumbnail_url, created_at, updated_at
 		FROM card_mappings WHERE tag_id = ?`,
 		tagID,
 	).Scan(
@@ -359,6 +411,7 @@ func (db *DB) GetCardMappingByTagID(ctx context.Context, tagID string) (*models.
 		&mapping.MediaTitle,
 		&mapping.PlexServerID,
 		&mapping.AppleTVEntity,
+		&thumbnailURL,
 		&mapping.CreatedAt,
 		&mapping.UpdatedAt,
 	)
@@ -367,6 +420,9 @@ func (db *DB) GetCardMappingByTagID(ctx context.Context, tagID string) (*models.
 			return nil, fmt.Errorf("card mapping not found")
 		}
 		return nil, fmt.Errorf("failed to query card mapping: %w", err)
+	}
+	if thumbnailURL.Valid {
+		mapping.ThumbnailURL = thumbnailURL.String
 	}
 
 	return mapping, nil

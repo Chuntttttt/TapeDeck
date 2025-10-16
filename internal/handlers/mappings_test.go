@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -95,16 +96,19 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 		t.Errorf("Content-Type = %s, want text/html", contentType)
 	}
 
-	// Body should contain mapping data
+	// Body should contain mapping data in visual grid format
 	body := w.Body.String()
-	if !strings.Contains(body, "nfc-123") {
-		t.Error("Response body should contain tag ID nfc-123")
+	if !strings.Contains(body, "My Card Collection") {
+		t.Error("Response body should contain 'My Card Collection' heading")
 	}
 	if !strings.Contains(body, "The Matrix") {
 		t.Error("Response body should contain media title The Matrix")
 	}
 	if !strings.Contains(body, "Breaking Bad") {
 		t.Error("Response body should contain media title Breaking Bad")
+	}
+	if !strings.Contains(body, "card-grid") {
+		t.Error("Response body should contain card-grid class for visual layout")
 	}
 }
 
@@ -690,5 +694,92 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 	}
 	if !strings.Contains(body, "ratingKey") {
 		t.Error("Response body should contain ratingKey field")
+	}
+}
+
+func TestGenerateStickers(t *testing.T) {
+	// Setup test database
+	// Create test encryption key (32 bytes for AES-256)
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+	database, err := db.New(":memory:", testKey)
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+
+	if err := database.RunMigrations("../../migrations"); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Create test user
+	user := models.NewUser("test@example.com", "Test User", "test-token")
+	userID, err := database.CreateUser(context.Background(), user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	user.ID = userID
+
+	// Create test mappings
+	mapping1 := models.NewCardMapping(userID, "tag1", "movie", "123", "Test Movie 1", "server1", "appletv1")
+	mapping1ID, err := database.CreateCardMapping(context.Background(), mapping1)
+	if err != nil {
+		t.Fatalf("Failed to create mapping1: %v", err)
+	}
+
+	mapping2 := models.NewCardMapping(userID, "tag2", "show", "456", "Test Show 2", "server1", "appletv1")
+	mapping2ID, err := database.CreateCardMapping(context.Background(), mapping2)
+	if err != nil {
+		t.Fatalf("Failed to create mapping2: %v", err)
+	}
+
+	// Create handler
+	store := middleware.NewSessionStore([]byte("test-secret-key-32-chars-long!!"), false)
+	handler := NewMappingsHandler(store, database, []ServerInfo{}, true)
+
+	// Create request with form data
+	formData := fmt.Sprintf("mapping_ids=%d&mapping_ids=%d", mapping1ID, mapping2ID)
+	req := httptest.NewRequest("POST", "/mappings/generate-stickers", strings.NewReader(formData))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	// Set up session with user ID
+	session, _ := store.Get(req, middleware.SessionName)
+	middleware.SetUserID(session, userID)
+	_ = session.Save(req, w)
+
+	// Add session cookie to request
+	cookies := w.Result().Cookies()
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+
+	// Wrap handler with middleware for tests
+	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.GenerateStickers))
+
+	// Make request
+	rr := httptest.NewRecorder()
+	wrappedHandler.ServeHTTP(rr, req)
+
+	// Check response
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// Check content type
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/pdf" {
+		t.Errorf("Expected Content-Type application/pdf, got %s", contentType)
+	}
+
+	// Verify PDF signature
+	body := rr.Body.Bytes()
+	if len(body) == 0 {
+		t.Fatal("Response body is empty")
+	}
+	if !bytes.HasPrefix(body, []byte("%PDF")) {
+		t.Error("Response is not a valid PDF")
 	}
 }

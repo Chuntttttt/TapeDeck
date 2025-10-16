@@ -118,7 +118,11 @@ docker-compose logs -f tapedeck
 - `setup.go`: Multi-step wizard (Welcome → Plex → HA → Apple TVs → Complete)
 - `auth.go`: Plex OAuth login/logout, session management
 - `media.go`: Browse libraries, view library contents, search across servers
-- `mappings.go`: CRUD for card-to-media mappings with inline search
+- `mappings.go`: Enhanced with sort/search controls and print mode
+  - `?sort=newest|oldest|alpha` - Sort card mappings
+  - `?search=query` - Filter by media title
+  - `?print=true` - Enter print mode with checkboxes for selection
+  - `POST /mappings/generate-stickers` - Generate PDF with selected mappings
 - `pairing.go`: Real-time NFC pairing via WebSocket (bidirectional: UI ↔ server ↔ HA)
 - `playback.go`: Handles playback requests triggered by NFC taps
 - `settings.go`: Update servers/HA config and reload handlers without restart
@@ -136,6 +140,15 @@ docker-compose logs -f tapedeck
 - Air automatically runs `templ generate` on .templ file changes
 - Generated `*_templ.go` files are gitignored
 - Structure: `layouts/` (base), `pages/` (full pages), `components/` (reusable)
+
+**Sticker Generation** (`internal/sticker/`):
+- `generator.go`: PDF generation for printable NFC card stickers
+- Uses `gofpdf` for pure Go PDF creation (no CGO)
+- Layout: 8 stickers per page (2×4 grid) on Letter paper (8.5×11")
+- Movies/TV: 3.35"×2.13" landscape with letterbox (dominant color sidebars)
+- Music: 2.13"×2.13" square album art
+- Fetches poster images from Plex URLs, extracts dominant color from edges
+- Registration marks at corners for cutting guides
 
 ### Key Data Flows
 

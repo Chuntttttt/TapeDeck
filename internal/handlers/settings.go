@@ -111,6 +111,15 @@ func (h *SettingsHandler) SaveSettings(w http.ResponseWriter, r *http.Request) {
 	haToken := r.FormValue("ha_token")
 	haChanged := false
 	if haURL != "" && haToken != "" {
+		// Validate URL scheme (prevent SSRF attacks)
+		validatedURL, err := ValidateHTTPURL(haURL)
+		if err != nil {
+			log.Warn("Invalid Home Assistant URL", "error", err)
+			RespondError(w, r, "Invalid Home Assistant URL: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		haURL = validatedURL
+
 		// Check if URL changed (in config.yml)
 		if haURL != runtimeCfg.HomeAssistant.URL {
 			runtimeCfg.HomeAssistant.URL = haURL

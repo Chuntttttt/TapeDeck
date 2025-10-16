@@ -9,11 +9,25 @@ templ Error(statusCode int, message string) {
 }
 
 templ errorContent(statusCode int, message string) {
-	<div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto; text-align: center;">
-		<h1 style="font-size: 72px; margin: 0; color: #dc3545;">{ fmt.Sprintf("%d", statusCode) }</h1>
-		<h2 style="margin: 20px 0; color: #333;">{ getStatusText(statusCode) }</h2>
-		<p style="margin: 20px 0; color: #666; font-size: 18px;">{ message }</p>
-		<a href="/" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Go Home</a>
+	<style>
+		.error-container { padding: 40px 20px; max-width: 600px; margin: 0 auto; text-align: center; }
+		.error-code { font-size: 72px; margin: 0; color: #ef4444; }
+		.error-title { margin: 20px 0; color: #333; }
+		.error-message { margin: 20px 0; color: #666; font-size: 18px; }
+		.error-button { display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #e5a00d; color: white; text-decoration: none; border-radius: 4px; }
+		.error-button:hover { background-color: #cc8f0a; }
+
+		@media (prefers-color-scheme: dark) {
+			.error-code { color: #fca5a5; }
+			.error-title { color: #e5e5e5; }
+			.error-message { color: #a0a0a0; }
+		}
+	</style>
+	<div class="container error-container">
+		<h1 class="error-code">{ fmt.Sprintf("%d", statusCode) }</h1>
+		<h2 class="error-title">{ getStatusText(statusCode) }</h2>
+		<p class="error-message">{ message }</p>
+		<a href="/" class="error-button">Go Home</a>
 	</div>
 }
 

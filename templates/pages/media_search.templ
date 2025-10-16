@@ -35,7 +35,7 @@ templ searchResultsContent(query string, items []plex.MediaItem) {
 			<input type="text" name="q" value={ query } placeholder="Search media..." required style="padding: 10px; width: 300px; font-size: 16px;"/>
 			<button type="submit" class="btn">Search</button>
 		</form>
-		<div class="results-info" style="color: #666; margin-bottom: 20px;">Found { fmt.Sprintf("%d", len(items)) } result(s) for "{ query }"</div>
+		<div class="results-info" style="color: var(--text-tertiary); margin-bottom: 20px;">Found { fmt.Sprintf("%d", len(items)) } result(s) for "{ query }"</div>
 		if len(items) == 0 {
 			<div class="empty-state">No results found. Try a different search term.</div>
 		} else {

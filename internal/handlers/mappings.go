@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/Chuntttttt/tapedeck/internal/constants"
@@ -13,6 +16,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
+	"github.com/Chuntttttt/tapedeck/internal/sticker"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/csrf"
@@ -53,6 +57,22 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get user to retrieve auth token
+	user, err := h.db.GetUserByID(ctx, userID)
+	if err != nil {
+		log.Error("Failed to get user", "error", err)
+		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
+		return
+	}
+
+	// Get query parameters
+	sortOrder := r.URL.Query().Get("sort")
+	if sortOrder == "" {
+		sortOrder = "newest"
+	}
+	searchQuery := r.URL.Query().Get("search")
+	printMode := r.URL.Query().Get("print") == "true"
+
 	// Get all mappings for the user
 	mappings, err := h.db.GetCardMappingsByUserID(ctx, userID)
 	if err != nil {
@@ -61,11 +81,124 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Apply search filter
+	if searchQuery != "" {
+		filtered := make([]*models.CardMapping, 0)
+		searchLower := strings.ToLower(searchQuery)
+		for _, m := range mappings {
+			if strings.Contains(strings.ToLower(m.MediaTitle), searchLower) {
+				filtered = append(filtered, m)
+			}
+		}
+		mappings = filtered
+	}
+
+	// Apply sort
+	switch sortOrder {
+	case "oldest":
+		sort.Slice(mappings, func(i, j int) bool {
+			return mappings[i].CreatedAt.Before(mappings[j].CreatedAt)
+		})
+	case "alpha":
+		sort.Slice(mappings, func(i, j int) bool {
+			return strings.ToLower(mappings[i].MediaTitle) < strings.ToLower(mappings[j].MediaTitle)
+		})
+	default: // "newest"
+		sort.Slice(mappings, func(i, j int) bool {
+			return mappings[i].CreatedAt.After(mappings[j].CreatedAt)
+		})
+	}
+
+	// Fetch thumbnails for mappings that don't have them cached
+	h.fetchThumbnails(ctx, user.PlexAuthToken, mappings)
+
 	// Render using templ template
-	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r)).Render(ctx, w); err != nil {
+	if err := pages.MappingsDashboard(mappings, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r), sortOrder, searchQuery, printMode).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
+}
+
+// fetchThumbnails fetches and caches thumbnail URLs for mappings in parallel
+func (h *MappingsHandler) fetchThumbnails(ctx context.Context, authToken string, mappings []*models.CardMapping) {
+	log := middleware.GetLogger(ctx)
+
+	// Count how many need thumbnails
+	needThumbnails := 0
+	for _, m := range mappings {
+		if m.ThumbnailURL == "" {
+			needThumbnails++
+		}
+	}
+
+	if needThumbnails > 0 {
+		log.Info("Fetching thumbnails for mappings", "count", needThumbnails)
+	}
+
+	// Use channel to limit concurrent Plex API calls
+	semaphore := make(chan struct{}, 5)
+	var wg sync.WaitGroup
+
+	for _, mapping := range mappings {
+		// Skip if already has thumbnail URL
+		if mapping.ThumbnailURL != "" {
+			continue
+		}
+
+		wg.Add(1)
+		go func(m *models.CardMapping) {
+			defer wg.Done()
+			semaphore <- struct{}{}        // Acquire
+			defer func() { <-semaphore }() // Release
+
+			// Find server for this mapping
+			var serverURL string
+			for _, srv := range h.servers {
+				if srv.ID == m.PlexServerID {
+					if len(srv.URLs) > 0 {
+						serverURL = srv.URLs[0]
+					}
+					break
+				}
+			}
+
+			if serverURL == "" {
+				log.Warn("Server not found for mapping", "server_id", m.PlexServerID, "mapping_id", m.ID)
+				return
+			}
+
+			// Fetch metadata
+			plexClient := h.newPlexClient(serverURL, m.PlexServerID, authToken, h.devMode)
+			apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
+			metadata, err := plexClient.GetMetadata(apiCtx, m.MediaID)
+			cancel()
+
+			if err != nil {
+				log.Warn("Failed to fetch metadata for mapping", "mapping_id", m.ID, "error", err)
+				return
+			}
+
+			// Build full thumbnail URL
+			if metadata.Thumb != "" {
+				thumbnailURL := fmt.Sprintf("%s%s?X-Plex-Token=%s", serverURL, metadata.Thumb, authToken)
+
+				// Update database
+				if err := h.db.UpdateThumbnailURL(ctx, m.ID, thumbnailURL); err != nil {
+					log.Warn("Failed to cache thumbnail URL", "mapping_id", m.ID, "error", err)
+					return
+				}
+
+				// Update in-memory mapping for this request
+				m.ThumbnailURL = thumbnailURL
+				log.Info("Cached thumbnail for mapping", "mapping_id", m.ID, "media_title", m.MediaTitle)
+			} else {
+				log.Warn("No thumbnail available for mapping", "mapping_id", m.ID, "media_title", m.MediaTitle)
+			}
+		}(mapping)
+	}
+
+	wg.Wait()
+	log.Info("Finished fetching thumbnails")
 }
 
 // NewMappingForm handles GET /mappings/new
@@ -127,6 +260,11 @@ func (h *MappingsHandler) CreateMapping(w http.ResponseWriter, r *http.Request) 
 	mapping := models.NewCardMapping(userID, tagID, mediaType, mediaID, mediaTitle, plexServerID, appleTVEntity)
 	mappingID, err := h.db.CreateCardMapping(ctx, mapping)
 	if err != nil {
+		if db.IsDuplicateTagError(err) {
+			log.Warn("Attempted to create duplicate tag mapping", "tag_id", tagID)
+			RespondError(w, r, "This NFC tag is already mapped to media. Please use a different card or delete the existing mapping first.", http.StatusConflict)
+			return
+		}
 		log.Error("Failed to create card mapping", "error", err)
 		RespondError(w, r, "Failed to create card mapping: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -371,8 +509,22 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if any server returned 401 Unauthorized (token revoked)
+	// For API endpoints, return JSON error instead of redirecting
 	for _, err := range searchErrors {
-		if handlePlexUnauthorized(w, r, err, h.sessionStore) {
+		if plex.IsUnauthorized(err) {
+			log.Warn("Plex token unauthorized - clearing session")
+
+			// Clear the session
+			session := getOrCreateSession(h.sessionStore, r)
+			middleware.ClearSession(session)
+			if saveErr := session.Save(r, w); saveErr != nil {
+				log.Error("Failed to save session during logout", "error", saveErr)
+			}
+
+			// Return JSON error for API endpoint
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = fmt.Fprint(w, `{"error":"Authentication expired. Please log in again.","redirect":"/auth/login"}`)
 			return
 		}
 	}
@@ -380,7 +532,9 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	// If all servers failed, return error
 	if len(searchErrors) == len(h.servers) && len(h.servers) > 0 {
 		log.Error("All servers failed to search")
-		RespondError(w, r, "Failed to search all servers", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprint(w, `{"error":"Failed to search all servers","results":[]}`)
 		return
 	}
 
@@ -415,4 +569,101 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+// GenerateStickers handles POST /mappings/generate-stickers
+func (h *MappingsHandler) GenerateStickers(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := middleware.GetLogger(ctx)
+
+	// Get user from context
+	userID, ok := middleware.GetUserIDFromContext(ctx)
+	if !ok {
+		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	// Get user to retrieve auth token
+	user, err := h.db.GetUserByID(ctx, userID)
+	if err != nil {
+		log.Error("Failed to get user", "error", err)
+		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse form
+	if err := r.ParseForm(); err != nil {
+		log.Error("Failed to parse form", "error", err)
+		RespondError(w, r, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	// Get mapping IDs
+	mappingIDStrs := r.Form["mapping_ids"]
+	if len(mappingIDStrs) == 0 {
+		RespondError(w, r, "No mappings selected", http.StatusBadRequest)
+		return
+	}
+
+	// Parse and validate mapping IDs
+	var mappingIDs []int64
+	for _, idStr := range mappingIDStrs {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			log.Warn("Invalid mapping ID", "id", idStr)
+			continue
+		}
+		mappingIDs = append(mappingIDs, id)
+	}
+
+	if len(mappingIDs) == 0 {
+		RespondError(w, r, "No valid mappings selected", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch mappings and verify ownership
+	var mappings []*models.CardMapping
+	for _, id := range mappingIDs {
+		mapping, err := h.db.GetCardMappingByID(ctx, id)
+		if err != nil {
+			log.Warn("Mapping not found", "id", id)
+			continue
+		}
+
+		// Verify ownership
+		if mapping.UserID != userID {
+			log.Warn("User does not own mapping", "user_id", userID, "mapping_id", id)
+			continue
+		}
+
+		mappings = append(mappings, mapping)
+	}
+
+	if len(mappings) == 0 {
+		RespondError(w, r, "No valid mappings found", http.StatusBadRequest)
+		return
+	}
+
+	// Generate PDF
+	generator := sticker.NewGenerator(h.devMode)
+	pdfBytes, err := generator.GeneratePDF(mappings, user.PlexAuthToken)
+	if err != nil {
+		log.Error("Failed to generate PDF", "error", err)
+		RespondError(w, r, "Failed to generate stickers PDF", http.StatusInternalServerError)
+		return
+	}
+
+	// Send PDF as download
+	timestamp := time.Now().Format("2006-01-02-150405")
+	filename := fmt.Sprintf("tapedeck-stickers-%s.pdf", timestamp)
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Header().Set("Content-Length", strconv.Itoa(len(pdfBytes)))
+
+	if _, err := w.Write(pdfBytes); err != nil {
+		log.Error("Failed to write PDF response", "error", err)
+	}
+
+	log.Info("Generated stickers PDF", "filename", filename, "mapping_count", len(mappings))
 }

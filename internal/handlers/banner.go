@@ -10,8 +10,8 @@ func NavigationHTML() string {
             top: 0;
             left: 0;
             right: 0;
-            background: white;
-            border-bottom: 2px solid #e5a00d;
+            background: var(--bg-container);
+            border-bottom: 2px solid var(--color-gold);
             padding: 0 20px;
             z-index: 999;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -35,20 +35,20 @@ func NavigationHTML() string {
             gap: 15px;
         }
         .nav-bar a {
-            color: #333;
+            color: var(--text-primary);
             text-decoration: none;
             font-weight: 500;
             transition: color 0.2s;
         }
         .nav-bar a:hover {
-            color: #e5a00d;
+            color: var(--color-gold);
         }
         .nav-bar form {
             margin: 0;
         }
         .nav-bar button {
             padding: 8px 16px;
-            background: #6b7280;
+            background: var(--btn-secondary-bg);
             color: white;
             border: none;
             border-radius: 4px;
@@ -56,15 +56,15 @@ func NavigationHTML() string {
             font-size: 14px;
         }
         .nav-bar button:hover {
-            background: #4b5563;
+            background: var(--btn-secondary-hover);
         }
     </style>
     <nav class="nav-bar">
         <div class="nav-content">
             <div class="nav-left">
-                <a href="/libraries" style="font-size: 18px;">🎬 TapeDeck</a>
-                <a href="/libraries">Libraries</a>
+                <a href="/mappings" style="font-size: 18px;">🎬 TapeDeck</a>
                 <a href="/mappings">Mappings</a>
+                <a href="/libraries">Libraries</a>
             </div>
             <div class="nav-right">
                 <a href="/settings">⚙️ Settings</a>
@@ -83,12 +83,12 @@ func ConnectionBannerHTML() string {
     <style>
         .ha-connection-banner {
             display: none;
-            background: #fee2e2;
-            border-bottom: 3px solid #ef4444;
+            background: var(--error-bg);
+            border-bottom: 3px solid var(--error-border);
             padding: 12px 20px;
             text-align: center;
             font-weight: bold;
-            color: #991b1b;
+            color: var(--error-text);
             position: fixed;
             top: 0;
             left: 0;
@@ -106,7 +106,7 @@ func ConnectionBannerHTML() string {
             font-size: 20px;
         }
         .ha-connection-banner-retry {
-            background: #991b1b;
+            background: var(--btn-danger-bg);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -116,10 +116,10 @@ func ConnectionBannerHTML() string {
             font-weight: bold;
         }
         .ha-connection-banner-retry:hover {
-            background: #7f1d1d;
+            background: var(--btn-danger-hover);
         }
         .ha-connection-banner-retry:disabled {
-            background: #9ca3af;
+            background: var(--btn-disabled-bg);
             cursor: not-allowed;
         }
     </style>

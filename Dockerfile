@@ -28,8 +28,8 @@ RUN mkdir -p static
 # Runtime stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates tzdata
+# Install ca-certificates for HTTPS and su-exec for user switching
+RUN apk --no-cache add ca-certificates tzdata su-exec
 
 WORKDIR /app
 
@@ -42,6 +42,10 @@ COPY --from=builder /app/static ./static
 # Copy migrations directory
 COPY --from=builder /app/migrations ./migrations
 
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Create data directory
 RUN mkdir -p /data
 
@@ -52,11 +56,9 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Run as non-root user
-RUN addgroup -g 1000 tapedeck && \
-    adduser -D -u 1000 -G tapedeck tapedeck && \
-    chown -R tapedeck:tapedeck /app /data
+# Environment variables for user/group ID
+ENV PUID=1000 \
+    PGID=1000
 
-USER tapedeck
-
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["./tapedeck"]

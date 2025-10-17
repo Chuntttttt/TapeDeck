@@ -263,9 +263,31 @@ docker run -d \
   --name tapedeck \
   -p 3001:3001 \
   -v $(pwd)/data:/data \
+  -e DATA_DIR=/data \
+  -e PUID=1000 \
+  -e PGID=1000 \
   --env-file .env \
   tapedeck:latest
 ```
+
+### User and Group IDs
+
+The container supports `PUID` and `PGID` environment variables to match your host user/group (similar to LinuxServer.io images):
+
+```bash
+# Find your user ID and group ID
+id $(whoami)
+
+# Set PUID/PGID in docker-compose.yml or pass as environment variables
+docker run -d \
+  -e PUID=1027 \
+  -e PGID=100 \
+  ...
+```
+
+**Default**: PUID=1000, PGID=1000
+
+**For Synology NAS**: Use your `dockerlimited` user's UID/GID (typically PUID=1027, PGID=100).
 
 ### View Logs
 

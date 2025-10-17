@@ -8,7 +8,6 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
-	"github.com/gorilla/csrf"
 	"github.com/gorilla/sessions"
 )
 
@@ -59,7 +58,7 @@ func (h *SettingsHandler) Settings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render using templ template
-	if err := pages.Settings(runtimeCfg.PlexServers, runtimeCfg.HomeAssistant.URL, settings.HAToken, runtimeCfg.AppleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript(), csrf.Token(r)).Render(ctx, w); err != nil {
+	if err := pages.Settings(runtimeCfg.PlexServers, runtimeCfg.HomeAssistant.URL, settings.HAToken, runtimeCfg.AppleTVs, NavigationHTML(), ConnectionBannerHTML(), ConnectionBannerScript()).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}

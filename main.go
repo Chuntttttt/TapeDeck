@@ -23,53 +23,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/router"
 	"github.com/Chuntttttt/tapedeck/internal/services"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
-	"github.com/gorilla/csrf"
 )
-
-// csrfExemptMiddleware wraps CSRF protection but exempts certain routes
-// that don't use HTML forms (API endpoints use JSON, WebSocket endpoints use WS protocol)
-func csrfExemptMiddleware(csrfProtect func(http.Handler) http.Handler, devMode bool) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Exempt API routes (use JSON, not forms)
-			if strings.HasPrefix(r.URL.Path, "/api/") {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			// Exempt WebSocket routes (use WS protocol, not forms)
-			if strings.HasPrefix(r.URL.Path, "/ws/") {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			// Exempt metrics endpoint (Prometheus scraping)
-			if r.URL.Path == "/metrics" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			// Exempt health check endpoint
-			if r.URL.Path == "/health" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			// In dev mode, exempt localhost cross-origin requests (for Air proxy)
-			if devMode && r.Method != "GET" && r.Method != "HEAD" {
-				origin := r.Header.Get("Origin")
-				if origin != "" && (strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
-					// Localhost origin in dev mode - skip CSRF check
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
-
-			// Apply CSRF protection to all other routes
-			csrfProtect(next).ServeHTTP(w, r)
-		})
-	}
-}
 
 func main() {
 	// Try to load runtime configuration from config.yml
@@ -345,46 +299,50 @@ func main() {
 	// Create router
 	r := router.New(deps)
 
-	// Configure CSRF protection
-	// Exempt API and WebSocket routes (they use JSON/WebSocket, not forms)
-	csrfOptions := []csrf.Option{
-		csrf.Secure(cfg.RequireTLS),
-		csrf.Path("/"),
-		csrf.SameSite(csrf.SameSiteLaxMode),
-		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger.Warn("CSRF validation failed",
-				"path", r.URL.Path,
-				"method", r.Method,
-				"remote_addr", r.RemoteAddr,
-				"origin", r.Header.Get("Origin"),
-				"host", r.Host,
-				"reason", csrf.FailureReason(r))
+	// Configure CSRF protection using Go 1.25 standard library
+	// CrossOriginProtection uses Fetch metadata headers (no tokens/cookies)
+	csrfProtection := http.NewCrossOriginProtection()
 
-			// Render proper error page
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusForbidden)
-			if err := pages.Error(http.StatusForbidden, "CSRF token validation failed. Please try again.").Render(r.Context(), w); err != nil {
-				logger.Error("Failed to render CSRF error page", "error", err)
-				http.Error(w, "CSRF token validation failed", http.StatusForbidden)
-			}
-		})),
-	}
+	// Set custom error handler
+	csrfProtection.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Warn("CSRF validation failed",
+			"path", r.URL.Path,
+			"method", r.Method,
+			"remote_addr", r.RemoteAddr,
+			"origin", r.Header.Get("Origin"),
+			"host", r.Host)
 
-	csrfMiddleware := csrf.Protect(cfg.CSRFKey, csrfOptions...)
+		// Render proper error page
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusForbidden)
+		if err := pages.Error(http.StatusForbidden, "CSRF validation failed. Please try again.").Render(r.Context(), w); err != nil {
+			logger.Error("Failed to render CSRF error page", "error", err)
+			http.Error(w, "CSRF validation failed", http.StatusForbidden)
+		}
+	}))
 
+	// Exempt routes that don't use HTML forms
+	csrfProtection.AddInsecureBypassPattern("/api/")    // API routes use JSON
+	csrfProtection.AddInsecureBypassPattern("/ws/")     // WebSocket routes
+	csrfProtection.AddInsecureBypassPattern("/metrics") // Prometheus scraping
+	csrfProtection.AddInsecureBypassPattern("/health")  // Health check
+
+	// In dev mode, allow localhost cross-origin requests (for Air proxy)
 	if cfg.DevMode {
+		csrfProtection.AddInsecureBypassPattern("http://localhost:")
+		csrfProtection.AddInsecureBypassPattern("http://127.0.0.1:")
 		logger.Info("CSRF protection: allowing localhost cross-origin requests in dev mode")
 	}
 
 	// Wrap with middleware chain
-	// 1. CSRF protection (validates tokens on POST/PUT/PATCH/DELETE)
+	// 1. CSRF protection (validates cross-origin requests using Fetch metadata)
 	// 2. Metrics middleware (tracks request metrics)
 	// 3. Request ID middleware (generates unique request ID)
 	// 4. User ID middleware (extracts user ID from session)
 	// 5. Request logger middleware (creates scoped logger with request metadata)
 	// 6. Request logging middleware (logs all requests)
 	// 7. Setup middleware (checks config for all non-exempted routes)
-	handler := csrfExemptMiddleware(csrfMiddleware, cfg.DevMode)(
+	handler := csrfProtection.Handler(
 		middleware.MetricsMiddleware()(
 			middleware.WithRequestID()(
 				middleware.WithUserID(sessionStore)(

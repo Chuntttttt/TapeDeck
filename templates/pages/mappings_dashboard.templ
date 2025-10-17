@@ -5,11 +5,11 @@ import "github.com/Chuntttttt/tapedeck/internal/models"
 import "fmt"
 
 // MappingsDashboard renders the card mappings dashboard
-templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHTML string, bannerScript string, csrfToken string, sortOrder string, searchQuery string, printMode bool) {
-	@layouts.AppLayout("Card Mappings", navHTML, bannerHTML, bannerScript, dashboardContent(mappings, csrfToken, sortOrder, searchQuery, printMode))
+templ MappingsDashboard(mappings []*models.CardMapping, navHTML string, bannerHTML string, bannerScript string, sortOrder string, searchQuery string, printMode bool) {
+	@layouts.AppLayout("Card Mappings", navHTML, bannerHTML, bannerScript, dashboardContent(mappings, sortOrder, searchQuery, printMode))
 }
 
-templ dashboardContent(mappings []*models.CardMapping, csrfToken string, sortOrder string, searchQuery string, printMode bool) {
+templ dashboardContent(mappings []*models.CardMapping, sortOrder string, searchQuery string, printMode bool) {
 	<div class="app-page">
 		<div class="header">
 			<h1>My Card Collection</h1>
@@ -52,7 +52,6 @@ templ dashboardContent(mappings []*models.CardMapping, csrfToken string, sortOrd
 		</div>
 		if printMode {
 			<form id="print-form" method="POST" action="/mappings/generate-stickers">
-				<input type="hidden" name="csrf_token" value={ csrfToken }/>
 				<div style="margin-bottom: 1rem; display: flex; gap: 1rem;">
 					<button type="button" id="select-all" class="btn" style="background: #6b7280;">Select All</button>
 					<button type="button" id="deselect-all" class="btn" style="background: #6b7280;">Deselect All</button>

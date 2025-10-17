@@ -111,6 +111,19 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Prepare build info
+        id: build_info
+        run: |
+          # Extract version from tag or use 'dev'
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="dev-${GITHUB_SHA::8}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "git_commit=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -121,6 +134,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.build_info.outputs.version }}
+            GIT_COMMIT=${{ steps.build_info.outputs.git_commit }}
+            BUILD_DATE=${{ steps.build_info.outputs.build_date }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

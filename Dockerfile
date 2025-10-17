@@ -19,8 +19,18 @@ COPY . .
 # Generate templ files
 RUN templ generate
 
-# Build binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o tapedeck .
+# Build-time arguments for version information
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+
+# Build binary with version information injected
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w \
+    -X github.com/Chuntttttt/tapedeck/internal/version.Version=${VERSION} \
+    -X github.com/Chuntttttt/tapedeck/internal/version.GitCommit=${GIT_COMMIT} \
+    -X github.com/Chuntttttt/tapedeck/internal/version.BuildDate=${BUILD_DATE}" \
+    -o tapedeck .
 
 # Ensure static directory exists
 RUN mkdir -p static

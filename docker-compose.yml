@@ -18,8 +18,8 @@ services:
     environment:
       - PORT=3001
       - DATA_DIR=/data
-      - PUID=1000
-      - PGID=1000
+      - PUID=1027
+      - PGID=1027
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]

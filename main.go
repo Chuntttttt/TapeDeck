@@ -68,7 +68,7 @@ func main() {
 	logger.Info("Starting TapeDeck", "log_level", cfg.LogLevel, "dev_mode", cfg.DevMode, "needs_setup", needsSetup)
 
 	// Initialize database with encryption key
-	database, err := db.New(cfg.DatabasePath, cfg.EncryptionKey)
+	database, err := db.New(cfg.DatabasePath(), cfg.EncryptionKey)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err) //nolint:gocritic // exitAfterDefer: acceptable for fatal errors
 	}

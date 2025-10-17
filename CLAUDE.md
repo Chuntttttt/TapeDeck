@@ -92,9 +92,12 @@ docker-compose logs -f tapedeck
 - Handlers are nil at startup if config.yml is missing; initialized after setup wizard completes via `initializeHandlers()` callback
 
 ### Configuration System
-- Environment variables (`.env`): Optional overrides for basic settings (PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE, REQUIRE_TLS). All have sensible defaults.
-- Session secret (`.session_secret`): Auto-generated on first run, persists across restarts (gitignored, 0600 permissions)
-- Encryption key (`.encryption_key`): AES-256 key auto-generated on first run for encrypting sensitive data (gitignored, 0600 permissions)
+- Environment variables (`.env`): Optional overrides for basic settings (PORT, DATA_DIR, LOG_LEVEL, DEV_MODE, REQUIRE_TLS). All have sensible defaults.
+- Data directory (`DATA_DIR`): All generated files stored here (defaults to `.`). Contains:
+  - Session secret (`.session_secret`): Auto-generated on first run (gitignored, 0600 permissions)
+  - CSRF key (`.csrf_key`): Auto-generated on first run (gitignored, 0600 permissions)
+  - Encryption key (`.encryption_key`): AES-256 key auto-generated on first run (gitignored, 0600 permissions)
+  - Database (`data/tapedeck.db`): SQLite database with encrypted tokens
 - Runtime config (`config.yml`): Plex servers, Home Assistant URL, Apple TVs (created by setup wizard)
 - **Security**: Plex auth tokens and Home Assistant token are encrypted at rest using AES-256-GCM (stored in database, not config.yml)
 - Setup wizard creates config.yml and triggers handler initialization

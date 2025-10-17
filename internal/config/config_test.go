@@ -8,10 +8,10 @@ import (
 func TestLoad_Success(t *testing.T) {
 	// Set environment variables
 	setTestEnv(t, map[string]string{
-		"PORT":          "3001",
-		"DATABASE_PATH": "./test.db",
-		"LOG_LEVEL":     "info",
-		"DEV_MODE":      "true",
+		"PORT":      "3001",
+		"DATA_DIR":  "./testdata",
+		"LOG_LEVEL": "info",
+		"DEV_MODE":  "true",
 	})
 
 	cfg, err := Load()
@@ -22,8 +22,12 @@ func TestLoad_Success(t *testing.T) {
 	if cfg.Port != "3001" {
 		t.Errorf("Port = %q, want %q", cfg.Port, "3001")
 	}
-	if cfg.DatabasePath != "./test.db" {
-		t.Errorf("DatabasePath = %q, want %q", cfg.DatabasePath, "./test.db")
+	if cfg.DataDir != "./testdata" {
+		t.Errorf("DataDir = %q, want %q", cfg.DataDir, "./testdata")
+	}
+	// filepath.Join simplifies "./testdata" + "data" + "tapedeck.db" to "testdata/data/tapedeck.db"
+	if cfg.DatabasePath() != "testdata/data/tapedeck.db" {
+		t.Errorf("DatabasePath() = %q, want %q", cfg.DatabasePath(), "testdata/data/tapedeck.db")
 	}
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel = %q, want %q", cfg.LogLevel, "info")
@@ -60,7 +64,7 @@ func TestLoad_MissingSessionSecret(t *testing.T) {
 }
 
 func TestLoad_OptionalDefaults(t *testing.T) {
-	// Omit PORT, DATABASE_PATH, LOG_LEVEL, DEV_MODE to test defaults
+	// Omit PORT, DATA_DIR, LOG_LEVEL, DEV_MODE to test defaults
 	setTestEnv(t, map[string]string{})
 
 	cfg, err := Load()
@@ -71,8 +75,12 @@ func TestLoad_OptionalDefaults(t *testing.T) {
 	if cfg.Port != "3001" {
 		t.Errorf("Port default = %q, want %q", cfg.Port, "3001")
 	}
-	if cfg.DatabasePath != "./data/tapedeck.db" {
-		t.Errorf("DatabasePath default = %q, want %q", cfg.DatabasePath, "./data/tapedeck.db")
+	if cfg.DataDir != "." {
+		t.Errorf("DataDir default = %q, want %q", cfg.DataDir, ".")
+	}
+	// filepath.Join simplifies "." + "data" + "tapedeck.db" to "data/tapedeck.db"
+	if cfg.DatabasePath() != "data/tapedeck.db" {
+		t.Errorf("DatabasePath() default = %q, want %q", cfg.DatabasePath(), "data/tapedeck.db")
 	}
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel default = %q, want %q", cfg.LogLevel, "info")
@@ -92,7 +100,7 @@ func setTestEnv(t *testing.T, envVars map[string]string) {
 
 	// Clear all relevant env vars first
 	allKeys := []string{
-		"PORT", "DATABASE_PATH", "LOG_LEVEL", "DEV_MODE",
+		"PORT", "DATA_DIR", "LOG_LEVEL", "DEV_MODE",
 	}
 	for _, key := range allKeys {
 		_ = os.Unsetenv(key)

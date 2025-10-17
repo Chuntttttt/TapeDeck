@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -15,13 +16,18 @@ import (
 // and loaded via LoadRuntimeConfig().
 type Config struct {
 	Port          string
-	DatabasePath  string
+	DataDir       string // Directory for all generated files (database, secrets)
 	LogLevel      string
 	SessionSecret string
 	CSRFKey       []byte // 32-byte key for CSRF protection
 	EncryptionKey []byte // 32-byte key for AES-256-GCM encryption
 	DevMode       bool
 	RequireTLS    bool
+}
+
+// DatabasePath returns the full path to the database file
+func (c *Config) DatabasePath() string {
+	return filepath.Join(c.DataDir, "data", "tapedeck.db")
 }
 
 // Load reads configuration from environment variables and validates required fields.
@@ -31,8 +37,11 @@ func Load() (*Config, error) {
 	// Try to load .env file (ignore error if it doesn't exist)
 	_ = godotenv.Load()
 
+	// Load data directory path from environment, default to current directory
+	dataDir := getEnvOrDefault("DATA_DIR", ".")
+
 	// Load session secret from persisted file, or generate and persist if missing
-	sessionSecret, err := loadSessionSecret()
+	sessionSecret, err := loadSessionSecret(dataDir)
 	if err == nil && sessionSecret != "" {
 		fmt.Println("Loaded SESSION_SECRET from .session_secret file")
 	} else {
@@ -43,7 +52,7 @@ func Load() (*Config, error) {
 		}
 
 		// Persist to file so sessions survive restarts
-		if err := saveSessionSecret(randomSecret); err != nil {
+		if err := saveSessionSecret(dataDir, randomSecret); err != nil {
 			return nil, fmt.Errorf("failed to persist SESSION_SECRET: %w", err)
 		}
 
@@ -52,7 +61,7 @@ func Load() (*Config, error) {
 	}
 
 	// Load CSRF key from persisted file, or generate and persist if missing
-	csrfKey, err := loadCSRFKey()
+	csrfKey, err := loadCSRFKey(dataDir)
 	if err == nil && len(csrfKey) == 32 {
 		fmt.Println("Loaded CSRF_KEY from .csrf_key file")
 	} else {
@@ -63,7 +72,7 @@ func Load() (*Config, error) {
 		}
 
 		// Persist to file so CSRF tokens remain valid after restarts
-		if err := saveCSRFKey(csrfKey); err != nil {
+		if err := saveCSRFKey(dataDir, csrfKey); err != nil {
 			return nil, fmt.Errorf("failed to persist CSRF_KEY: %w", err)
 		}
 
@@ -71,7 +80,7 @@ func Load() (*Config, error) {
 	}
 
 	// Load encryption key from persisted file, or generate and persist if missing
-	encryptionKey, err := loadEncryptionKey()
+	encryptionKey, err := loadEncryptionKey(dataDir)
 	if err == nil && len(encryptionKey) == 32 {
 		fmt.Println("Loaded ENCRYPTION_KEY from .encryption_key file")
 	} else {
@@ -82,7 +91,7 @@ func Load() (*Config, error) {
 		}
 
 		// Persist to file so encrypted data can be decrypted after restarts
-		if err := saveEncryptionKey(encryptionKey); err != nil {
+		if err := saveEncryptionKey(dataDir, encryptionKey); err != nil {
 			return nil, fmt.Errorf("failed to persist ENCRYPTION_KEY: %w", err)
 		}
 
@@ -91,7 +100,7 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Port:          getEnvOrDefault("PORT", "3001"),
-		DatabasePath:  getEnvOrDefault("DATABASE_PATH", "./data/tapedeck.db"),
+		DataDir:       dataDir,
 		LogLevel:      getEnvOrDefault("LOG_LEVEL", "info"),
 		SessionSecret: sessionSecret,
 		CSRFKey:       csrfKey,
@@ -113,8 +122,9 @@ func generateRandomSecret(bytes int) (string, error) {
 }
 
 // loadSessionSecret reads the session secret from .session_secret file
-func loadSessionSecret() (string, error) {
-	data, err := os.ReadFile(".session_secret")
+func loadSessionSecret(dataDir string) (string, error) {
+	path := filepath.Join(dataDir, ".session_secret")
+	data, err := os.ReadFile(path) //nolint:gosec // Path is constructed from config, not user input
 	if err != nil {
 		return "", err
 	}
@@ -122,14 +132,20 @@ func loadSessionSecret() (string, error) {
 }
 
 // saveSessionSecret writes the session secret to .session_secret file with restricted permissions
-func saveSessionSecret(secret string) error {
+func saveSessionSecret(dataDir, secret string) error {
+	// Ensure directory exists
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	path := filepath.Join(dataDir, ".session_secret")
 	// Write with 0600 permissions (owner read/write only)
-	return os.WriteFile(".session_secret", []byte(secret), 0600)
+	return os.WriteFile(path, []byte(secret), 0600)
 }
 
 // loadEncryptionKey reads the encryption key from .encryption_key file
-func loadEncryptionKey() ([]byte, error) {
-	data, err := os.ReadFile(".encryption_key")
+func loadEncryptionKey(dataDir string) ([]byte, error) {
+	path := filepath.Join(dataDir, ".encryption_key")
+	data, err := os.ReadFile(path) //nolint:gosec // Path is constructed from config, not user input
 	if err != nil {
 		return nil, err
 	}
@@ -143,17 +159,23 @@ func loadEncryptionKey() ([]byte, error) {
 }
 
 // saveEncryptionKey writes the encryption key to .encryption_key file with restricted permissions
-func saveEncryptionKey(key []byte) error {
+func saveEncryptionKey(dataDir string, key []byte) error {
+	// Ensure directory exists
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	path := filepath.Join(dataDir, ".encryption_key")
 	// Encode to hex for readability
 	hexKey := make([]byte, hex.EncodedLen(len(key)))
 	hex.Encode(hexKey, key)
 	// Write with 0600 permissions (owner read/write only)
-	return os.WriteFile(".encryption_key", hexKey, 0600)
+	return os.WriteFile(path, hexKey, 0600)
 }
 
 // loadCSRFKey reads the CSRF key from .csrf_key file
-func loadCSRFKey() ([]byte, error) {
-	data, err := os.ReadFile(".csrf_key")
+func loadCSRFKey(dataDir string) ([]byte, error) {
+	path := filepath.Join(dataDir, ".csrf_key")
+	data, err := os.ReadFile(path) //nolint:gosec // Path is constructed from config, not user input
 	if err != nil {
 		return nil, err
 	}
@@ -167,12 +189,17 @@ func loadCSRFKey() ([]byte, error) {
 }
 
 // saveCSRFKey writes the CSRF key to .csrf_key file with restricted permissions
-func saveCSRFKey(key []byte) error {
+func saveCSRFKey(dataDir string, key []byte) error {
+	// Ensure directory exists
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	path := filepath.Join(dataDir, ".csrf_key")
 	// Encode to hex for readability
 	hexKey := make([]byte, hex.EncodedLen(len(key)))
 	hex.Encode(hexKey, key)
 	// Write with 0600 permissions (owner read/write only)
-	return os.WriteFile(".csrf_key", hexKey, 0600)
+	return os.WriteFile(path, hexKey, 0600)
 }
 
 func getEnvOrDefault(key, defaultValue string) string {

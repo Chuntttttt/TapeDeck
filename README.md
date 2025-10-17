@@ -70,7 +70,7 @@ go mod download
 
 # Optional: Create .env file to override defaults
 # cp .env.example .env
-# Edit .env to customize PORT, DATABASE_PATH, LOG_LEVEL, or DEV_MODE
+# Edit .env to customize PORT, DATA_DIR, LOG_LEVEL, or DEV_MODE
 ```
 
 ### 3. Run Development Server
@@ -198,15 +198,16 @@ Application settings can be configured via environment variables (`.env` file). 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
 | `PORT` | HTTP server port | `3001` | `3001` |
-| `DATABASE_PATH` | SQLite database location | `./data/tapedeck.db` | `./data/tapedeck.db` |
+| `DATA_DIR` | Directory for generated files | `.` | `/path/to/data` |
 | `LOG_LEVEL` | Logging level | `info` | `info`, `debug`, `warn`, `error` |
 | `DEV_MODE` | Skip TLS verification (dev only) | `false` | `true` |
 | `REQUIRE_TLS` | Require HTTPS for session cookies | `false` | `true` |
 
-**Security**: Sensitive data is protected through encryption:
-- **Session Security**: Session encryption key auto-generated on first run, stored in `.session_secret` (gitignored)
-- **Token Encryption**: AES-256-GCM encryption key auto-generated on first run, stored in `.encryption_key` (gitignored)
-- **Encrypted Data**: Plex auth tokens and Home Assistant token are encrypted at rest in the database
+**Data Storage**: All generated files are stored in `DATA_DIR` (defaults to current directory):
+- **Session Security**: `.session_secret` - Session encryption key auto-generated on first run (gitignored, 0600 permissions)
+- **CSRF Protection**: `.csrf_key` - CSRF token key auto-generated on first run (gitignored, 0600 permissions)
+- **Token Encryption**: `.encryption_key` - AES-256-GCM key auto-generated on first run (gitignored, 0600 permissions)
+- **Database**: `data/tapedeck.db` - SQLite database with encrypted tokens
 
 ### Runtime Configuration (config.yml)
 

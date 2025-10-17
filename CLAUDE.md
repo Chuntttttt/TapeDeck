@@ -97,7 +97,7 @@ docker-compose logs -f tapedeck
   - Session secret (`.session_secret`): Auto-generated on first run (gitignored, 0600 permissions)
   - CSRF key (`.csrf_key`): Auto-generated on first run (gitignored, 0600 permissions)
   - Encryption key (`.encryption_key`): AES-256 key auto-generated on first run (gitignored, 0600 permissions)
-  - Database (`data/tapedeck.db`): SQLite database with encrypted tokens
+  - Database (`tapedeck.db`): SQLite database with encrypted tokens
 - Runtime config (`config.yml`): Plex servers, Home Assistant URL, Apple TVs (created by setup wizard)
 - **Security**: Plex auth tokens and Home Assistant token are encrypted at rest using AES-256-GCM (stored in database, not config.yml)
 - Setup wizard creates config.yml and triggers handler initialization
@@ -243,7 +243,7 @@ GitHub Actions workflow (.github/workflows/ci.yml):
 ### Adding a Database Migration
 1. Create pair of files: `migrations/NNN_description.up.sql` and `migrations/NNN_description.down.sql`
 2. Migrations run automatically on startup via `db.RunMigrations()`
-3. Test with: Delete `data/tapedeck.db` → Restart server → Verify schema
+3. Test with: Delete `tapedeck.db` → Restart server → Verify schema
 
 ### Modifying Configuration
 1. Update `internal/config/runtime.go` structs

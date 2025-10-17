@@ -27,7 +27,7 @@ type Config struct {
 
 // DatabasePath returns the full path to the database file
 func (c *Config) DatabasePath() string {
-	return filepath.Join(c.DataDir, "data", "tapedeck.db")
+	return filepath.Join(c.DataDir, "tapedeck.db")
 }
 
 // Load reads configuration from environment variables and validates required fields.

@@ -25,9 +25,9 @@ func TestLoad_Success(t *testing.T) {
 	if cfg.DataDir != "./testdata" {
 		t.Errorf("DataDir = %q, want %q", cfg.DataDir, "./testdata")
 	}
-	// filepath.Join simplifies "./testdata" + "data" + "tapedeck.db" to "testdata/data/tapedeck.db"
-	if cfg.DatabasePath() != "testdata/data/tapedeck.db" {
-		t.Errorf("DatabasePath() = %q, want %q", cfg.DatabasePath(), "testdata/data/tapedeck.db")
+	// filepath.Join simplifies "./testdata" + "tapedeck.db" to "testdata/tapedeck.db"
+	if cfg.DatabasePath() != "testdata/tapedeck.db" {
+		t.Errorf("DatabasePath() = %q, want %q", cfg.DatabasePath(), "testdata/tapedeck.db")
 	}
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel = %q, want %q", cfg.LogLevel, "info")
@@ -78,9 +78,9 @@ func TestLoad_OptionalDefaults(t *testing.T) {
 	if cfg.DataDir != "." {
 		t.Errorf("DataDir default = %q, want %q", cfg.DataDir, ".")
 	}
-	// filepath.Join simplifies "." + "data" + "tapedeck.db" to "data/tapedeck.db"
-	if cfg.DatabasePath() != "data/tapedeck.db" {
-		t.Errorf("DatabasePath() default = %q, want %q", cfg.DatabasePath(), "data/tapedeck.db")
+	// filepath.Join simplifies "." + "tapedeck.db" to "tapedeck.db"
+	if cfg.DatabasePath() != "tapedeck.db" {
+		t.Errorf("DatabasePath() default = %q, want %q", cfg.DatabasePath(), "tapedeck.db")
 	}
 	if cfg.LogLevel != "info" {
 		t.Errorf("LogLevel default = %q, want %q", cfg.LogLevel, "info")

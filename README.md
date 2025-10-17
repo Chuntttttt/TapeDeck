@@ -207,7 +207,7 @@ Application settings can be configured via environment variables (`.env` file). 
 - **Session Security**: `.session_secret` - Session encryption key auto-generated on first run (gitignored, 0600 permissions)
 - **CSRF Protection**: `.csrf_key` - CSRF token key auto-generated on first run (gitignored, 0600 permissions)
 - **Token Encryption**: `.encryption_key` - AES-256-GCM key auto-generated on first run (gitignored, 0600 permissions)
-- **Database**: `data/tapedeck.db` - SQLite database with encrypted tokens
+- **Database**: `tapedeck.db` - SQLite database with encrypted tokens
 
 ### Runtime Configuration (config.yml)
 

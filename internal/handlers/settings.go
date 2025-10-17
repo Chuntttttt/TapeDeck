@@ -8,7 +8,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/db"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
-	"github.com/gorilla/csrf"
+	csrf "filippo.io/csrf/gorilla"
 	"github.com/gorilla/sessions"
 )
 

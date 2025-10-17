@@ -19,7 +19,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/sticker"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
 	"github.com/go-chi/chi/v5"
-	"github.com/gorilla/csrf"
+	csrf "filippo.io/csrf/gorilla"
 	"github.com/gorilla/sessions"
 )
 

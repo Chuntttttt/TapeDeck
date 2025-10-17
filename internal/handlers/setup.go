@@ -16,7 +16,7 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
-	"github.com/gorilla/csrf"
+	csrf "filippo.io/csrf/gorilla"
 	"github.com/gorilla/sessions"
 )
 

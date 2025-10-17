@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	csrf "filippo.io/csrf/gorilla"
 	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
@@ -23,7 +24,6 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/router"
 	"github.com/Chuntttttt/tapedeck/internal/services"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
-	"github.com/gorilla/csrf"
 )
 
 // csrfExemptMiddleware wraps CSRF protection but exempts certain routes
@@ -346,11 +346,9 @@ func main() {
 	r := router.New(deps)
 
 	// Configure CSRF protection
-	// Exempt API and WebSocket routes (they use JSON/WebSocket, not forms)
+	// Note: filippo.io/csrf uses Fetch metadata headers (Sec-Fetch-Site, Origin)
+	// instead of cookies and tokens for CSRF protection
 	csrfOptions := []csrf.Option{
-		csrf.Secure(cfg.RequireTLS),
-		csrf.Path("/"),
-		csrf.SameSite(csrf.SameSiteLaxMode),
 		csrf.ErrorHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger.Warn("CSRF validation failed",
 				"path", r.URL.Path,
@@ -363,9 +361,9 @@ func main() {
 			// Render proper error page
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.WriteHeader(http.StatusForbidden)
-			if err := pages.Error(http.StatusForbidden, "CSRF token validation failed. Please try again.").Render(r.Context(), w); err != nil {
+			if err := pages.Error(http.StatusForbidden, "CSRF validation failed. Please try again.").Render(r.Context(), w); err != nil {
 				logger.Error("Failed to render CSRF error page", "error", err)
-				http.Error(w, "CSRF token validation failed", http.StatusForbidden)
+				http.Error(w, "CSRF validation failed", http.StatusForbidden)
 			}
 		})),
 	}

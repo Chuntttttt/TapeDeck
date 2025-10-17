@@ -4,11 +4,11 @@ import "github.com/Chuntttttt/tapedeck/templates/layouts"
 import "github.com/Chuntttttt/tapedeck/internal/config"
 
 // Settings renders the settings page
-templ Settings(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
-	@layouts.AppLayout("Settings", navHTML, bannerHTML, bannerScript, settingsContent(plexServers, haURL, haToken, appleTVs, csrfToken))
+templ Settings(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV, navHTML string, bannerHTML string, bannerScript string) {
+	@layouts.AppLayout("Settings", navHTML, bannerHTML, bannerScript, settingsContent(plexServers, haURL, haToken, appleTVs))
 }
 
-templ settingsContent(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV, csrfToken string) {
+templ settingsContent(plexServers []config.PlexServer, haURL string, haToken string, appleTVs []config.AppleTV) {
 	<style>
 		.settings-section {
 			background: var(--bg-container);
@@ -129,7 +129,6 @@ templ settingsContent(plexServers []config.PlexServer, haURL string, haToken str
 			<h1>⚙️ Settings</h1>
 		</div>
 		<form method="post" action="/settings/servers">
-			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="settings-section">
 				<h2 class="settings-heading">Plex Servers</h2>
 				if len(plexServers) == 0 {

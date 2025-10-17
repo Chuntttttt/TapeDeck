@@ -16,7 +16,6 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
-	"github.com/gorilla/csrf"
 	"github.com/gorilla/sessions"
 )
 
@@ -193,7 +192,7 @@ func (h *SetupHandler) renderServerSelection(w http.ResponseWriter, r *http.Requ
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	if err := pages.SetupServerSelection(servers, csrf.Token(r)).Render(ctx, w); err != nil {
+	if err := pages.SetupServerSelection(servers).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -295,7 +294,7 @@ func (h *SetupHandler) Step3HomeAssistant(w http.ResponseWriter, r *http.Request
 	haURL := state.HAConfig.URL
 	haToken := state.HAToken
 
-	if err := pages.SetupHomeAssistant(haURL, haToken, csrf.Token(r)).Render(ctx, w); err != nil {
+	if err := pages.SetupHomeAssistant(haURL, haToken).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -435,7 +434,7 @@ func (h *SetupHandler) renderAppleTVSelection(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	if err := pages.SetupAppleTVSelection(mediaPlayers, state.SelectedTVs, csrf.Token(r)).Render(ctx, w); err != nil {
+	if err := pages.SetupAppleTVSelection(mediaPlayers, state.SelectedTVs).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}
@@ -543,7 +542,7 @@ func (h *SetupHandler) Step5Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := pages.SetupComplete(len(state.PlexServers), state.HAConfig.URL, len(state.AppleTVs), csrf.Token(r)).Render(ctx, w); err != nil {
+	if err := pages.SetupComplete(len(state.PlexServers), state.HAConfig.URL, len(state.AppleTVs)).Render(ctx, w); err != nil {
 		log.Error("Failed to render template", "error", err)
 		RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 	}

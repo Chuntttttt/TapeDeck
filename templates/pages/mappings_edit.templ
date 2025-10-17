@@ -5,15 +5,14 @@ import "github.com/Chuntttttt/tapedeck/internal/models"
 import "fmt"
 
 // MappingsEditForm renders the edit mapping form page
-templ MappingsEditForm(mapping *models.CardMapping, navHTML string, bannerHTML string, bannerScript string, csrfToken string) {
-	@layouts.AppLayout("Edit Card Mapping", navHTML, bannerHTML, bannerScript, editFormContent(mapping, csrfToken))
+templ MappingsEditForm(mapping *models.CardMapping, navHTML string, bannerHTML string, bannerScript string) {
+	@layouts.AppLayout("Edit Card Mapping", navHTML, bannerHTML, bannerScript, editFormContent(mapping))
 }
 
-templ editFormContent(mapping *models.CardMapping, csrfToken string) {
+templ editFormContent(mapping *models.CardMapping) {
 	<div class="app-page-narrow">
 		<h1>Edit Card Mapping</h1>
 		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/mappings/%d", mapping.ID)) }>
-			<input type="hidden" name="gorilla.csrf.Token" value={ csrfToken }/>
 			<div class="form-group">
 				<label for="tag_id">NFC Tag ID *</label>
 				<input type="text" id="tag_id" name="tag_id" value={ mapping.TagID } required placeholder="e.g., nfc-12345"/>

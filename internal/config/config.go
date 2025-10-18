@@ -30,6 +30,11 @@ func (c *Config) DatabasePath() string {
 	return filepath.Join(c.DataDir, "tapedeck.db")
 }
 
+// ConfigPath returns the full path to the runtime configuration file
+func (c *Config) ConfigPath() string {
+	return filepath.Join(c.DataDir, "config.yml")
+}
+
 // Load reads configuration from environment variables and validates required fields.
 // It attempts to load from a .env file if present, then reads from the environment.
 // Generates and persists a random SESSION_SECRET if not set.

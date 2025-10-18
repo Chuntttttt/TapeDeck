@@ -26,8 +26,14 @@ import (
 )
 
 func main() {
-	// Try to load runtime configuration from config.yml
-	runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
+	// Load application configuration from environment variables first (needed for DataDir)
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Try to load runtime configuration from config.yml (using DataDir path)
+	runtimeCfg, err := config.LoadRuntimeConfig(cfg.ConfigPath())
 	needsSetup := false
 	if err != nil || runtimeCfg.IsEmpty() {
 		logger.Info("Runtime configuration not found or empty", "error", err)
@@ -37,12 +43,6 @@ func main() {
 		logger.Info("Runtime configuration validation failed", "error", err)
 		logger.Info("Setup wizard will be required before using the application")
 		needsSetup = true
-	}
-
-	// Load application configuration from environment variables
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
 	// Set up structured logging to both stdout and file
@@ -150,7 +150,7 @@ func main() {
 		}
 
 		// Reload config
-		runtimeCfg, err := config.LoadRuntimeConfig("./config.yml")
+		runtimeCfg, err := config.LoadRuntimeConfig(cfg.ConfigPath())
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
@@ -234,12 +234,12 @@ func main() {
 			database,
 			haClient,
 			playbackService,
-			"./config.yml",
+			cfg.ConfigPath(),
 			cfg.DevMode,
 		)
 
 		// Initialize status handler
-		statusHandler = handlers.NewStatusHandler(haClient, "./config.yml", database)
+		statusHandler = handlers.NewStatusHandler(haClient, cfg.ConfigPath(), database)
 
 		// Sanity check: ensure all handlers were initialized
 		// This should never fail unless there's a programming error above
@@ -253,10 +253,10 @@ func main() {
 	}
 
 	// Initialize setup handler (always available)
-	setupHandler := handlers.NewSetupHandler(sessionStore, "./config.yml", plexAuth, database, cfg.DevMode, initializeHandlers)
+	setupHandler := handlers.NewSetupHandler(sessionStore, cfg.ConfigPath(), plexAuth, database, cfg.DevMode, initializeHandlers)
 
 	// Initialize settings handler (always available) - uses same reload callback as setup
-	settingsHandler = handlers.NewSettingsHandler(sessionStore, "./config.yml", database, initializeHandlers)
+	settingsHandler = handlers.NewSettingsHandler(sessionStore, cfg.ConfigPath(), database, initializeHandlers)
 
 	// Initialize handlers if config exists
 	if !needsSetup {
@@ -348,7 +348,7 @@ func main() {
 				middleware.WithUserID(sessionStore)(
 					middleware.WithRequestLogger()(
 						middleware.RequestLogger()(
-							middleware.SetupMiddleware("./config.yml", sessionStore)(r),
+							middleware.SetupMiddleware(cfg.ConfigPath(), sessionStore)(r),
 						),
 					),
 				),

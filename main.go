@@ -46,7 +46,7 @@ func main() {
 	}
 
 	// Set up structured logging to both stdout and file
-	logFile, err := os.OpenFile("tapedeck.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	logFile, err := os.OpenFile(cfg.LogPath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		logger.Warn("Failed to open log file", "error", err)
 		logger.Init(cfg.LogLevel, os.Stdout)

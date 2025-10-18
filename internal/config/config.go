@@ -35,6 +35,11 @@ func (c *Config) ConfigPath() string {
 	return filepath.Join(c.DataDir, "config.yml")
 }
 
+// LogPath returns the full path to the log file
+func (c *Config) LogPath() string {
+	return filepath.Join(c.DataDir, "tapedeck.log")
+}
+
 // Load reads configuration from environment variables and validates required fields.
 // It attempts to load from a .env file if present, then reads from the environment.
 // Generates and persists a random SESSION_SECRET if not set.

@@ -32,9 +32,6 @@ const (
 	gridCols = 3
 	gridRows = 3
 
-	// Registration mark size
-	markLength = 0.2
-
 	// Grid positioning
 	// Portrait grid: 3×2.13" = 6.39" width, printable area = 8.0"
 	// Horizontal centering: (8.0 - 6.39) / 2 = 0.805"
@@ -324,9 +321,6 @@ func (g *Generator) extractDominantColor(img image.Image) color.Color {
 
 // addPortraitSticker adds a portrait sticker with letterbox bars at top/bottom.
 func (g *Generator) addPortraitSticker(pdf *gofpdf.Fpdf, img image.Image, dominantColor color.Color, x, y float64) {
-	// Draw registration marks at corners
-	g.drawRegistrationMarks(pdf, x, y, stickerWidthPortrait, stickerHeightPortrait)
-
 	// If no dominant color, use default
 	if dominantColor == nil {
 		dominantColor = color.RGBA{40, 50, 60, 255}
@@ -358,9 +352,6 @@ func (g *Generator) addPortraitSticker(pdf *gofpdf.Fpdf, img image.Image, domina
 
 // addSquareSticker adds a square sticker for music albums.
 func (g *Generator) addSquareSticker(pdf *gofpdf.Fpdf, img image.Image, x, y float64) {
-	// Draw registration marks at square corners
-	g.drawRegistrationMarks(pdf, x, y, stickerSizeSquare, stickerSizeSquare)
-
 	// Draw album art (or placeholder)
 	artMargin := 0.05
 	artSize := stickerSizeSquare - (2 * artMargin)
@@ -374,28 +365,6 @@ func (g *Generator) addSquareSticker(pdf *gofpdf.Fpdf, img image.Image, x, y flo
 		pdf.SetFillColor(100, 100, 100)
 		pdf.Rect(artX, artY, artSize, artSize, "F")
 	}
-}
-
-// drawRegistrationMarks draws corner crosshairs for cutting guides.
-func (g *Generator) drawRegistrationMarks(pdf *gofpdf.Fpdf, x, y, width, height float64) {
-	pdf.SetLineWidth(0.01) // 0.5pt converted to inches
-	pdf.SetDrawColor(0, 0, 0)
-
-	// Top-left
-	pdf.Line(x-markLength, y, x, y)
-	pdf.Line(x, y-markLength, x, y)
-
-	// Top-right
-	pdf.Line(x+width, y, x+width+markLength, y)
-	pdf.Line(x+width, y-markLength, x+width, y)
-
-	// Bottom-left
-	pdf.Line(x-markLength, y+height, x, y+height)
-	pdf.Line(x, y+height, x, y+height+markLength)
-
-	// Bottom-right
-	pdf.Line(x+width, y+height, x+width+markLength, y+height)
-	pdf.Line(x+width, y+height, x+width, y+height+markLength)
 }
 
 // drawFullPageGrid draws a complete cutting grid across the page.

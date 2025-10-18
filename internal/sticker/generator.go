@@ -376,15 +376,15 @@ func (g *Generator) drawFullPageGrid(pdf *gofpdf.Fpdf, startX, startY, cardWidth
 	// Draw vertical lines (4 lines for 3 columns: left, mid1, mid2, right)
 	for col := 0; col <= gridCols; col++ {
 		x := startX + float64(col)*cardWidth
-		// Extend from top margin to bottom margin
-		pdf.Line(x, margin, x, pageHeight-margin)
+		// Extend from top to bottom of page
+		pdf.Line(x, 0, x, pageHeight)
 	}
 
 	// Draw horizontal lines (4 lines for 3 rows: top, mid1, mid2, bottom)
 	for row := 0; row <= gridRows; row++ {
 		y := startY + float64(row)*cardHeight
-		// Extend from left margin to right margin
-		pdf.Line(margin, y, pageWidth-margin, y)
+		// Extend from left to right of page
+		pdf.Line(0, y, pageWidth, y)
 	}
 }
 

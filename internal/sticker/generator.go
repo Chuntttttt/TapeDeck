@@ -28,16 +28,26 @@ const (
 	pageHeight = 11.0
 	margin     = 0.25
 
-	// Grid layout (3 columns x 3 rows for portrait)
+	// Grid layout (3 columns x 3 rows)
 	gridCols = 3
 	gridRows = 3
 
-	// Spacing
-	horizontalGap = 0.6
-	verticalGap   = 0.3
-
 	// Registration mark size
 	markLength = 0.2
+
+	// Grid positioning
+	// Portrait grid: 3×2.13" = 6.39" width, printable area = 8.0"
+	// Horizontal centering: (8.0 - 6.39) / 2 = 0.805"
+	gridOffsetXPortrait = 0.805
+	// Portrait grid: 3×3.35" = 10.05" height, printable area = 10.5"
+	// Vertical centering: (10.5 - 10.05) / 2 = 0.225"
+	gridOffsetYPortrait = 0.225
+
+	// Square grid: 3×2.13" = 6.39" width (same as portrait)
+	gridOffsetXSquare = 0.805
+	// Square grid: 3×2.13" = 6.39" height, printable area = 10.5"
+	// Vertical centering: (10.5 - 6.39) / 2 = 2.055"
+	gridOffsetYSquare = 2.055
 )
 
 // Generator creates PDF stickers from card mappings.
@@ -53,24 +63,63 @@ func NewGenerator(devMode bool) *Generator {
 }
 
 // GeneratePDF generates a PDF with stickers for the given mappings.
+// Portrait and square cards are rendered on separate pages.
 // Returns PDF bytes or error.
 func (g *Generator) GeneratePDF(mappings []*models.CardMapping, _ string) ([]byte, error) {
 	// Create new PDF
 	pdf := gofpdf.New("P", "in", "Letter", "")
 	pdf.SetMargins(margin, margin, margin)
 
-	// Track position
+	// Separate mappings by type
+	var portraitMappings []*models.CardMapping
+	var squareMappings []*models.CardMapping
+
+	for _, mapping := range mappings {
+		isMusic := mapping.MediaType == "album" || mapping.MediaType == "track" || mapping.MediaType == "artist"
+		if isMusic {
+			squareMappings = append(squareMappings, mapping)
+		} else {
+			portraitMappings = append(portraitMappings, mapping)
+		}
+	}
+
+	// Render portrait pages
+	if err := g.renderPortraitPages(pdf, portraitMappings); err != nil {
+		return nil, err
+	}
+
+	// Render square pages
+	if err := g.renderSquarePages(pdf, squareMappings); err != nil {
+		return nil, err
+	}
+
+	// Output PDF to bytes
+	var buf bytes.Buffer
+	err := pdf.Output(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to output PDF: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// renderPortraitPages renders portrait-oriented stickers (movies/TV) on 3×3 grids.
+func (g *Generator) renderPortraitPages(pdf *gofpdf.Fpdf, mappings []*models.CardMapping) error {
 	col, row := 0, 0
+	gridStartX := margin + gridOffsetXPortrait
+	gridStartY := margin + gridOffsetYPortrait
 
 	for _, mapping := range mappings {
 		// Start new page if needed
 		if col == 0 && row == 0 {
 			pdf.AddPage()
+			// Draw full-page cutting grid
+			g.drawFullPageGrid(pdf, gridStartX, gridStartY, stickerWidthPortrait, stickerHeightPortrait)
 		}
 
 		// Calculate position
-		x := margin + float64(col)*(stickerWidthPortrait+horizontalGap)
-		y := margin + float64(row)*(stickerHeightPortrait+verticalGap)
+		x := gridStartX + float64(col)*stickerWidthPortrait
+		y := gridStartY + float64(row)*stickerHeightPortrait
 
 		// Fetch poster image (or use placeholder)
 		var img image.Image
@@ -84,14 +133,8 @@ func (g *Generator) GeneratePDF(mappings []*models.CardMapping, _ string) ([]byt
 			}
 		}
 
-		// Determine layout based on media type
-		isMusic := mapping.MediaType == "album" || mapping.MediaType == "track" || mapping.MediaType == "artist"
-
-		if isMusic {
-			g.addSquareSticker(pdf, img, x, y)
-		} else {
-			g.addPortraitSticker(pdf, img, dominantColor, x, y)
-		}
+		// Add portrait sticker
+		g.addPortraitSticker(pdf, img, dominantColor, x, y)
 
 		// Move to next grid position
 		col++
@@ -104,14 +147,52 @@ func (g *Generator) GeneratePDF(mappings []*models.CardMapping, _ string) ([]byt
 		}
 	}
 
-	// Output PDF to bytes
-	var buf bytes.Buffer
-	err := pdf.Output(&buf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to output PDF: %w", err)
+	return nil
+}
+
+// renderSquarePages renders square stickers (music) on 3×3 grids.
+func (g *Generator) renderSquarePages(pdf *gofpdf.Fpdf, mappings []*models.CardMapping) error {
+	col, row := 0, 0
+	gridStartX := margin + gridOffsetXSquare
+	gridStartY := margin + gridOffsetYSquare
+
+	for _, mapping := range mappings {
+		// Start new page if needed
+		if col == 0 && row == 0 {
+			pdf.AddPage()
+			// Draw full-page cutting grid
+			g.drawFullPageGrid(pdf, gridStartX, gridStartY, stickerSizeSquare, stickerSizeSquare)
+		}
+
+		// Calculate position
+		x := gridStartX + float64(col)*stickerSizeSquare
+		y := gridStartY + float64(row)*stickerSizeSquare
+
+		// Fetch album art (or use placeholder)
+		var img image.Image
+
+		if mapping.ThumbnailURL != "" {
+			fetchedImg, err := g.fetchPosterImage(mapping.ThumbnailURL)
+			if err == nil {
+				img = fetchedImg
+			}
+		}
+
+		// Add square sticker
+		g.addSquareSticker(pdf, img, x, y)
+
+		// Move to next grid position
+		col++
+		if col >= gridCols {
+			col = 0
+			row++
+			if row >= gridRows {
+				row = 0
+			}
+		}
 	}
 
-	return buf.Bytes(), nil
+	return nil
 }
 
 // fetchPosterImage downloads an image from the given URL.

@@ -317,6 +317,27 @@ func (g *Generator) drawRegistrationMarks(pdf *gofpdf.Fpdf, x, y, width, height 
 	pdf.Line(x+width, y+height, x+width, y+height+markLength)
 }
 
+// drawFullPageGrid draws a complete cutting grid across the page.
+// Draws vertical and horizontal lines at card boundaries, extending to page edges.
+func (g *Generator) drawFullPageGrid(pdf *gofpdf.Fpdf, startX, startY, cardWidth, cardHeight float64) {
+	pdf.SetLineWidth(0.01) // 0.5pt converted to inches
+	pdf.SetDrawColor(0, 0, 0)
+
+	// Draw vertical lines (4 lines for 3 columns: left, mid1, mid2, right)
+	for col := 0; col <= gridCols; col++ {
+		x := startX + float64(col)*cardWidth
+		// Extend from top margin to bottom margin
+		pdf.Line(x, margin, x, pageHeight-margin)
+	}
+
+	// Draw horizontal lines (4 lines for 3 rows: top, mid1, mid2, bottom)
+	for row := 0; row <= gridRows; row++ {
+		y := startY + float64(row)*cardHeight
+		// Extend from left margin to right margin
+		pdf.Line(margin, y, pageWidth-margin, y)
+	}
+}
+
 // drawImage renders an image into the PDF at the specified position and size.
 // Saves the image to a temp file, embeds it in the PDF, then cleans up.
 func (g *Generator) drawImage(pdf *gofpdf.Fpdf, img image.Image, x, y, width, height float64) {

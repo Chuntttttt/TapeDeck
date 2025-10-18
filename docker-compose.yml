@@ -14,11 +14,6 @@ services:
       - "3001:3001"
     volumes:
       - ./data:/data
-      - ./config.yml:/app/config.yml
-      - ./.session_secret:/app/.session_secret
-      - ./.csrf_key:/app/.csrf_key
-      - ./.encryption_key:/app/.encryption_key
-      - ./tapedeck.log:/app/tapedeck.log
     env_file:
       - .env
     environment:

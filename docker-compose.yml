@@ -1,12 +1,14 @@
 services:
   tapedeck:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        VERSION: ${VERSION:-dev}
-        GIT_COMMIT: ${GIT_COMMIT:-unknown}
-        BUILD_DATE: ${BUILD_DATE:-unknown}
+    image: ghcr.io/chuntttttt/tapedeck:latest
+    # For local development, comment out 'image:' above and uncomment 'build:' below
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    #   args:
+    #     VERSION: ${VERSION:-dev}
+    #     GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    #     BUILD_DATE: ${BUILD_DATE:-unknown}
     container_name: tapedeck
     ports:
       - "3001:3001"
@@ -14,6 +16,8 @@ services:
       - ./data:/data
       - ./config.yml:/app/config.yml
       - ./.session_secret:/app/.session_secret
+      - ./.csrf_key:/app/.csrf_key
+      - ./.encryption_key:/app/.encryption_key
       - ./tapedeck.log:/app/tapedeck.log
     env_file:
       - .env

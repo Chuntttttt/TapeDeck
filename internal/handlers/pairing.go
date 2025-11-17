@@ -306,7 +306,10 @@ func (client *pairingClient) writePump() {
 
 // handleTagScanned is called when a tag is scanned in Home Assistant
 func (h *PairingHandler) handleTagScanned(tagID string) {
-	ctx := context.Background()
+	// Create context with timeout for DB operations and potential playback
+	ctx, cancel := context.WithTimeout(context.Background(), constants.HAAPITimeout)
+	defer cancel()
+
 	logger.Info("Tag scanned from HA", "tag_id", tagID)
 
 	h.clientsMu.Lock()

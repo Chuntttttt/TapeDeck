@@ -79,8 +79,12 @@ func TestMappingsHandler_Dashboard(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Dashboard))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.Dashboard),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()
@@ -161,8 +165,12 @@ func TestMappingsHandler_Dashboard_Empty(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Dashboard))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.Dashboard),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()
@@ -670,8 +678,12 @@ func TestMappingsHandler_SearchJSON(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.SearchJSON))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.SearchJSON),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()
@@ -756,8 +768,12 @@ func TestGenerateStickers(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.GenerateStickers))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, database)(
+			http.HandlerFunc(handler.GenerateStickers),
+		),
+	)
 
 	// Make request
 	rr := httptest.NewRecorder()

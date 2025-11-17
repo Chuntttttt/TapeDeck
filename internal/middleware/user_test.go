@@ -14,7 +14,7 @@ type mockDB struct {
 	err  error
 }
 
-func (m *mockDB) GetUserByID(ctx context.Context, id int64) (*models.User, error) {
+func (m *mockDB) GetUserByID(_ context.Context, _ int64) (*models.User, error) {
 	return m.user, m.err
 }
 
@@ -49,7 +49,7 @@ func TestWithUser_AddsUserToContext(t *testing.T) {
 	session.Values[UserIDKey] = int64(123)
 
 	rr := httptest.NewRecorder()
-	session.Save(req, rr)
+	_ = session.Save(req, rr)
 
 	// Copy session cookie to new request
 	req2 := httptest.NewRequest("GET", "/test", nil)

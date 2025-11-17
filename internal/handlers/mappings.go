@@ -49,18 +49,10 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -73,7 +65,7 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	printMode := r.URL.Query().Get("print") == "true"
 
 	// Get all mappings for the user
-	mappings, err := h.db.GetCardMappingsByUserID(ctx, userID)
+	mappings, err := h.db.GetCardMappingsByUserID(ctx, user.ID)
 	if err != nil {
 		log.Error("Failed to get card mappings", "error", err)
 		RespondError(w, r, "Failed to get card mappings", http.StatusInternalServerError)
@@ -440,8 +432,8 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -453,14 +445,6 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprint(w, `{"results":[]}`)
-		return
-	}
-
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -592,18 +576,10 @@ func (h *MappingsHandler) GenerateStickers(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -647,8 +623,8 @@ func (h *MappingsHandler) GenerateStickers(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Verify ownership
-		if mapping.UserID != userID {
-			log.Warn("User does not own mapping", "user_id", userID, "mapping_id", id)
+		if mapping.UserID != user.ID {
+			log.Warn("User does not own mapping", "user_id", user.ID, "mapping_id", id)
 			continue
 		}
 

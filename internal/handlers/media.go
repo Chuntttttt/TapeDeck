@@ -59,18 +59,10 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -156,18 +148,10 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -257,8 +241,8 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -273,14 +257,6 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 			log.Error("Failed to render template", "error", err)
 			RespondError(w, r, "Failed to render page", http.StatusInternalServerError)
 		}
-		return
-	}
-
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 

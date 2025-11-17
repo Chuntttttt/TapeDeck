@@ -53,18 +53,10 @@ func (h *MediaDetailHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -109,7 +101,7 @@ func (h *MediaDetailHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	plexWebURL := fmt.Sprintf("https://app.plex.tv/desktop/#!/server/%s/details?key=/library/metadata/%s", serverID, ratingKey)
 
 	// Check if already mapped
-	mappings, err := h.db.GetCardMappingsByUserID(ctx, userID)
+	mappings, err := h.db.GetCardMappingsByUserID(ctx, user.ID)
 	if err != nil {
 		log.Warn("Failed to get mappings", "error", err)
 		mappings = nil

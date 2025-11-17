@@ -64,27 +64,14 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Not authenticated",
-		})
-		return
-	}
-
-	// Get user to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Failed to get user",
 		})
 		return
 	}
@@ -155,7 +142,7 @@ func (h *PlayHandler) PlayByRatingKey(w http.ResponseWriter, r *http.Request) {
 	// Build playback request
 	playbackReq := &services.PlaybackRequest{
 		TagID:         "", // No tag ID for direct play
-		UserID:        userID,
+		UserID:        user.ID,
 		MediaID:       req.RatingKey,
 		MediaTitle:    metadata.Title,
 		PlexServerID:  req.ServerID,

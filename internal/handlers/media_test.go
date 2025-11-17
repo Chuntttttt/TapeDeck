@@ -79,8 +79,12 @@ func TestMediaHandler_Libraries(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Libraries))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.Libraries),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()
@@ -177,8 +181,12 @@ func TestMediaHandler_LibraryContents(t *testing.T) {
 	rctx.URLParams.Add("libraryKey", "1")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.LibraryContents))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.LibraryContents),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()
@@ -269,8 +277,12 @@ func TestMediaHandler_Search(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Search))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.Search),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()
@@ -346,8 +358,12 @@ func TestMediaHandler_Search_EmptyQuery(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Search))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.Search),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()

@@ -26,7 +26,7 @@ type DBReader interface {
 //
 // If the user cannot be fetched (no session, database error), the request continues
 // without a user in context. Use GetUserFromContext to check if a user is present.
-func WithUser(store *sessions.CookieStore, db DBReader) func(http.Handler) http.Handler {
+func WithUser(_ *sessions.CookieStore, db DBReader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -61,4 +61,20 @@ func WithUser(store *sessions.CookieStore, db DBReader) func(http.Handler) http.
 func GetUserFromContext(ctx context.Context) (*models.User, bool) {
 	user, ok := ctx.Value(userContextKey).(*models.User)
 	return user, ok
+}
+
+// MustGetUser retrieves the user from context and writes an error response if not found.
+// Returns the user and true if successful, or nil and false if the user is missing
+// (in which case an error response has already been written).
+//
+// This is a convenience function for handlers that require authentication.
+func MustGetUser(w http.ResponseWriter, r *http.Request) (*models.User, bool) {
+	user, ok := GetUserFromContext(r.Context())
+	if !ok {
+		// This should not happen if RequireAuth middleware is working
+		// But we handle it defensively
+		http.Error(w, "Not authenticated", http.StatusUnauthorized)
+		return nil, false
+	}
+	return user, true
 }

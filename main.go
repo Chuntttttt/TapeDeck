@@ -271,12 +271,21 @@ func main() {
 		logger.Info("Config not ready - setup wizard will initialize handlers after completion")
 	}
 
+	// Create auth middleware chain: WithUserID -> WithUser -> RequireAuth
+	authMiddlewareChain := func(next http.Handler) http.Handler {
+		return middleware.WithUserID(sessionStore)(
+			middleware.WithUser(sessionStore, database)(
+				middleware.RequireAuth(sessionStore)(next),
+			),
+		)
+	}
+
 	// Create router dependencies
 	deps := &router.Dependencies{
 		AuthHandler:     authHandler,
 		SetupHandler:    setupHandler,
 		SettingsHandler: settingsHandler,
-		AuthMiddleware:  middleware.RequireAuth(sessionStore),
+		AuthMiddleware:  authMiddlewareChain,
 
 		// Handler getters that return current values (updated after setup/settings changes)
 		GetMappingsHandler:    func() *handlers.MappingsHandler { return mappingsHandler },

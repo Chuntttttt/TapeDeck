@@ -17,7 +17,7 @@ func TestTryServerURLs_Success(t *testing.T) {
 	}
 
 	called := 0
-	operation := func(client mockClient) (string, error) {
+	operation := func(_ mockClient) (string, error) {
 		called++
 		if called == 1 {
 			return "", errors.New("first URL failed")
@@ -25,7 +25,7 @@ func TestTryServerURLs_Success(t *testing.T) {
 		return "success", nil
 	}
 
-	mockFactory := func(url, serverID, authToken string, devMode bool) mockClient {
+	mockFactory := func(_, _, _ string, _ bool) mockClient {
 		return mockClient{}
 	}
 
@@ -49,11 +49,11 @@ func TestTryServerURLs_AllFail(t *testing.T) {
 		URLs: []string{"http://localhost:32400", "http://192.168.1.100:32400"},
 	}
 
-	operation := func(client mockClient) (string, error) {
+	operation := func(_ mockClient) (string, error) {
 		return "", errors.New("connection failed")
 	}
 
-	mockFactory := func(url, serverID, authToken string, devMode bool) mockClient {
+	mockFactory := func(_, _, _ string, _ bool) mockClient {
 		return mockClient{}
 	}
 
@@ -78,11 +78,11 @@ func TestTryServerURLs_ContextTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	operation := func(client mockClient) (string, error) {
+	operation := func(_ mockClient) (string, error) {
 		return "success", nil
 	}
 
-	mockFactory := func(url, serverID, authToken string, devMode bool) mockClient {
+	mockFactory := func(_, _, _ string, _ bool) mockClient {
 		return mockClient{}
 	}
 

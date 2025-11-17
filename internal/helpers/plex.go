@@ -1,7 +1,9 @@
+// Package helpers provides utility functions for common operations across handlers.
 package helpers
 
 import (
 	"context"
+
 	"github.com/Chuntttttt/tapedeck/internal/constants"
 )
 

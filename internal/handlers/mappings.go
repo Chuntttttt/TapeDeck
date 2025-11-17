@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/helpers"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
@@ -151,31 +151,50 @@ func (h *MappingsHandler) fetchThumbnails(ctx context.Context, authToken string,
 			defer func() { <-semaphore }() // Release
 
 			// Find server for this mapping
-			var serverURL string
+			var matchingServer *ServerInfo
 			for _, srv := range h.servers {
 				if srv.ID == m.PlexServerID {
-					if len(srv.URLs) > 0 {
-						serverURL = srv.URLs[0]
-					}
+					matchingServer = &srv
 					break
 				}
 			}
 
-			if serverURL == "" {
+			if matchingServer == nil {
 				log.Warn("Server not found for mapping", "server_id", m.PlexServerID, "mapping_id", m.ID)
 				return
 			}
 
-			// Fetch metadata
-			plexClient := h.newPlexClient(serverURL, m.PlexServerID, authToken, h.devMode)
-			apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
-			metadata, err := plexClient.GetMetadata(apiCtx, m.MediaID)
-			cancel()
+			// Fetch metadata with retry across server URLs
+			type metadataResult struct {
+				metadata *plex.MediaMetadata
+				url      string
+			}
+
+			helperServer := helpers.ServerInfo{
+				ID:   matchingServer.ID,
+				Name: matchingServer.Name,
+				URLs: matchingServer.URLs,
+			}
+
+			result, err := helpers.TryServerURLs(
+				ctx,
+				helperServer,
+				authToken,
+				h.devMode,
+				func(plexClient PlexClientInterface) (metadataResult, error) {
+					metadata, err := plexClient.GetMetadata(ctx, m.MediaID)
+					return metadataResult{metadata: metadata, url: matchingServer.URLs[0]}, err
+				},
+				h.newPlexClient,
+			)
 
 			if err != nil {
 				log.Warn("Failed to fetch metadata for mapping", "mapping_id", m.ID, "error", err)
 				return
 			}
+
+			metadata := result.metadata
+			serverURL := result.url
 
 			// Build full thumbnail URL
 			if metadata.Thumb != "" {
@@ -458,24 +477,22 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	// Launch goroutine for each server
 	for _, server := range h.servers {
 		go func(srv ServerInfo) {
-			// Try all URLs for this server until one works
-			var items []plex.MediaItem
-			var lastErr error
-
-			for _, url := range srv.URLs {
-				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
-
-				// Add timeout for external API call
-				apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
-				items, lastErr = plexClient.Search(apiCtx, query)
-				cancel()
-
-				if lastErr == nil {
-					// Success! Use these results
-					break
-				}
-				// Try next URL
+			helperServer := helpers.ServerInfo{
+				ID:   srv.ID,
+				Name: srv.Name,
+				URLs: srv.URLs,
 			}
+
+			items, lastErr := helpers.TryServerURLs(
+				ctx,
+				helperServer,
+				user.PlexAuthToken,
+				h.devMode,
+				func(plexClient PlexClientInterface) ([]plex.MediaItem, error) {
+					return plexClient.Search(ctx, query)
+				},
+				h.newPlexClient,
+			)
 
 			resultChan <- serverResult{
 				serverName: srv.Name,

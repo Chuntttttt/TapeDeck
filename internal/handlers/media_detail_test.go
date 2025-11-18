@@ -89,8 +89,12 @@ func TestMediaDetailHandler_Detail(t *testing.T) {
 	rctx.URLParams.Add("ratingKey", "123")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.Detail))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, testDB)(
+			http.HandlerFunc(handler.Detail),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()

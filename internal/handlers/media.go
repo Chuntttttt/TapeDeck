@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/helpers"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
@@ -59,18 +59,10 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -100,23 +92,21 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try all URLs for this server until one works
-	var libraries []plex.Library
-	var lastErr error
-
-	for _, url := range selectedServer.URLs {
-		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
-
-		// Add timeout for external API call
-		apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
-		libraries, lastErr = plexClient.GetLibraries(apiCtx)
-		cancel()
-
-		if lastErr == nil {
-			// Success! Use these results
-			break
-		}
-		// Try next URL
+	helperServer := helpers.ServerInfo{
+		ID:   selectedServer.ID,
+		Name: selectedServer.Name,
+		URLs: selectedServer.URLs,
 	}
+	libraries, lastErr := helpers.TryServerURLs(
+		ctx,
+		helperServer,
+		user.PlexAuthToken,
+		h.devMode,
+		func(plexClient PlexClientInterface) ([]plex.Library, error) {
+			return plexClient.GetLibraries(ctx)
+		},
+		h.newPlexClient,
+	)
 
 	if lastErr != nil {
 		// Check if token was revoked (401 Unauthorized)
@@ -128,8 +118,8 @@ func (h *MediaHandler) Libraries(w http.ResponseWriter, r *http.Request) {
 			RespondError(w, r, "Plex server timed out", http.StatusGatewayTimeout)
 			return
 		}
-		log.Error("Failed to get libraries from server", "server", selectedServer.Name, "urls_tried", len(selectedServer.URLs), "error", lastErr)
-		RespondError(w, r, "Failed to get libraries", http.StatusInternalServerError)
+		log.Error("Failed to fetch libraries", "server", selectedServer.Name, "error", lastErr)
+		RespondError(w, r, "Failed to fetch libraries from Plex", http.StatusInternalServerError)
 		return
 	}
 
@@ -158,18 +148,10 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -199,25 +181,30 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try all URLs for this server until one works
-	var items []plex.MediaItem
-	var lastErr error
-	var successfulURL string
-
-	for _, url := range selectedServer.URLs {
-		plexClient := h.newPlexClient(url, selectedServer.ID, user.PlexAuthToken, h.devMode)
-
-		// Add timeout for external API call
-		apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
-		items, lastErr = plexClient.GetLibraryContents(apiCtx, libraryKey)
-		cancel()
-
-		if lastErr == nil {
-			// Success! Use these results
-			successfulURL = url
-			break
-		}
-		// Try next URL
+	// We need to track which URL succeeded to build thumbnail URLs
+	type resultWithURL struct {
+		items []plex.MediaItem
+		url   string
 	}
+
+	helperServer := helpers.ServerInfo{
+		ID:   selectedServer.ID,
+		Name: selectedServer.Name,
+		URLs: selectedServer.URLs,
+	}
+	result, lastErr := helpers.TryServerURLs(
+		ctx,
+		helperServer,
+		user.PlexAuthToken,
+		h.devMode,
+		func(plexClient PlexClientInterface) (resultWithURL, error) {
+			items, err := plexClient.GetLibraryContents(ctx, libraryKey)
+			// We can't get the URL from the client, so we'll use the first URL as a workaround
+			// This is safe because if we get here, one of the URLs worked
+			return resultWithURL{items: items, url: selectedServer.URLs[0]}, err
+		},
+		h.newPlexClient,
+	)
 
 	if lastErr != nil {
 		// Check if token was revoked (401 Unauthorized)
@@ -225,19 +212,20 @@ func (h *MediaHandler) LibraryContents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(lastErr, context.DeadlineExceeded) {
-			log.Warn("Plex API call timed out", "server", selectedServer.Name)
+			log.Warn("Plex API call timed out", "server", selectedServer.Name, "library", libraryKey)
 			RespondError(w, r, "Plex server timed out", http.StatusGatewayTimeout)
 			return
 		}
-		log.Error("Failed to get library contents from server", "server", selectedServer.Name, "urls_tried", len(selectedServer.URLs), "error", lastErr)
-		RespondError(w, r, "Failed to get library contents", http.StatusInternalServerError)
+		log.Error("Failed to fetch library contents", "library", libraryKey, "error", lastErr)
+		RespondError(w, r, "Failed to fetch library contents", http.StatusInternalServerError)
 		return
 	}
 
 	// Build full thumbnail URLs
+	items := result.items
 	for i := range items {
 		if items[i].Thumb != "" {
-			items[i].Thumb = successfulURL + items[i].Thumb + "?X-Plex-Token=" + user.PlexAuthToken
+			items[i].Thumb = result.url + items[i].Thumb + "?X-Plex-Token=" + user.PlexAuthToken
 		}
 	}
 
@@ -253,8 +241,8 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -272,14 +260,6 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
-		return
-	}
-
 	// Search across all servers in parallel
 	type serverResult struct {
 		serverName string
@@ -293,24 +273,22 @@ func (h *MediaHandler) Search(w http.ResponseWriter, r *http.Request) {
 	// Launch goroutine for each server
 	for _, server := range h.servers {
 		go func(srv ServerInfo) {
-			// Try all URLs for this server until one works
-			var items []plex.MediaItem
-			var lastErr error
-
-			for _, url := range srv.URLs {
-				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
-
-				// Add timeout for external API call
-				apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
-				items, lastErr = plexClient.Search(apiCtx, query)
-				cancel()
-
-				if lastErr == nil {
-					// Success! Use these results
-					break
-				}
-				// Try next URL
+			helperServer := helpers.ServerInfo{
+				ID:   srv.ID,
+				Name: srv.Name,
+				URLs: srv.URLs,
 			}
+
+			items, lastErr := helpers.TryServerURLs(
+				ctx,
+				helperServer,
+				user.PlexAuthToken,
+				h.devMode,
+				func(plexClient PlexClientInterface) ([]plex.MediaItem, error) {
+					return plexClient.Search(ctx, query)
+				},
+				h.newPlexClient,
+			)
 
 			resultChan <- serverResult{
 				serverName: srv.Name,

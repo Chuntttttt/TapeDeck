@@ -104,8 +104,12 @@ func TestPlayHandler_PlayByRatingKey(t *testing.T) {
 		req.AddCookie(cookie)
 	}
 
-	// Wrap handler with middleware for tests
-	wrappedHandler := middleware.WithUserID(store)(http.HandlerFunc(handler.PlayByRatingKey))
+	// Wrap handler with middleware for tests (WithUserID -> WithUser chain)
+	wrappedHandler := middleware.WithUserID(store)(
+		middleware.WithUser(store, database)(
+			http.HandlerFunc(handler.PlayByRatingKey),
+		),
+	)
 
 	// Make request
 	w = httptest.NewRecorder()

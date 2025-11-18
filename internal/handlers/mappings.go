@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
+	"github.com/Chuntttttt/tapedeck/internal/helpers"
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/models"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
@@ -49,18 +49,10 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -73,7 +65,7 @@ func (h *MappingsHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	printMode := r.URL.Query().Get("print") == "true"
 
 	// Get all mappings for the user
-	mappings, err := h.db.GetCardMappingsByUserID(ctx, userID)
+	mappings, err := h.db.GetCardMappingsByUserID(ctx, user.ID)
 	if err != nil {
 		log.Error("Failed to get card mappings", "error", err)
 		RespondError(w, r, "Failed to get card mappings", http.StatusInternalServerError)
@@ -151,31 +143,50 @@ func (h *MappingsHandler) fetchThumbnails(ctx context.Context, authToken string,
 			defer func() { <-semaphore }() // Release
 
 			// Find server for this mapping
-			var serverURL string
+			var matchingServer *ServerInfo
 			for _, srv := range h.servers {
 				if srv.ID == m.PlexServerID {
-					if len(srv.URLs) > 0 {
-						serverURL = srv.URLs[0]
-					}
+					matchingServer = &srv
 					break
 				}
 			}
 
-			if serverURL == "" {
+			if matchingServer == nil {
 				log.Warn("Server not found for mapping", "server_id", m.PlexServerID, "mapping_id", m.ID)
 				return
 			}
 
-			// Fetch metadata
-			plexClient := h.newPlexClient(serverURL, m.PlexServerID, authToken, h.devMode)
-			apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
-			metadata, err := plexClient.GetMetadata(apiCtx, m.MediaID)
-			cancel()
+			// Fetch metadata with retry across server URLs
+			type metadataResult struct {
+				metadata *plex.MediaMetadata
+				url      string
+			}
+
+			helperServer := helpers.ServerInfo{
+				ID:   matchingServer.ID,
+				Name: matchingServer.Name,
+				URLs: matchingServer.URLs,
+			}
+
+			result, err := helpers.TryServerURLs(
+				ctx,
+				helperServer,
+				authToken,
+				h.devMode,
+				func(plexClient PlexClientInterface) (metadataResult, error) {
+					metadata, err := plexClient.GetMetadata(ctx, m.MediaID)
+					return metadataResult{metadata: metadata, url: matchingServer.URLs[0]}, err
+				},
+				h.newPlexClient,
+			)
 
 			if err != nil {
 				log.Warn("Failed to fetch metadata for mapping", "mapping_id", m.ID, "error", err)
 				return
 			}
+
+			metadata := result.metadata
+			serverURL := result.url
 
 			// Build full thumbnail URL
 			if metadata.Thumb != "" {
@@ -421,8 +432,8 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
 		return
@@ -434,14 +445,6 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprint(w, `{"results":[]}`)
-		return
-	}
-
-	// Get user from database to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -458,24 +461,22 @@ func (h *MappingsHandler) SearchJSON(w http.ResponseWriter, r *http.Request) {
 	// Launch goroutine for each server
 	for _, server := range h.servers {
 		go func(srv ServerInfo) {
-			// Try all URLs for this server until one works
-			var items []plex.MediaItem
-			var lastErr error
-
-			for _, url := range srv.URLs {
-				plexClient := h.newPlexClient(url, srv.ID, user.PlexAuthToken, h.devMode)
-
-				// Add timeout for external API call
-				apiCtx, cancel := context.WithTimeout(ctx, constants.PlexAPITimeout)
-				items, lastErr = plexClient.Search(apiCtx, query)
-				cancel()
-
-				if lastErr == nil {
-					// Success! Use these results
-					break
-				}
-				// Try next URL
+			helperServer := helpers.ServerInfo{
+				ID:   srv.ID,
+				Name: srv.Name,
+				URLs: srv.URLs,
 			}
+
+			items, lastErr := helpers.TryServerURLs(
+				ctx,
+				helperServer,
+				user.PlexAuthToken,
+				h.devMode,
+				func(plexClient PlexClientInterface) ([]plex.MediaItem, error) {
+					return plexClient.Search(ctx, query)
+				},
+				h.newPlexClient,
+			)
 
 			resultChan <- serverResult{
 				serverName: srv.Name,
@@ -575,18 +576,10 @@ func (h *MappingsHandler) GenerateStickers(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 	log := middleware.GetLogger(ctx)
 
-	// Get user from context
-	userID, ok := middleware.GetUserIDFromContext(ctx)
+	// Get authenticated user from context
+	user, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		RespondError(w, r, "Not authenticated", http.StatusUnauthorized)
-		return
-	}
-
-	// Get user to retrieve auth token
-	user, err := h.db.GetUserByID(ctx, userID)
-	if err != nil {
-		log.Error("Failed to get user", "error", err)
-		RespondError(w, r, "Failed to get user", http.StatusInternalServerError)
 		return
 	}
 
@@ -630,8 +623,8 @@ func (h *MappingsHandler) GenerateStickers(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Verify ownership
-		if mapping.UserID != userID {
-			log.Warn("User does not own mapping", "user_id", userID, "mapping_id", id)
+		if mapping.UserID != user.ID {
+			log.Warn("User does not own mapping", "user_id", user.ID, "mapping_id", id)
 			continue
 		}
 

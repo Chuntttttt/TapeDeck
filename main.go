@@ -3,15 +3,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
+	"github.com/Chuntttttt/tapedeck/internal/app"
 	"github.com/Chuntttttt/tapedeck/internal/config"
 	"github.com/Chuntttttt/tapedeck/internal/constants"
 	"github.com/Chuntttttt/tapedeck/internal/db"
@@ -21,7 +20,6 @@ import (
 	"github.com/Chuntttttt/tapedeck/internal/middleware"
 	"github.com/Chuntttttt/tapedeck/internal/plex"
 	"github.com/Chuntttttt/tapedeck/internal/router"
-	"github.com/Chuntttttt/tapedeck/internal/services"
 	"github.com/Chuntttttt/tapedeck/templates/pages"
 )
 
@@ -115,17 +113,17 @@ func main() {
 	// Initialize auth handler (needed for both normal operation and setup)
 	authHandler := handlers.NewAuthHandler(sessionStore, plexAuth, database)
 
+	// Create app initializer
+	initializer := &app.Initializer{
+		ConfigPath:   cfg.ConfigPath(),
+		SessionStore: sessionStore,
+		Database:     database,
+		DevMode:      cfg.DevMode,
+	}
+
 	// Declare handler variables that will be initialized either at startup or after setup
-	// These start as nil and are populated by initializeHandlers() below.
-	var mediaHandler *handlers.MediaHandler
-	var mediaDetailHandler *handlers.MediaDetailHandler
-	var mappingsHandler *handlers.MappingsHandler
-	var playbackHandler *handlers.PlaybackHandler
-	var playHandler *handlers.PlayHandler
-	var pairingHandler *handlers.PairingHandler
-	var statusHandler *handlers.StatusHandler
+	var appHandlers *app.Handlers
 	var settingsHandler *handlers.SettingsHandler
-	var haClient *ha.HAClient
 
 	// initializeHandlers sets up all runtime handlers from config.yml
 	//
@@ -133,125 +131,15 @@ func main() {
 	// 1. At startup if config.yml exists and is valid
 	// 2. After setup wizard completion (via callback)
 	// 3. After settings update (via callback)
-	//
-	// Handler initialization is synchronous and atomic - either all handlers are
-	// initialized or the function returns an error. This ensures that routes
-	// protected by requireInitialized middleware always have valid handlers.
-	//
-	// The HandlersReady function (used by requireInitialized middleware) checks
-	// that all handlers are non-nil before allowing access to protected routes.
 	initializeHandlers := func() error {
-		logger.Info("Initializing handlers after setup completion")
-
-		// Close existing HA client if it exists
-		if haClient != nil {
-			logger.Info("Closing existing Home Assistant connection")
-			haClient.Close()
+		var err error
+		var existingHAClient *ha.HAClient
+		if appHandlers != nil {
+			existingHAClient = appHandlers.HAClient
 		}
-
-		// Reload config
-		runtimeCfg, err := config.LoadRuntimeConfig(cfg.ConfigPath())
-		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
-		}
-
-		// Load HA token from database
-		ctx := context.Background()
-		settings, err := database.GetSettings(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to load Home Assistant token from database: %w", err)
-		}
-		haToken := settings.HAToken
-
-		// Build list of servers with their best connections
-		var servers []handlers.ServerInfo
-		var plexURL string      // For legacy handlers that need a single URL
-		var plexServerID string // For playback handler
-
-		for _, srv := range runtimeCfg.PlexServers {
-			// Skip shared servers (not owned by the user)
-			// Shared servers cause 401 Unauthorized errors with direct connection URLs
-			if srv.Owner == "Shared" || srv.Owner == "" {
-				logger.Info("Skipping shared/unowned server", "server", srv.Name, "owner", srv.Owner)
-				continue
-			}
-
-			// Collect all connection URLs, preferring non-docker addresses
-			var urls []string
-			var dockerURLs []string
-			for _, conn := range srv.Connections {
-				// Separate docker internal addresses (172.17.0.x) from regular addresses
-				if strings.Contains(conn.URI, "172-17-0-") {
-					dockerURLs = append(dockerURLs, conn.URI)
-				} else {
-					urls = append(urls, conn.URI)
-				}
-			}
-
-			// If no non-docker URLs, use docker URLs as fallback
-			if len(urls) == 0 && len(dockerURLs) > 0 {
-				logger.Warn("Only docker internal addresses available for server, using as fallback", "server", srv.Name)
-				urls = dockerURLs
-			}
-
-			if len(urls) > 0 {
-				servers = append(servers, handlers.ServerInfo{
-					ID:   srv.ID,
-					Name: srv.Name,
-					URLs: urls,
-				})
-
-				// Use first server's first URL for legacy handlers
-				if plexURL == "" {
-					plexURL = urls[0]
-					plexServerID = srv.ID
-				}
-			}
-		}
-
-		// Initialize handlers
-		mediaHandler = handlers.NewMediaHandler(sessionStore, database, servers, cfg.DevMode)
-		mediaDetailHandler = handlers.NewMediaDetailHandler(sessionStore, database, servers, cfg.DevMode, runtimeCfg.AppleTVs)
-		mappingsHandler = handlers.NewMappingsHandler(sessionStore, database, servers, cfg.DevMode)
-		playbackHandler = handlers.NewPlaybackHandler(database, plexServerID)
-		playHandler = handlers.NewPlayHandler(sessionStore, database, servers, runtimeCfg.AppleTVs, runtimeCfg.HomeAssistant.URL, haToken, cfg.DevMode)
-
-		// Initialize Home Assistant WebSocket client
-		haClient = ha.NewHAClient(runtimeCfg.HomeAssistant.URL, haToken)
-		if err := haClient.Connect(); err != nil {
-			logger.Warn("Failed to connect to Home Assistant", "error", err)
-		}
-
-		// Initialize Home Assistant REST client
-		haRest := ha.NewRestClient(runtimeCfg.HomeAssistant.URL, haToken, cfg.DevMode)
-
-		// Initialize playback service
-		playbackService := services.NewPlaybackService(database, haRest)
-
-		// Initialize pairing handler
-		pairingHandler = handlers.NewPairingHandler(
-			sessionStore,
-			database,
-			haClient,
-			playbackService,
-			cfg.ConfigPath(),
-			cfg.DevMode,
-		)
-
-		// Initialize status handler
-		statusHandler = handlers.NewStatusHandler(haClient, cfg.ConfigPath(), database)
-
-		// Sanity check: ensure all handlers were initialized
-		// This should never fail unless there's a programming error above
-		if mediaHandler == nil || mediaDetailHandler == nil || mappingsHandler == nil || playbackHandler == nil ||
-			playHandler == nil || pairingHandler == nil || statusHandler == nil {
-			return fmt.Errorf("handler initialization incomplete - this is a programming error")
-		}
-
-		logger.Info("All handlers initialized successfully")
-		return nil
+		appHandlers, err = initializer.Initialize(existingHAClient)
+		return err
 	}
-
 	// Initialize setup handler (always available)
 	setupHandler := handlers.NewSetupHandler(sessionStore, cfg.ConfigPath(), plexAuth, database, cfg.DevMode, initializeHandlers)
 
@@ -264,11 +152,20 @@ func main() {
 			log.Fatalf("Failed to initialize handlers: %v", err)
 		}
 		// Set up cleanup for HA client
-		if haClient != nil {
-			defer haClient.Close()
+		if appHandlers != nil && appHandlers.HAClient != nil {
+			defer appHandlers.HAClient.Close()
 		}
 	} else {
 		logger.Info("Config not ready - setup wizard will initialize handlers after completion")
+	}
+
+	// Create auth middleware chain: WithUserID -> WithUser -> RequireAuth
+	authMiddlewareChain := func(next http.Handler) http.Handler {
+		return middleware.WithUserID(sessionStore)(
+			middleware.WithUser(sessionStore, database)(
+				middleware.RequireAuth(sessionStore)(next),
+			),
+		)
 	}
 
 	// Create router dependencies
@@ -276,23 +173,57 @@ func main() {
 		AuthHandler:     authHandler,
 		SetupHandler:    setupHandler,
 		SettingsHandler: settingsHandler,
-		AuthMiddleware:  middleware.RequireAuth(sessionStore),
+		AuthMiddleware:  authMiddlewareChain,
 
 		// Handler getters that return current values (updated after setup/settings changes)
-		GetMappingsHandler:    func() *handlers.MappingsHandler { return mappingsHandler },
-		GetMediaHandler:       func() *handlers.MediaHandler { return mediaHandler },
-		GetMediaDetailHandler: func() *handlers.MediaDetailHandler { return mediaDetailHandler },
-		GetPairingHandler:     func() *handlers.PairingHandler { return pairingHandler },
-		GetPlaybackHandler:    func() *handlers.PlaybackHandler { return playbackHandler },
-		GetPlayHandler:        func() *handlers.PlayHandler { return playHandler },
-		GetStatusHandler:      func() *handlers.StatusHandler { return statusHandler },
+		GetMappingsHandler: func() *handlers.MappingsHandler {
+			if appHandlers == nil {
+				return nil
+			}
+			return appHandlers.Mappings
+		},
+		GetMediaHandler: func() *handlers.MediaHandler {
+			if appHandlers == nil {
+				return nil
+			}
+			return appHandlers.Media
+		},
+		GetMediaDetailHandler: func() *handlers.MediaDetailHandler {
+			if appHandlers == nil {
+				return nil
+			}
+			return appHandlers.MediaDetail
+		},
+		GetPairingHandler: func() *handlers.PairingHandler {
+			if appHandlers == nil {
+				return nil
+			}
+			return appHandlers.Pairing
+		},
+		GetPlaybackHandler: func() *handlers.PlaybackHandler {
+			if appHandlers == nil {
+				return nil
+			}
+			return appHandlers.Playback
+		},
+		GetPlayHandler: func() *handlers.PlayHandler {
+			if appHandlers == nil {
+				return nil
+			}
+			return appHandlers.Play
+		},
+		GetStatusHandler: func() *handlers.StatusHandler {
+			if appHandlers == nil {
+				return nil
+			}
+			return appHandlers.Status
+		},
 
 		// HandlersReady is used by requireInitialized middleware to check if
 		// handlers have been initialized. Returns true only if all runtime
 		// handlers are non-nil (i.e., initializeHandlers() has been called).
 		HandlersReady: func() bool {
-			return mediaHandler != nil && mediaDetailHandler != nil && mappingsHandler != nil && pairingHandler != nil &&
-				playbackHandler != nil && playHandler != nil && statusHandler != nil
+			return appHandlers != nil
 		},
 	}
 

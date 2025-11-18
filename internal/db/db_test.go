@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -418,6 +420,144 @@ func TestUpdateThumbnailURL(t *testing.T) {
 	if updated.ThumbnailURL != thumbnailURL {
 		t.Errorf("expected thumbnail URL %s, got: %s", thumbnailURL, updated.ThumbnailURL)
 	}
+}
+
+func TestTransactions(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() { _ = db.Close() }()
+
+	ctx := context.Background()
+
+	// Create a user first (needed for foreign key constraint)
+	user := models.NewUser("txtest_user", "tx123", "token_tx")
+	userID, err := db.CreateUser(ctx, user)
+	if err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	// Test rollback prevents changes
+	t.Run("rollback prevents changes", func(t *testing.T) {
+		tx, err := db.BeginTx(ctx)
+		if err != nil {
+			t.Fatalf("BeginTx() failed: %v", err)
+		}
+
+		// Insert a card mapping within transaction (simpler than user with encryption)
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			userID, "rollback-tag", "movie", "123", "Test Movie", "server-1", "media_player.test", "2024-01-01", "2024-01-01")
+		if err != nil {
+			t.Fatalf("failed to insert mapping in transaction: %v", err)
+		}
+
+		// Rollback
+		if err := tx.Rollback(); err != nil {
+			t.Fatalf("Rollback() failed: %v", err)
+		}
+
+		// Verify mapping doesn't exist
+		_, err = db.GetCardMappingByTagID(ctx, "rollback-tag")
+		if err == nil {
+			t.Error("expected mapping not found error after rollback, but mapping was found")
+		}
+	})
+
+	// Test commit persists changes
+	t.Run("commit persists changes", func(t *testing.T) {
+		tx, err := db.BeginTx(ctx)
+		if err != nil {
+			t.Fatalf("BeginTx() failed: %v", err)
+		}
+
+		// Insert a card mapping within transaction
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			userID, "commit-tag", "movie", "456", "Test Movie 2", "server-1", "media_player.test", "2024-01-01", "2024-01-01")
+		if err != nil {
+			t.Fatalf("failed to insert mapping in transaction: %v", err)
+		}
+
+		// Commit
+		if err := tx.Commit(); err != nil {
+			t.Fatalf("Commit() failed: %v", err)
+		}
+
+		// Verify mapping exists
+		retrieved, err := db.GetCardMappingByTagID(ctx, "commit-tag")
+		if err != nil {
+			t.Fatalf("expected mapping to exist after commit, got error: %v", err)
+		}
+		if retrieved.MediaTitle != "Test Movie 2" {
+			t.Errorf("expected media title 'Test Movie 2', got: %s", retrieved.MediaTitle)
+		}
+	})
+
+	// Test WithTransaction helper for multi-step operations
+	t.Run("WithTransaction commits on success", func(t *testing.T) {
+		err := db.WithTransaction(ctx, func(tx *sql.Tx) error {
+			// Insert two mappings within the same transaction
+			_, err := tx.ExecContext(ctx,
+				`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				userID, "tx-tag-1", "movie", "111", "Movie 1", "server-1", "media_player.test", "2024-01-01", "2024-01-01")
+			if err != nil {
+				return err
+			}
+			_, err = tx.ExecContext(ctx,
+				`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				userID, "tx-tag-2", "movie", "222", "Movie 2", "server-1", "media_player.test", "2024-01-01", "2024-01-01")
+			return err
+		})
+		if err != nil {
+			t.Fatalf("WithTransaction() failed: %v", err)
+		}
+
+		// Verify both mappings exist
+		mapping1, err := db.GetCardMappingByTagID(ctx, "tx-tag-1")
+		if err != nil {
+			t.Fatalf("expected mapping 1 to exist: %v", err)
+		}
+		if mapping1.MediaTitle != "Movie 1" {
+			t.Errorf("expected 'Movie 1', got: %s", mapping1.MediaTitle)
+		}
+
+		mapping2, err := db.GetCardMappingByTagID(ctx, "tx-tag-2")
+		if err != nil {
+			t.Fatalf("expected mapping 2 to exist: %v", err)
+		}
+		if mapping2.MediaTitle != "Movie 2" {
+			t.Errorf("expected 'Movie 2', got: %s", mapping2.MediaTitle)
+		}
+	})
+
+	// Test WithTransaction rollback on error
+	t.Run("WithTransaction rolls back on error", func(t *testing.T) {
+		err := db.WithTransaction(ctx, func(tx *sql.Tx) error {
+			// Insert first mapping
+			_, err := tx.ExecContext(ctx,
+				`INSERT INTO card_mappings (user_id, tag_id, media_type, media_id, media_title, plex_server_id, apple_tv_entity, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				userID, "rollback-tag-1", "movie", "333", "Movie 3", "server-1", "media_player.test", "2024-01-01", "2024-01-01")
+			if err != nil {
+				return err
+			}
+
+			// Return an error to trigger rollback
+			return fmt.Errorf("intentional error for rollback test")
+		})
+		if err == nil {
+			t.Fatal("expected error from WithTransaction, got nil")
+		}
+
+		// Verify mapping doesn't exist
+		_, err = db.GetCardMappingByTagID(ctx, "rollback-tag-1")
+		if err == nil {
+			t.Error("expected mapping not to exist after rollback")
+		}
+	})
 }
 
 // setupTestDB creates a temporary database for testing

@@ -71,6 +71,47 @@ func (db *DB) Close() error {
 	return db.conn.Close()
 }
 
+// BeginTx starts a new database transaction with default options
+func (db *DB) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return db.conn.BeginTx(ctx, nil)
+}
+
+// WithTransaction executes a function within a database transaction.
+// If the function returns an error, the transaction is rolled back.
+// Otherwise, the transaction is committed.
+// Example usage:
+//
+//	err := db.WithTransaction(ctx, func(tx *sql.Tx) error {
+//	    // Perform multiple operations
+//	    _, err := tx.ExecContext(ctx, "INSERT INTO users ...")
+//	    if err != nil {
+//	        return err
+//	    }
+//	    _, err = tx.ExecContext(ctx, "INSERT INTO settings ...")
+//	    return err
+//	})
+func (db *DB) WithTransaction(ctx context.Context, fn func(*sql.Tx) error) error {
+	tx, err := db.BeginTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	// Execute the function
+	if err := fn(tx); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("transaction error: %w (rollback error: %v)", err, rbErr)
+		}
+		return err
+	}
+
+	// Commit if no error
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
 // RunMigrations runs all pending database migrations from the given directory
 func (db *DB) RunMigrations(migrationsPath string) error {
 	driver, err := sqlite.WithInstance(db.conn, &sqlite.Config{})

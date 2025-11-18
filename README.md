@@ -129,17 +129,20 @@ air
 ### Running Tests
 
 ```bash
+# Run all tests with race detector (recommended)
+go test -v -race ./...
+
 # Run all tests
 go test ./...
-
-# Run with verbose output
-go test -v ./...
 
 # Run specific package
 go test ./internal/config
 
 # Run with coverage
 go test -cover ./...
+
+# Run all checks (formatting, linting, and tests) - recommended before commits
+./checks.sh
 ```
 
 ### Code Formatting
